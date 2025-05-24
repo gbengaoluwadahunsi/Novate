@@ -5,6 +5,8 @@ import Link from "next/link"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
+ import logo from "@/public/novateLogo-removebg-preview.png"
+import Image from "next/image"
 import { ArrowRight, CheckCircle2, Mic, FileText, Clock, BarChart3, Shield, Sparkles, ChevronRight } from "lucide-react"
 
 // Medical Note Component for Hero
@@ -758,10 +760,9 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <div className="relative h-12 w-12 mr-2 rounded-full bg-[#0ea5e9] flex items-center justify-center">
-                  <span className="text-white font-bold text-2xl">N</span>
-                </div>
-                <span className="text-2xl font-bold text-[#0ea5e9]">Novate</span>
+                <Image src={logo} alt="Novate AI Logo" className="h-12 w-12 mr-2 rounded-full" width={48} height={48} />
+                
+                <span className="text-2xl font-bold text-[#0ea5e9]">Novate AI</span>
               </div>
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 Transforming medical documentation with AI-powered voice recognition.

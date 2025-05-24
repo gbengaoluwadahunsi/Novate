@@ -1,11 +1,14 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { FileText, Home, Mic, Settings } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import logo from "@/public/novateLogo-removebg-preview.png"
+
 
 // Simplified route structure with only core features
 const routes = [
@@ -46,11 +49,9 @@ export function Sidebar({ className }: SidebarProps) {
     <div className={cn("flex flex-col h-screen border-r bg-white dark:bg-gray-950", className)}>
       <div className="p-6 border-b">
         <Link href="/">
-          <div className="flex items-center gap-2">
-            <div className="relative h-8 w-8 bg-[#2563eb] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-lg">N</span>
-            </div>
-            <span className="font-bold text-[#2563eb]">Novate</span>
+          <div className="flex items-center gap-1">
+            <Image src={logo} alt="Novate AI Logo" className="h-12 w-12  rounded-full" width={48} height={48} />
+            <span className="font-bold text-[#2563eb]">Novate AI</span>
           </div>
         </Link>
       </div>

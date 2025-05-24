@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { FileText, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import Image from "next/image"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function Dashboard() {

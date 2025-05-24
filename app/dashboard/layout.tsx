@@ -6,7 +6,9 @@ import { Sidebar } from "@/components/dashboard/sidebar"
 import MobileSidebar from "@/components/dashboard/mobile-sidebar"
 import { NotesProvider } from "@/contexts/notes-context"
 
-export default function DashboardLayout({ children }) {
+import { PropsWithChildren } from "react"
+
+export default function DashboardLayout({ children }: PropsWithChildren<{}>) {
   const [isMounted, setIsMounted] = useState(false)
   const pathname = usePathname()
 
