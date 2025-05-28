@@ -1,12 +1,13 @@
 "use client"
 
 import type React from "react"
-
+import Image from "next/image"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import logo from "@/public/novateLogo-removebg-preview.png"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
 
@@ -32,10 +33,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <div className="flex justify-center mb-4">
-            <div className="relative h-16 w-16 rounded-full bg-emerald-600 flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">MK</span>
+        <CardHeader className="">
+          <div className="flex justify-center">
+            <div className="relative items-center justify-center">
+              <Image src={logo} alt="Novate AI Logo" className="h-20 w-20 rounded-full" />
             </div>
           </div>
           <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
@@ -82,27 +83,27 @@ export default function LoginPage() {
                 <input
                   type="checkbox"
                   id="remember"
-                  className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
+                  className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
                 />
                 <Label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400">
                   Remember me
                 </Label>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={isLoading}>
+            <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-700" disabled={isLoading}>
               {isLoading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
           <div className="text-sm text-center text-gray-500 dark:text-gray-400">
-            <a href="#" className="text-emerald-600 hover:underline">
+            <a href="#" className="text-blue-500 hover:underline">
               Forgot your password?
             </a>
           </div>
           <div className="text-sm text-center text-gray-500 dark:text-gray-400">
             Don't have an account?{" "}
-            <a href="/register" className="text-emerald-600 hover:underline">
+            <a href="/register" className="text-blue-500 hover:underline">
               Sign up
             </a>
           </div>

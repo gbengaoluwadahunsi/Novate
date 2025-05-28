@@ -1,12 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import logo from "@/public/novateLogo-removebg-preview.png"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { EyeIcon, EyeOffIcon, ArrowLeft, CheckCircle2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -28,12 +30,12 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
 
-  const handleChange = (e) => {
+  const handleChange = (e: { target: { name: any; value: any } }) => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSelectChange = (name, value) => {
+  const handleSelectChange = (name: string, value: string) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -45,7 +47,7 @@ export default function RegisterPage() {
     setStep((prev) => prev - 1)
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault()
     setIsLoading(true)
 
@@ -75,9 +77,9 @@ export default function RegisterPage() {
 
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-4">
-              <div className="relative h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">N</span>
+            <div className="flex justify-center ">
+              <div className="relative  flex items-center justify-center">
+                <Image src={logo} alt="Novate AI Logo" className="h-20 w-20 rounded-full" />
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>

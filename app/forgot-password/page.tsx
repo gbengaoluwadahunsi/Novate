@@ -2,10 +2,12 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import logo from "@/public/novateLogo-removebg-preview.png"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, CheckCircle2 } from "lucide-react"
 
@@ -14,7 +16,7 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: { preventDefault: () => void }) => {
     e.preventDefault()
     setIsLoading(true)
 
@@ -44,9 +46,15 @@ export default function ForgotPasswordPage() {
 
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-4">
-              <div className="relative h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center">
-                <span className="text-white font-bold text-2xl">N</span>
+            <div className="flex justify-center ">
+              <div className="relative  flex items-center justify-center">
+                <Image
+                  src={logo}
+                  alt="Novate AI Logo"
+                  className="h-20 w-20  rounded-full"
+                 
+                />
+               
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">Forgot password</CardTitle>

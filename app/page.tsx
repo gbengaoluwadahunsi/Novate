@@ -406,7 +406,7 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="text-4xl md:text-6xl font-bold mb-6 text-[#0ea5e9]"
               >
-                Novate
+                Novate Scribe
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: -20 }}
@@ -473,7 +473,7 @@ export default function HomePage() {
         <div className="container mx-auto max-w-6xl relative z-10">
           <SectionHeader
             title="Powerful Features"
-            subtitle="Discover how Novate revolutionizes medical documentation with AI-powered tools"
+            subtitle="Discover how Novate Scribe revolutionizes medical documentation with AI-powered tools"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -524,7 +524,7 @@ export default function HomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             <StatsCounter value={85} label="Time Saved (%)" delay={0.1} />
             <StatsCounter value={99} label="Accuracy (%)" delay={0.2} />
-            <StatsCounter value={5000} label="Doctors Using Novate" delay={0.3} />
+            <StatsCounter value={5000} label="Doctors Using Novate Scribe" delay={0.3} />
             <StatsCounter value={1000000} label="Notes Processed" delay={0.4} />
           </div>
         </div>
@@ -595,14 +595,14 @@ export default function HomePage() {
             <TestimonialCard
               name="Dr. Sarah Johnson"
               role="Cardiologist"
-              content="Novate has cut my documentation time in half. The accuracy with medical terminology is impressive, and the structured templates make my notes more consistent."
+              content="Novate Scribe has cut my documentation time in half. The accuracy with medical terminology is impressive, and the structured templates make my notes more consistent."
               image="/placeholder.svg?height=100&width=100"
               delay={0.1}
             />
             <TestimonialCard
               name="Dr. Michael Chen"
               role="Family Physician"
-              content="As someone who sees 30+ patients a day, Novate has been a game-changer. I can now focus more on my patients instead of paperwork."
+              content="As someone who sees 30+ patients a day, Novate Scribe has been a game-changer. I can now focus more on my patients instead of paperwork."
               image="/placeholder.svg?height=100&width=100"
               delay={0.2}
             />
@@ -711,7 +711,7 @@ export default function HomePage() {
               className="text-xl text-blue-100 mb-8"
             >
               Join thousands of healthcare professionals worldwide who are saving time and improving patient care with
-              Novate.
+              Novate Scribe.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -760,9 +760,9 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center mb-4">
-                <Image src={logo} alt="Novate AI Logo" className="h-12 w-12 mr-2 rounded-full" width={48} height={48} />
+                <Image src={logo} alt="Novate Scribe Logo" className="h-12 w-12 mr-2 rounded-full" width={48} height={48} />
                 
-                <span className="text-2xl font-bold text-[#0ea5e9]">Novate AI</span>
+                <span className="text-2xl font-bold text-[#0ea5e9]">Novate Scribe </span>
               </div>
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 Transforming medical documentation with AI-powered voice recognition.
@@ -881,7 +881,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-200 dark:border-gray-700 mt-12 pt-8 text-center text-gray-500 dark:text-gray-400">
-            <p>&copy; {new Date().getFullYear()} Novate. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()} Novate Scribe. All rights reserved.</p>
           </div>
         </div>
       </footer>
