@@ -40,7 +40,7 @@ export function Navbar() {
               <span className="text-white font-bold text-2xl">N</span>
             </div> */}
             <Image src={logo} alt="Novate AI Logo" className="h-12 w-12 mr-2 rounded-full" width={48} height={48} />
-            <span className="text-2xl font-bold text-[#2563eb]">Novate Scribe</span>
+            <span className="text-2xl font-bold text-[#2563eb]">NovateScribe<sup className="text-yellow-300">TM</sup></span>
           </Link>
 
           {/* Desktop Navigation */}
