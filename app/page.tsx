@@ -5,7 +5,7 @@ import Link from "next/link"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
- import logo from "@/public/novateLogo-removebg-preview.png"
+ import logo from "@/public/novateLogo-removebg-preview2.png"
 import Image from "next/image"
 import { ArrowRight, CheckCircle2, Mic, FileText, Clock, BarChart3, Shield, Sparkles, ChevronRight } from "lucide-react"
 
@@ -406,7 +406,7 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="text-4xl md:text-6xl font-bold mb-6 text-[#0ea5e9]"
               >
-                NovateScribe<sup className="text-yellow-300">TM</sup>
+                NovateScribe<sup className="text-black font-normal">TM</sup>
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: -20 }}
@@ -602,7 +602,7 @@ export default function HomePage() {
             <TestimonialCard
               name="Dr. Michael Chen"
               role="Family Physician"
-              content="As someone who sees 30+ patients a day,  NovateScribe<sup>TM</sup> has been a game-changer. I can now focus more on my patients instead of paperwork."
+              content="As someone who sees 30+ patients a day,  NovateScribe has been a game-changer. I can now focus more on my patients instead of paperwork."
               image="/placeholder.svg?height=100&width=100"
               delay={0.2}
             />
@@ -711,7 +711,7 @@ export default function HomePage() {
               className="text-xl text-blue-100 mb-8"
             >
               Join thousands of healthcare professionals worldwide who are saving time and improving patient care with
-               NovateScribe<sup className="text-yellow-300">TM</sup>.
+               NovateScribe<sup className="text-black font-normal">TM</sup>.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -759,11 +759,11 @@ export default function HomePage() {
         <div className="container mx-auto max-w-6xl">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center mb-4">
-                <Image src={logo} alt=" NovateScribe Logo" className="h-12 w-12 mr-2 rounded-full" width={48} height={48} />
+             
+                <Image src={logo} alt=" NovateScribe Logo" className=" mr-2 rounded-full" width={120} height={120} />
                 
-                <span className="text-2xl font-bold text-[#0ea5e9]"> NovateScribe<sup className="text-yellow-300">TM</sup> </span>
-              </div>
+
+             
               <p className="text-gray-500 dark:text-gray-400 mb-4">
                 Transforming medical documentation with AI-powered voice recognition.
               </p>
@@ -881,7 +881,7 @@ export default function HomePage() {
             </div>
           </div>
           <div className="border-t border-gray-200 dark:border-gray-700 mt-12 pt-8 text-center text-gray-500 dark:text-gray-400">
-            <p>&copy; {new Date().getFullYear()}  NovateScribe<sup className="text-yellow-300">TM</sup>. All rights reserved.</p>
+            <p>&copy; {new Date().getFullYear()}  NovateScribe<sup className="text-black font-normal">TM</sup>. All rights reserved.</p>
           </div>
         </div>
       </footer>

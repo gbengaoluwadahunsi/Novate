@@ -5,7 +5,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
-import logo from "@/public/novateLogo-removebg-preview.png"
+import logo from "@/public/novateLogo-removebg-preview2.png"
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
 
@@ -36,11 +36,8 @@ export function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            {/* <div className="relative h-12 w-12 mr-2 rounded-full bg-[#2563eb] flex items-center justify-center">
-              <span className="text-white font-bold text-2xl">N</span>
-            </div> */}
-            <Image src={logo} alt="Novate AI Logo" className="h-12 w-12 mr-2 rounded-full" width={48} height={48} />
-            <span className="text-2xl font-bold text-[#2563eb]">NovateScribe<sup className="text-yellow-300">TM</sup></span>
+            <Image src={logo} alt="Novate AI Logo" className=" rounded-full" width={160} height={160} />
+
           </Link>
 
           {/* Desktop Navigation */}
