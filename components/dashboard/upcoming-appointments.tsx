@@ -63,7 +63,10 @@ export function UpcomingAppointments() {
               <Progress
                 value={appointment.progress}
                 className="h-1.5"
-                indicatorClassName={appointment.progress === 100 ? "bg-teal-600" : "bg-amber-500"}
+                style={{
+                  // @ts-ignore
+                  "--progress-indicator": appointment.progress === 100 ? "#14b8a6" : "#f59e0b",
+                }}
               />
             </div>
           ))}

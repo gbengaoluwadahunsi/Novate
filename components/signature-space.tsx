@@ -1,147 +1,255 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Pen, Trash2, Save } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { 
+  PenTool, 
+  Download, 
+  Upload, 
+  Trash2, 
+  Save, 
+  CheckCircle,
+  User,
+  Calendar,
+  Clock
+} from "lucide-react"
 
 interface SignatureSpaceProps {
-  doctorName: string
-  registrationNumber: string
-  clinic?: string
-  onSave?: (signatureDataUrl: string) => void
+  doctorName?: string
+  onSave?: (signatureData: any) => void
 }
 
-export default function SignatureSpace({
-  doctorName,
-  registrationNumber,
-  clinic = "Novate Medical Center",
-  onSave,
+export default function SignatureSpace({ 
+  doctorName = "Dr. Sarah Johnson",
+  onSave 
 }: SignatureSpaceProps) {
-  const [isDrawing, setIsDrawing] = useState(false)
-  const [hasSignature, setHasSignature] = useState(false)
+  const [signatureData, setSignatureData] = useState({
+    type: "digital",
+    date: new Date().toISOString().split("T")[0],
+    time: new Date().toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }),
+    notes: "",
+    signature: null as string | null,
+  })
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const lastPositionRef = useRef({ x: 0, y: 0 })
+  const [isDrawing, setIsDrawing] = useState(false)
+  const [context, setContext] = useState<CanvasRenderingContext2D | null>(null)
 
-  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    setIsDrawing(true)
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const rect = canvas.getBoundingClientRect()
-    const position = getEventPosition(e, rect)
-
-    lastPositionRef.current = position
-  }
-
-  const draw = (e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>) => {
-    if (!isDrawing) return
-
+  const initializeCanvas = () => {
     const canvas = canvasRef.current
     if (!canvas) return
 
     const ctx = canvas.getContext("2d")
     if (!ctx) return
 
-    const rect = canvas.getBoundingClientRect()
-    const currentPosition = getEventPosition(e, rect)
-
+    ctx.strokeStyle = "#000"
     ctx.lineWidth = 2
     ctx.lineCap = "round"
-    ctx.strokeStyle = "#2563eb" // Blue color
+    setContext(ctx)
+  }
 
-    ctx.beginPath()
-    ctx.moveTo(lastPositionRef.current.x, lastPositionRef.current.y)
-    ctx.lineTo(currentPosition.x, currentPosition.y)
-    ctx.stroke()
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!context) return
+    setIsDrawing(true)
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
+    context.beginPath()
+    context.moveTo(e.clientX - rect.left, e.clientY - rect.top)
+  }
 
-    lastPositionRef.current = currentPosition
-    setHasSignature(true)
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing || !context) return
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    
+    context.lineTo(e.clientX - rect.left, e.clientY - rect.top)
+    context.stroke()
   }
 
   const stopDrawing = () => {
     setIsDrawing(false)
-  }
-
-  const getEventPosition = (
-    e: React.MouseEvent<HTMLCanvasElement> | React.TouchEvent<HTMLCanvasElement>,
-    rect: DOMRect,
-  ) => {
-    let clientX, clientY
-
-    if ("touches" in e) {
-      clientX = e.touches[0].clientX
-      clientY = e.touches[0].clientY
-    } else {
-      clientX = e.clientX
-      clientY = e.clientY
-    }
-
-    return {
-      x: clientX - rect.left,
-      y: clientY - rect.top,
+    if (context) {
+      context.closePath()
     }
   }
 
   const clearSignature = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-
-    const ctx = canvas.getContext("2d")
-    if (!ctx) return
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    setHasSignature(false)
+    if (!canvasRef.current || !context) return
+    context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+    setSignatureData({ ...signatureData, signature: null })
   }
 
   const saveSignature = () => {
-    if (!hasSignature || !canvasRef.current) return
+    if (!canvasRef.current) return
+    const signature = canvasRef.current.toDataURL()
+    setSignatureData({ ...signatureData, signature })
+  }
 
-    const dataUrl = canvasRef.current.toDataURL("image/png")
-    if (onSave) {
-      onSave(dataUrl)
+  const handleSave = () => {
+    if (signatureData.signature) {
+      const finalSignatureData = {
+        ...signatureData,
+        doctorName,
+        timestamp: new Date().toISOString(),
+      }
+      
+      if (onSave) {
+        onSave(finalSignatureData)
+      }
     }
   }
 
-  return (
-    <div className="border rounded-md p-4 space-y-4">
-      <div className="flex justify-between items-start">
-        <div>
-          <p className="font-medium">{doctorName}</p>
-          <p className="text-sm text-muted-foreground">{registrationNumber}</p>
-          <p className="text-sm text-muted-foreground">{clinic}</p>
-          <p className="text-sm text-muted-foreground">{new Date().toLocaleDateString()}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={clearSignature} disabled={!hasSignature}>
-            <Trash2 className="h-4 w-4 mr-1" /> Clear
-          </Button>
-          <Button size="sm" className="bg-blue-500 hover:bg-blue-600" onClick={saveSignature} disabled={!hasSignature}>
-            <Save className="h-4 w-4 mr-1" /> Save
-          </Button>
-        </div>
-      </div>
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
 
-      <div className="border-t pt-4">
-        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-md p-2 mb-2 flex items-center">
-          <Pen className="h-4 w-4 text-blue-500 mr-2" />
-          <span className="text-sm">Sign here</span>
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const result = event.target?.result as string
+      setSignatureData({ ...signatureData, signature: result })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  return (
+    <Card className="w-full max-w-md">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <PenTool className="h-5 w-5" />
+          Digital Signature
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Doctor Info */}
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span className="font-medium">{doctorName}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">
+              {signatureData.date} at {signatureData.time}
+            </span>
+          </div>
         </div>
-        <canvas
-          ref={canvasRef}
-          width={500}
-          height={150}
-          className="border rounded-md w-full bg-white touch-none"
-          onMouseDown={startDrawing}
-          onMouseMove={draw}
-          onMouseUp={stopDrawing}
-          onMouseLeave={stopDrawing}
-          onTouchStart={startDrawing}
-          onTouchMove={draw}
-          onTouchEnd={stopDrawing}
-        />
-      </div>
-    </div>
+
+        {/* Signature Type */}
+        <div className="space-y-2">
+          <Label htmlFor="type">Signature Type</Label>
+          <Select 
+            value={signatureData.type} 
+            onValueChange={(value) => setSignatureData({ ...signatureData, type: value })}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="digital">Digital Signature</SelectItem>
+              <SelectItem value="typed">Typed Signature</SelectItem>
+              <SelectItem value="uploaded">Uploaded Signature</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Signature Canvas */}
+        {signatureData.type === "digital" && (
+          <div className="space-y-2">
+            <Label>Draw Your Signature</Label>
+            <div className="border rounded-lg p-2">
+              <canvas
+                ref={canvasRef}
+                width={300}
+                height={150}
+                className="w-full h-auto border rounded cursor-crosshair"
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onLoad={initializeCanvas}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" variant="outline" onClick={clearSignature}>
+                <Trash2 className="h-4 w-4 mr-1" />
+                Clear
+              </Button>
+              <Button size="sm" variant="outline" onClick={saveSignature}>
+                <Save className="h-4 w-4 mr-1" />
+                Save
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Typed Signature */}
+        {signatureData.type === "typed" && (
+          <div className="space-y-2">
+            <Label htmlFor="typedSignature">Type Your Signature</Label>
+            <Input
+              id="typedSignature"
+              placeholder="Type your full name as signature..."
+              className="font-signature text-lg"
+            />
+          </div>
+        )}
+
+        {/* Upload Signature */}
+        {signatureData.type === "uploaded" && (
+          <div className="space-y-2">
+            <Label htmlFor="signatureUpload">Upload Signature Image</Label>
+            <Input
+              id="signatureUpload"
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+            />
+          </div>
+        )}
+
+        {/* Notes */}
+        <div className="space-y-2">
+          <Label htmlFor="notes">Additional Notes</Label>
+          <Input
+            id="notes"
+            placeholder="Optional notes..."
+            value={signatureData.notes}
+            onChange={(e) => setSignatureData({ ...signatureData, notes: e.target.value })}
+          />
+        </div>
+
+        {/* Save Button */}
+        <Button onClick={handleSave} className="w-full" disabled={!signatureData.signature}>
+          <CheckCircle className="h-4 w-4 mr-2" />
+          Apply Signature
+        </Button>
+
+        {/* Preview */}
+        {signatureData.signature && (
+          <div className="mt-4 p-3 border rounded-lg bg-muted/50">
+            <div className="text-xs text-muted-foreground mb-2">Signature Preview:</div>
+            <div className="text-sm">
+              <div className="font-medium">{doctorName}</div>
+              <div className="text-muted-foreground">
+                Digitally signed on {signatureData.date} at {signatureData.time}
+              </div>
+              {signatureData.notes && (
+                <div className="text-muted-foreground mt-1">"{signatureData.notes}"</div>
+              )}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   )
-}
+} 

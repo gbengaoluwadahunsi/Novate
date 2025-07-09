@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Globe, Check, ChevronDown, Languages, ImportIcon as Translate, Settings, Info } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -11,69 +11,137 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
+import { apiClient } from "@/lib/api-client"
+import type { SupportedLanguage } from "@/lib/api-client"
 
-// Language options
-const languages = [
-  { code: "en", name: "English", flag: "🇺🇸", progress: 100 },
-  { code: "es", name: "Spanish", flag: "🇪🇸", progress: 100 },
-  { code: "fr", name: "French", flag: "🇫🇷", progress: 100 },
-  { code: "de", name: "German", flag: "🇩🇪", progress: 100 },
-  { code: "it", name: "Italian", flag: "🇮🇹", progress: 100 },
-  { code: "pt", name: "Portuguese", flag: "🇵🇹", progress: 100 },
-  { code: "ar", name: "Arabic", flag: "🇸🇦", progress: 95 },
-  { code: "zh", name: "Chinese", flag: "🇨🇳", progress: 95 },
-  { code: "ja", name: "Japanese", flag: "🇯🇵", progress: 90 },
-  { code: "ru", name: "Russian", flag: "🇷🇺", progress: 90 },
-  { code: "hi", name: "Hindi", flag: "🇮🇳", progress: 85 },
-  { code: "tr", name: "Turkish", flag: "🇹🇷", progress: 80 },
-]
+// Language type definition
+type Language = {
+  code: string;
+  name: string;
+  flag: string;
+  progress: number;
+};
+
+// Language flags mapping
+const LANGUAGE_FLAGS: Record<string, string> = {
+  'en-US': '🇺🇸',
+  'en-GB': '🇬🇧',
+  'es-ES': '🇪🇸',
+  'fr-FR': '🇫🇷',
+  'de-DE': '🇩🇪',
+  'it-IT': '🇮🇹',
+  'pt-PT': '🇵🇹',
+  'ru-RU': '🇷🇺',
+  'ja-JP': '🇯🇵',
+  'ko-KR': '🇰🇷',
+  'zh-CN': '🇨🇳',
+  'ar-SA': '🇸🇦',
+  'hi-IN': '🇮🇳',
+  'ms-MY': '🇲🇾',
+  'nl-NL': '🇳🇱',
+  'sv-SE': '🇸🇪',
+  'no-NO': '🇳🇴',
+  'da-DK': '🇩🇰',
+}
 
 // Sample medical phrases in different languages
 const samplePhrases = [
   {
     english: "Where does it hurt?",
     translations: {
-      es: "¿Dónde le duele?",
-      fr: "Où avez-vous mal?",
-      de: "Wo tut es weh?",
-      zh: "哪里疼?",
-      ar: "أين يؤلمك؟",
+      'es-ES': "¿Dónde le duele?",
+      'fr-FR': "Où avez-vous mal?",
+      'de-DE': "Wo tut es weh?",
+      'zh-CN': "哪里疼?",
+      'ar-SA': "أين يؤلمك؟",
     },
   },
   {
     english: "How long have you had these symptoms?",
     translations: {
-      es: "¿Cuánto tiempo ha tenido estos síntomas?",
-      fr: "Depuis combien de temps avez-vous ces symptômes?",
-      de: "Wie lange haben Sie diese Symptome schon?",
-      zh: "这些症状持续多久了?",
-      ar: "منذ متى وأنت تعاني من هذه الأعراض؟",
+      'es-ES': "¿Cuánto tiempo ha tenido estos síntomas?",
+      'fr-FR': "Depuis combien de temps avez-vous ces symptômes?",
+      'de-DE': "Wie lange haben Sie diese Symptome schon?",
+      'zh-CN': "这些症状持续多久了?",
+      'ar-SA': "منذ متى وأنت تعاني من هذه الأعراض؟",
     },
   },
   {
     english: "Take this medication twice daily",
     translations: {
-      es: "Tome este medicamento dos veces al día",
-      fr: "Prenez ce médicament deux fois par jour",
-      de: "Nehmen Sie dieses Medikament zweimal täglich ein",
-      zh: "一天服用两次这种药物",
-      ar: "تناول هذا الدواء مرتين يوميًا",
+      'es-ES': "Tome este medicamento dos veces al día",
+      'fr-FR': "Prenez ce médicament deux fois par jour",
+      'de-DE': "Nehmen Sie dieses Medikament zweimal täglich ein",
+      'zh-CN': "一天服用两次这种药物",
+      'ar-SA': "تناول هذا الدواء مرتين يوميًا",
     },
   },
 ]
 
 export default function LanguagesPage() {
-  const [selectedLanguage, setSelectedLanguage] = useState(languages[0])
+  const [languages, setLanguages] = useState<Language[]>([])
+  const [selectedLanguage, setSelectedLanguage] = useState<Language | null>(null)
   const [autoTranslate, setAutoTranslate] = useState(true)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
+  const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const handleLanguageChange = (language) => {
+  // Load supported languages from API
+  useEffect(() => {
+    const loadLanguages = async () => {
+      try {
+        const response = await apiClient.getSupportedLanguages()
+        if (response.success && response.data) {
+          const languageList: Language[] = response.data.map((lang: SupportedLanguage) => ({
+            code: lang.code,
+            name: lang.name,
+            flag: LANGUAGE_FLAGS[lang.code] || '🌐',
+            progress: 100, // All supported languages are fully implemented
+          }))
+          setLanguages(languageList)
+          if (languageList.length > 0) {
+            setSelectedLanguage(languageList[0])
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load languages:', error)
+        // Fallback to basic languages
+        const fallbackLanguages: Language[] = [
+          { code: 'en-US', name: 'English (US)', flag: '🇺🇸', progress: 100 },
+          { code: 'es-ES', name: 'Spanish (ES)', flag: '🇪🇸', progress: 100 },
+          { code: 'fr-FR', name: 'French (FR)', flag: '🇫🇷', progress: 100 },
+          { code: 'de-DE', name: 'German (DE)', flag: '🇩🇪', progress: 100 },
+          { code: 'ms-MY', name: 'Malay (Malaysia)', flag: '🇲🇾', progress: 100 },
+        ]
+        setLanguages(fallbackLanguages)
+        setSelectedLanguage(fallbackLanguages[0])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    loadLanguages()
+  }, [])
+
+  const handleLanguageChange = (language: Language) => {
     setSelectedLanguage(language)
     toast({
       title: "Language Changed",
       description: `Interface language changed to ${language.name}`,
     })
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-6 max-w-4xl">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading languages...</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -92,30 +160,32 @@ export default function LanguagesPage() {
 
       <div className="flex justify-between items-center mt-6 mb-4">
         <h2 className="text-xl font-semibold">Language Settings</h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-2">
-              <span className="text-lg mr-1">{selectedLanguage.flag}</span>
-              {selectedLanguage.name}
-              <ChevronDown className="h-4 w-4 ml-1" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {languages.map((language) => (
-              <DropdownMenuItem
-                key={language.code}
-                onClick={() => handleLanguageChange(language)}
-                className="flex items-center justify-between"
-              >
-                <div className="flex items-center">
-                  <span className="text-lg mr-2">{language.flag}</span>
-                  <span>{language.name}</span>
-                </div>
-                {selectedLanguage.code === language.code && <Check className="h-4 w-4" />}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        {selectedLanguage && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <span className="text-lg mr-1">{selectedLanguage.flag}</span>
+                {selectedLanguage.name}
+                <ChevronDown className="h-4 w-4 ml-1" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {languages.map((language) => (
+                <DropdownMenuItem
+                  key={language.code}
+                  onClick={() => handleLanguageChange(language)}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center">
+                    <span className="text-lg mr-2">{language.flag}</span>
+                    <span>{language.name}</span>
+                  </div>
+                  {selectedLanguage.code === language.code && <Check className="h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <Tabs defaultValue="interface" className="space-y-4">
@@ -293,10 +363,10 @@ export default function LanguagesPage() {
                         const lang = languages.find((l) => l.code === code)
                         return (
                           <div key={code} className="flex items-start gap-2">
-                            <span className="text-lg">{lang?.flag}</span>
+                            <span className="text-lg">{lang?.flag || LANGUAGE_FLAGS[code] || '🌐'}</span>
                             <div>
                               <p className="text-sm">{translation}</p>
-                              <p className="text-xs text-muted-foreground">{lang?.name}</p>
+                              <p className="text-xs text-muted-foreground">{lang?.name || code}</p>
                             </div>
                           </div>
                         )

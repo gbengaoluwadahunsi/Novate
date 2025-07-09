@@ -1,14 +1,42 @@
 import { NextResponse } from 'next/server';
 import { OpenAI } from 'openai';
 import { Pinecone } from '@pinecone-database/pinecone';
+import { logger } from '@/lib/logger';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const pinecone = new Pinecone({ apiKey: process.env.PINECONE_API_KEY! });
+// Initialize OpenAI and Pinecone only if API keys are available
+let openai: OpenAI | null = null;
+let pinecone: Pinecone | null = null;
+
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
+
+if (process.env.PINECONE_API_KEY) {
+  pinecone = new Pinecone({ 
+    apiKey: process.env.PINECONE_API_KEY,
+    environment: process.env.PINECONE_ENVIRONMENT || 'gcp-starter'
+  });
+}
 
 export async function POST(request: Request) {
   const { agent, input, session } = await request.json();
 
   try {
+    // Check if required services are available
+    if (!openai || !pinecone) {
+      const missingServices = [];
+      if (!openai) missingServices.push('OpenAI');
+      if (!pinecone) missingServices.push('Pinecone');
+      
+      return NextResponse.json(
+        { 
+          error: `Service unavailable: ${missingServices.join(', ')} not configured`,
+          details: 'Please configure the required API keys in environment variables'
+        },
+        { status: 503 }
+      );
+    }
+
     let result;
     
     switch (agent) {
@@ -33,6 +61,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ result });
   } catch (error) {
+    logger.error('Agent processing error:', error);
     return NextResponse.json(
       { error: 'Failed to process request' },
       { status: 500 }
@@ -40,29 +69,36 @@ export async function POST(request: Request) {
   }
 }
 
-async function handleAgentA(audioInput: string) {
-  // Use Whisper API for speech-to-text
-  const transcription = await openai.audio.transcriptions.create({
+async function handleAgentA(audioInput: any) {
+  if (!openai) throw new Error('OpenAI not configured');
+  
+  // Voice to Text using OpenAI
+  const response = await openai.audio.transcriptions.create({
     file: audioInput,
     model: "whisper-1",
   });
-  return transcription.text;
+
+  return response.text;
 }
 
 async function handleAgentB(textInput: string) {
-  // Organize medical notes
-  const prompt = `Organize this medical conversation into structured notes:\n\n${textInput}\n\nReturn in JSON format with sections: history, examination, assessment, plan.`;
+  if (!openai) throw new Error('OpenAI not configured');
   
+  // Text Organization using OpenAI
+  const prompt = `Organize the following medical notes into a structured format:\n\n${textInput}`;
+
   const response = await openai.chat.completions.create({
     model: "gpt-4",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });
-  
+
   return JSON.parse(response.choices[0].message.content!);
 }
 
 async function handleAgentC(medicalNotes: any, country: string) {
+  if (!openai || !pinecone) throw new Error('OpenAI or Pinecone not configured');
+  
   // RAG system with country-specific guidelines
   const index = pinecone.index('medical-guidelines');
   
@@ -82,20 +118,24 @@ async function handleAgentC(medicalNotes: any, country: string) {
   return results.matches.map((match) => match.metadata ?? {});
 }
 
-async function handleAgentD(textInput: string) {
-  // Differential Diagnosis using OpenAI
-  const prompt = `Given the following patient information, provide a differential diagnosis list:\n\n${textInput}\n\nReturn the list as a JSON array.`;
+async function handleAgentD(medicalNotes: string) {
+  if (!openai) throw new Error('OpenAI not configured');
   
+  // Differential Diagnosis using OpenAI
+  const prompt = `Based on the following medical notes, provide a differential diagnosis:\n\n${medicalNotes}`;
+
   const response = await openai.chat.completions.create({
     model: "gpt-4",
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   });
-  
+
   return JSON.parse(response.choices[0].message.content!);
 }
 
 async function handleAgentE(textInput: string) {
+  if (!openai) throw new Error('OpenAI not configured');
+  
   // Missing Data Detection using OpenAI
   const prompt = `Review the following medical notes and identify any missing or incomplete data. Return a JSON array of missing data points:\n\n${textInput}`;
 

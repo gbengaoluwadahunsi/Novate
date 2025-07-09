@@ -8,6 +8,8 @@ import { Navbar } from "@/components/navbar"
  import logo from "@/public/novateLogo-removebg-preview2.png"
 import Image from "next/image"
 import { ArrowRight, CheckCircle2, Mic, FileText, Clock, BarChart3, Shield, Sparkles, ChevronRight } from "lucide-react"
+import { useDashboardStats } from "@/hooks/use-dashboard-stats"
+import ClientOnly from "@/components/client-only"
 
 // Medical Note Component for Hero
 function MedicalNoteVisual() {
@@ -155,16 +157,37 @@ function FeatureCard({ icon: Icon, title, description, delay = 0 }: { icon: Reac
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
+      whileHover={{ 
+        scale: 1.03,
+        y: -8,
+        transition: { duration: 0.2, ease: "easeOut" }
+      }}
       transition={{ duration: 0.5, delay }}
       viewport={{ once: true }}
-      className="relative overflow-hidden rounded-xl"
+      className="relative overflow-hidden rounded-xl cursor-pointer group"
     >
-      <div className="relative p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl hover:shadow-xl transition-all duration-300 hover:border-sky-500/20 h-full">
-        <div className="h-12 w-12 rounded-full bg-sky-500 flex items-center justify-center mb-4">
-          <Icon className="h-6 w-6 text-white" />
-        </div>
-        <h3 className="text-xl font-bold mb-2">{title}</h3>
-        <p className="text-gray-500 dark:text-gray-400">{description}</p>
+      <div className="relative p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl h-full transition-all duration-300 group-hover:bg-white dark:group-hover:bg-gray-800 group-hover:shadow-2xl group-hover:shadow-sky-500/20 group-hover:border-sky-300 dark:group-hover:border-sky-600">
+        <motion.div 
+          className="h-12 w-12 rounded-full bg-sky-500 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-sky-600 group-hover:shadow-lg group-hover:shadow-sky-500/50"
+          whileHover={{ 
+            scale: 1.1,
+            rotate: 5,
+            transition: { duration: 0.2 }
+          }}
+        >
+          <Icon className="h-6 w-6 text-white transition-transform duration-300 group-hover:scale-110" />
+        </motion.div>
+        <h3 className="text-xl font-bold mb-2 transition-colors duration-300 group-hover:text-sky-600 dark:group-hover:text-sky-400">{title}</h3>
+        <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300 group-hover:text-gray-700 dark:group-hover:text-gray-200">{description}</p>
+        
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+        
+        {/* Subtle shine effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
+        
+        {/* Corner accent */}
+        <div className="absolute top-0 right-0 w-0 h-0 border-l-[20px] border-l-transparent border-t-[20px] border-t-sky-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
       </div>
     </motion.div>
   )
@@ -184,25 +207,39 @@ function TestimonialCard({ name, role, content, image, delay = 0 }: TestimonialC
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
       whileInView={{ opacity: 1, scale: 1 }}
+      whileHover={{ 
+        scale: 1.02,
+        y: -5,
+        transition: { duration: 0.2, ease: "easeOut" }
+      }}
       transition={{ duration: 0.5, delay }}
       viewport={{ once: true }}
-      className="relative overflow-hidden rounded-xl"
+      className="relative overflow-hidden rounded-xl h-full cursor-pointer group"
     >
-      <div className="relative p-6 bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl">
+      <div className="relative p-6 bg-white/90 dark:bg-gray-800/90 border border-gray-200 dark:border-gray-700 rounded-xl h-full flex flex-col transition-all duration-300 group-hover:bg-white dark:group-hover:bg-gray-800 group-hover:shadow-xl group-hover:shadow-sky-500/10 group-hover:border-sky-300 dark:group-hover:border-sky-600">
         <div className="flex items-center mb-4">
-          <div className="h-12 w-12 rounded-full bg-sky-500 overflow-hidden mr-4 p-0.5">
+          <motion.div 
+            className="h-12 w-12 rounded-full bg-sky-500 overflow-hidden mr-4 p-0.5 transition-all duration-300 group-hover:bg-sky-600 group-hover:shadow-lg"
+            whileHover={{ scale: 1.1 }}
+          >
             <img
               src={image || "/placeholder.svg?height=100&width=100"}
               alt={name}
-              className="h-full w-full object-cover rounded-full"
+              className="h-full w-full object-cover rounded-full transition-transform duration-300 group-hover:scale-110"
             />
-          </div>
+          </motion.div>
           <div>
-            <h4 className="font-bold">{name}</h4>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{role}</p>
+            <h4 className="font-bold transition-colors duration-300 group-hover:text-sky-600 dark:group-hover:text-sky-400">{name}</h4>
+            <p className="text-sm text-gray-500 dark:text-gray-400 transition-colors duration-300 group-hover:text-sky-500">{role}</p>
           </div>
         </div>
-        <p className="text-gray-600 dark:text-gray-300 italic">&ldquo;{content}&rdquo;</p>
+        <p className="text-gray-600 dark:text-gray-300 italic flex-1 transition-colors duration-300 group-hover:text-gray-700 dark:group-hover:text-gray-200">&ldquo;{content}&rdquo;</p>
+        
+        {/* Animated background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-500/5 via-transparent to-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
+        
+        {/* Subtle shine effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
       </div>
     </motion.div>
   )
@@ -222,48 +259,73 @@ function PricingCard({ title, price, features, popular = false, delay = 0 }: Pri
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
+      whileHover={{ 
+        scale: popular ? 1.05 : 1.03,
+        y: -10,
+        transition: { duration: 0.2, ease: "easeOut" }
+      }}
       transition={{ duration: 0.5, delay }}
       viewport={{ once: true }}
-      className={`relative overflow-hidden rounded-xl`}
+      className={`relative overflow-hidden rounded-xl cursor-pointer group`}
     >
       <div
         className={`relative p-6 ${popular ? "bg-white/90 dark:bg-gray-800/90" : "bg-white/80 dark:bg-gray-800/80"} border ${
           popular
             ? "border-sky-500/50 dark:border-sky-500/50 shadow-lg shadow-sky-500/20"
             : "border-gray-200 dark:border-gray-700"
-        } rounded-xl flex flex-col h-full`}
+        } rounded-xl flex flex-col h-full transition-all duration-300 group-hover:shadow-2xl ${
+          popular 
+            ? "group-hover:shadow-sky-500/30 group-hover:border-sky-400" 
+            : "group-hover:shadow-sky-500/20 group-hover:border-sky-300 dark:group-hover:border-sky-600"
+        }`}
       >
         {popular && (
-          <div className="absolute top-0 right-0 bg-sky-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
+          <motion.div 
+            className="absolute top-0 right-0 bg-sky-500 text-white text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg transition-all duration-300 group-hover:bg-sky-600"
+            whileHover={{ scale: 1.05 }}
+          >
             MOST POPULAR
-          </div>
+          </motion.div>
         )}
-        <h3 className="text-xl font-bold mb-2">{title}</h3>
+        <h3 className="text-xl font-bold mb-2 transition-colors duration-300 group-hover:text-sky-600 dark:group-hover:text-sky-400">{title}</h3>
         <div className="mb-4">
-          <span className="text-3xl font-bold">${price}</span>
-          <span className="text-gray-500 dark:text-gray-400">/month</span>
+          <span className="text-3xl font-bold transition-colors duration-300 group-hover:text-sky-600 dark:group-hover:text-sky-400">${price}</span>
+          <span className="text-gray-500 dark:text-gray-400 transition-colors duration-300 group-hover:text-sky-500">/month</span>
         </div>
         <ul className="space-y-3 mb-6 flex-grow">
             {features.map((feature: string, i: number) => (
-            <li key={i} className="flex items-start">
-              <CheckCircle2 className="h-5 w-5 text-sky-500 mr-2 flex-shrink-0 mt-0.5" />
-              <span className="text-gray-600 dark:text-gray-300">{feature}</span>
-            </li>
+            <motion.li 
+              key={i} 
+              className="flex items-start"
+              whileHover={{ x: 5 }}
+              transition={{ duration: 0.2 }}
+            >
+              <CheckCircle2 className="h-5 w-5 text-sky-500 mr-2 flex-shrink-0 mt-0.5 transition-colors duration-300 group-hover:text-sky-600" />
+              <span className="text-gray-600 dark:text-gray-300 transition-colors duration-300 group-hover:text-gray-700 dark:group-hover:text-gray-200">{feature}</span>
+            </motion.li>
             ))}
         </ul>
-        <Button
-          className={`w-full mt-auto ${popular ? "bg-sky-500 hover:bg-sky-600 text-white" : ""}`}
-          variant={popular ? "default" : "outline"}
-        >
-          Get Started <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+          <Button
+            className={`w-full mt-auto transition-all duration-300 ${popular ? "bg-sky-500 hover:bg-sky-600 text-white group-hover:shadow-lg" : "group-hover:border-sky-500 group-hover:text-sky-600"}`}
+            variant={popular ? "default" : "outline"}
+          >
+            Get Started <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+          </Button>
+        </motion.div>
+        
+        {/* Animated background gradient */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${popular ? 'from-sky-500/15' : 'from-sky-500/10'} via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl`}></div>
+        
+        {/* Subtle shine effect */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-in-out"></div>
       </div>
     </motion.div>
   )
 }
 
 // Animated Stats Counter
-function StatsCounter({ value, label, delay = 0 }: { value: number; label: string; delay?: number }) {
+function StatsCounter({ value, label, delay = 0, loading = false }: { value: number; label: string; delay?: number; loading?: boolean }) {
   const [count, setCount] = useState(0)
   const ref = useRef(null)
   const isInView = useInView(ref, { once: true })
@@ -299,7 +361,13 @@ function StatsCounter({ value, label, delay = 0 }: { value: number; label: strin
       viewport={{ once: true }}
       className="text-center"
     >
-      <div className="text-4xl font-bold text-sky-500 mb-2">{count}+</div>
+      <div className="text-4xl font-bold text-sky-500 mb-2">
+        {loading ? (
+          <div className="animate-pulse bg-sky-200 dark:bg-sky-800 h-12 w-20 mx-auto rounded"></div>
+        ) : (
+          `${count.toLocaleString()}+`
+        )}
+      </div>
       <div className="text-gray-500 dark:text-gray-400">{label}</div>
     </motion.div>
   )
@@ -328,29 +396,63 @@ function SectionHeader({ title, subtitle }: SectionHeaderProps) {
 
 // Particle Background
 function ParticleBackground() {
+  // Predefined particle data to avoid hydration mismatch
+  const particles = [
+    { width: 45, height: 52, top: 44, left: 42, opacity: 0.24, delay: 0 },
+    { width: 74, height: 32, top: 82, left: 46, opacity: 0.09, delay: 0.5 },
+    { width: 72, height: 66, top: 87, left: 22, opacity: 0.20, delay: 1 },
+    { width: 44, height: 59, top: 86, left: 1, opacity: 0.06, delay: 1.5 },
+    { width: 55, height: 37, top: 5, left: 62, opacity: 0.21, delay: 2 },
+    { width: 33, height: 48, top: 21, left: 77, opacity: 0.22, delay: 2.5 },
+    { width: 75, height: 20, top: 65, left: 37, opacity: 0.04, delay: 3 },
+    { width: 69, height: 61, top: 57, left: 92, opacity: 0.20, delay: 3.5 },
+    { width: 31, height: 21, top: 16, left: 30, opacity: 0.15, delay: 4 },
+    { width: 49, height: 50, top: 72, left: 48, opacity: 0.08, delay: 4.5 },
+    { width: 27, height: 72, top: 39, left: 4, opacity: 0.25, delay: 5 },
+    { width: 66, height: 42, top: 57, left: 9, opacity: 0.27, delay: 5.5 },
+    { width: 52, height: 78, top: 6, left: 58, opacity: 0.01, delay: 6 },
+    { width: 66, height: 40, top: 70, left: 55, opacity: 0.26, delay: 6.5 },
+    { width: 32, height: 38, top: 50, left: 47, opacity: 0.09, delay: 7 },
+    { width: 65, height: 62, top: 48, left: 15, opacity: 0.29, delay: 7.5 },
+    { width: 65, height: 52, top: 85, left: 71, opacity: 0.23, delay: 8 },
+    { width: 64, height: 67, top: 46, left: 59, opacity: 0.26, delay: 8.5 },
+    { width: 67, height: 40, top: 69, left: 23, opacity: 0.24, delay: 9 },
+    { width: 76, height: 28, top: 83, left: 19, opacity: 0.18, delay: 9.5 },
+    { width: 61, height: 31, top: 2, left: 70, opacity: 0.27, delay: 10 },
+    { width: 37, height: 30, top: 57, left: 92, opacity: 0.29, delay: 10.5 },
+    { width: 23, height: 29, top: 63, left: 99, opacity: 0.23, delay: 11 },
+    { width: 49, height: 71, top: 38, left: 96, opacity: 0.03, delay: 11.5 },
+    { width: 71, height: 56, top: 42, left: 87, opacity: 0.24, delay: 12 },
+    { width: 20, height: 31, top: 71, left: 83, opacity: 0.03, delay: 12.5 },
+    { width: 56, height: 72, top: 58, left: 12, opacity: 0.02, delay: 13 },
+    { width: 73, height: 79, top: 59, left: 28, opacity: 0.02, delay: 13.5 },
+    { width: 78, height: 30, top: 74, left: 62, opacity: 0.22, delay: 14 },
+    { width: 40, height: 47, top: 30, left: 41, opacity: 0.25, delay: 14.5 }
+  ];
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: 30 }).map((_, i) => (
+      {particles.map((particle, i) => (
         <motion.div
           key={i}
           className="absolute rounded-full"
           style={{
-            width: Math.random() * 60 + 20,
-            height: Math.random() * 60 + 20,
-            top: `${Math.random() * 100}%`,
-            left: `${Math.random() * 100}%`,
-            background: `radial-gradient(circle, rgba(14, 165, 233, ${Math.random() * 0.3}), rgba(14, 165, 233, 0))`,
+            width: particle.width,
+            height: particle.height,
+            top: `${particle.top}%`,
+            left: `${particle.left}%`,
+            background: `radial-gradient(circle, rgba(14, 165, 233, ${particle.opacity}), rgba(14, 165, 233, 0))`,
           }}
           animate={{
-            y: [0, Math.random() * -100 - 50],
+            y: [0, -150],
             opacity: [0, 0.5, 0],
           }}
           transition={{
-            duration: Math.random() * 10 + 10,
+            duration: 15,
             repeat: Number.POSITIVE_INFINITY,
             repeatType: "loop",
             ease: "easeInOut",
-            delay: Math.random() * 5,
+            delay: particle.delay,
           }}
         />
       ))}
@@ -363,6 +465,9 @@ export default function HomePage() {
   const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
   const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.9])
   const heroY = useTransform(scrollYProgress, [0, 0.2], [0, -50])
+  
+  // Fetch dynamic dashboard statistics
+  const { stats, loading, error } = useDashboardStats()
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -393,9 +498,9 @@ export default function HomePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1, delay: 0.1 }}
-                className="mb-6 inline-block"
+                className="mb-6 flex justify-center lg:justify-start"
               >
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-[#0ea5e9]/20 text-[#0ea5e9] dark:text-[#0ea5e9] border border-[#0ea5e9]/30">
+                <span className="px-3 py-1 rounded-full text-sm font-medium bg-[#0ea5e9]/20 text-[#0ea5e9] dark:text-[#0ea5e9] border border-[#0ea5e9]/30 whitespace-nowrap">
                   AI-Powered Medical Documentation
                 </span>
               </motion.div>
@@ -404,7 +509,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="text-4xl md:text-6xl font-bold mb-6 text-[#0ea5e9]"
+                className="text-4xl md:text-6xl font-bold mb-6 text-[#0ea5e9] text-center lg:text-left"
               >
                 NovateScribe<sup className="text-black font-normal">TM</sup>
               </motion.h1>
@@ -412,7 +517,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
-                className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8"
+                className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 text-center lg:text-left"
               >
                 Transform your medical voice notes into perfectly structured digital records in seconds.
               </motion.p>
@@ -420,7 +525,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
-                className="flex flex-wrap gap-4"
+                className="flex flex-wrap gap-4 justify-center lg:justify-start"
               >
                 <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white" asChild>
                   <Link href="/dashboard">
@@ -492,7 +597,7 @@ export default function HomePage() {
             <FeatureCard
               icon={Clock}
               title="Time Saving"
-              description="Reduce documentation time by up to 75%, allowing more time for patient care and reducing burnout."
+              description="Reduce documentation time by up to 85%, allowing more time for patient care and reducing burnout."
               delay={0.3}
             />
             <FeatureCard
@@ -521,11 +626,18 @@ export default function HomePage() {
       <section className="py-16 px-4 relative">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-teal-500/5"></div>
         <div className="container mx-auto max-w-6xl relative z-10">
+          {error && (
+            <div className="text-center mb-4">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                Using cached statistics • Real-time data temporarily unavailable
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <StatsCounter value={85} label="Time Saved (%)" delay={0.1} />
-            <StatsCounter value={99} label="Accuracy (%)" delay={0.2} />
-            <StatsCounter value={5000} label="Doctors Using  NovateScribe" delay={0.3} />
-            <StatsCounter value={1000000} label="Notes Processed" delay={0.4} />
+            <StatsCounter value={stats.timeSavedPercentage} label="Time Saved (%)" delay={0.1} loading={loading} />
+            <StatsCounter value={stats.accuracy} label="Accuracy (%)" delay={0.2} loading={loading} />
+            <StatsCounter value={stats.doctorsUsing} label="Doctors Using NovateScribe" delay={0.3} loading={loading} />
+            <StatsCounter value={stats.notesProcessed} label="Notes Processed" delay={0.4} loading={loading} />
           </div>
         </div>
       </section>
@@ -591,7 +703,7 @@ export default function HomePage() {
             subtitle="Hear from healthcare professionals who have transformed their documentation process"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
             <TestimonialCard
               name="Dr. Sarah Johnson"
               role="Cardiologist"
@@ -738,7 +850,7 @@ export default function HomePage() {
                 <div className="text-blue-200 text-sm">Countries</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">25,000+</div>
+                <div className="text-2xl font-bold text-blue-400">{typeof stats.doctorsUsing === 'number' ? stats.doctorsUsing.toLocaleString() : '5,000'}+</div>
                 <div className="text-blue-200 text-sm">Healthcare Professionals</div>
               </div>
               <div className="text-center">

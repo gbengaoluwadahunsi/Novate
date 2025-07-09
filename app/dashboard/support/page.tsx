@@ -44,9 +44,9 @@ const faqs = [
     category: "Accuracy",
   },
   {
-    question: "Can I use Mad Katip AI in multiple languages?",
+    question: "Can I use NovateScribe™ in multiple languages?",
     answer:
-      "Yes, Mad Katip AI supports multiple languages including English, Arabic, Spanish, French, and Chinese. You can select your preferred language from the dropdown menu before starting a recording.",
+      "Yes, NovateScribe™ supports multiple languages including English, Arabic, Spanish, French, and Chinese. You can select your preferred language from the dropdown menu before starting a recording.",
     category: "Languages",
   },
   {
@@ -107,7 +107,7 @@ export default function SupportPage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold">Support</h1>
-            <p className="text-muted-foreground">Get help and learn how to use Mad Katip AI</p>
+            <p className="text-muted-foreground">Get help and learn how to use NovateScribe™</p>
           </div>
         </div>
       </motion.div>
@@ -142,7 +142,7 @@ export default function SupportPage() {
           <Card>
             <CardHeader>
               <CardTitle>Frequently Asked Questions</CardTitle>
-              <CardDescription>Find answers to common questions about Mad Katip AI</CardDescription>
+              <CardDescription>Find answers to common questions about NovateScribe™</CardDescription>
             </CardHeader>
             <CardContent>
               {filteredFaqs.length > 0 ? (
@@ -291,7 +291,7 @@ export default function SupportPage() {
                     <div>
                       <h3 className="font-medium">Live Demo</h3>
                       <p className="text-sm text-muted-foreground">
-                        Schedule a 30-minute session with our product specialists to see Mad Katip AI in action.
+                        Schedule a 30-minute session with our product specialists to see NovateScribe™ in action.
                       </p>
                     </div>
                   </div>
@@ -309,7 +309,7 @@ export default function SupportPage() {
             <CardHeader>
               <CardTitle>Learning Resources</CardTitle>
               <CardDescription>
-                Guides, tutorials, and documentation to help you get the most out of Mad Katip AI
+                Guides, tutorials, and documentation to help you get the most out of NovateScribe™
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -317,7 +317,7 @@ export default function SupportPage() {
                 {[
                   {
                     title: "Getting Started Guide",
-                    description: "Learn the basics of Mad Katip AI and how to set up your account",
+                    description: "Learn the basics of NovateScribe™ and how to set up your account",
                     icon: BookOpen,
                     color: "bg-blue-100 text-blue-700",
                   },

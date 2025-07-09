@@ -91,25 +91,44 @@ const initialNotes: Note[] = [
 
 export function NotesProvider({ children }: { children: ReactNode }) {
   const [notes, setNotes] = useState<Note[]>([])
+  const [mounted, setMounted] = useState(false)
+
+  // Set mounted state
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load notes from localStorage on mount
   useEffect(() => {
-    const savedNotes = localStorage.getItem("novate-notes")
-    if (savedNotes) {
-      setNotes(JSON.parse(savedNotes))
-    } else {
-      // Use initial notes if no saved notes exist
-      setNotes(initialNotes)
-      localStorage.setItem("novate-notes", JSON.stringify(initialNotes))
+    if (!mounted) return
+    
+    if (typeof window !== 'undefined') {
+      const savedNotes = localStorage.getItem("novate-notes")
+      if (savedNotes) {
+        try {
+          setNotes(JSON.parse(savedNotes))
+        } catch (error) {
+          console.error('Error parsing saved notes:', error)
+          // Use initial notes if parsing fails
+          setNotes(initialNotes)
+          localStorage.setItem("novate-notes", JSON.stringify(initialNotes))
+        }
+      } else {
+        // Use initial notes if no saved notes exist
+        setNotes(initialNotes)
+        localStorage.setItem("novate-notes", JSON.stringify(initialNotes))
+      }
     }
-  }, [])
+  }, [mounted])
 
   // Save notes to localStorage whenever they change
   useEffect(() => {
-    if (notes.length > 0) {
+    if (!mounted) return
+    
+    if (notes.length > 0 && typeof window !== 'undefined') {
       localStorage.setItem("novate-notes", JSON.stringify(notes))
     }
-  }, [notes])
+  }, [notes, mounted])
 
   const addNote = (note: Omit<Note, "id" | "createdAt">) => {
     const newNote: Note = {

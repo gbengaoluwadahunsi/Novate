@@ -166,10 +166,7 @@ export default function PatientsPage() {
                           <div className="flex items-center gap-3">
                             <Avatar>
                               <AvatarFallback className="bg-blue-100 text-blue-600">
-                                {patient.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
+                                {patient?.name ? patient.name.split(" ").filter(n => n).map((n) => n[0]).join("") : 'P'}
                               </AvatarFallback>
                             </Avatar>
                             <span>{patient.name}</span>

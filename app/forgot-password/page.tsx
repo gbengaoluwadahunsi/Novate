@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
@@ -9,27 +9,43 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import logo from "@/public/novateLogo-removebg-preview.png"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { forgotPassword, clearError, resendVerificationEmail } from "@/store/features/authSlice"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import ClientOnly from "@/components/client-only"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const dispatch = useAppDispatch()
+  const { isLoading, error } = useAppSelector((state) => state.auth)
 
-  const handleSubmit = async (e: { preventDefault: () => void }) => {
+  useEffect(() => {
+    // Clear any previous errors when the component mounts
+    dispatch(clearError())
+  }, [dispatch])
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    if (!email) return
 
-    // Simulate API request delay
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-
-    // In a real app, you would send a password reset request to your API
+    const result = await dispatch(forgotPassword(email))
+    if (forgotPassword.fulfilled.match(result)) {
     setIsSubmitted(true)
-    setIsLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    if (!email) return
+    // Note: This uses the resendVerificationEmail thunk, but you might want a dedicated one.
+    await dispatch(resendVerificationEmail(email))
+    // Add toast notification for resend
   }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+      <ClientOnly>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -46,15 +62,13 @@ export default function ForgotPasswordPage() {
 
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex justify-center ">
-              <div className="relative  flex items-center justify-center">
+              <div className="flex justify-center">
+                <div className="relative flex items-center justify-center">
                 <Image
                   src={logo}
                   alt="Novate AI Logo"
-                  className="h-20 w-20  rounded-full"
-                 
+                    className="h-20 w-20 rounded-full"
                 />
-               
               </div>
             </div>
             <CardTitle className="text-2xl font-bold text-center">Forgot password</CardTitle>
@@ -63,6 +77,12 @@ export default function ForgotPasswordPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+              {error && (
+                <Alert variant="destructive" className="mb-4">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
             {!isSubmitted ? (
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -74,6 +94,7 @@ export default function ForgotPasswordPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
+                      disabled={isLoading}
                   />
                 </div>
                 <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600" disabled={isLoading}>
@@ -102,8 +123,8 @@ export default function ForgotPasswordPage() {
                     <li>Check your spam or junk folder</li>
                     <li>Make sure the email address is correct</li>
                     <li>
-                      <button className="text-blue-500 hover:text-blue-700 hover:underline">
-                        Click here to resend
+                        <button onClick={handleResend} className="text-blue-500 hover:text-blue-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+                          {isLoading ? 'Resending...' : 'Click here to resend'}
                       </button>
                     </li>
                   </ul>
@@ -121,6 +142,7 @@ export default function ForgotPasswordPage() {
           </CardFooter>
         </Card>
       </motion.div>
+      </ClientOnly>
     </div>
   )
 }

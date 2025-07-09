@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server"
 
 // GET /api/organizations/[orgId]/members - List all members of an organization
-export async function GET(request: Request, { params }: { params: { orgId: string } }) {
-  const { orgId } = params
+export async function GET(
+  request: Request, 
+  { params }: { params: Promise<{ orgId: string }> }
+) {
+  const { orgId } = await params
 
   // In a real implementation, this would:
   // 1. Authenticate the user and verify they have permission to view this organization
@@ -51,11 +54,17 @@ export async function GET(request: Request, { params }: { params: { orgId: strin
 }
 
 // POST /api/organizations/[orgId]/members - Add new members to an organization
-export async function POST(request: Request, { params }: { params: { orgId: string } }) {
+export async function POST(
+  request: Request, 
+  { params }: { params: Promise<{ orgId: string }> }
+) {
   try {
-    const { orgId } = params
+    const { orgId } = await params
     const body = await request.json()
     const { emails, role = "member" } = body
+
+    // Ensure emails is an array of strings
+    const emailList: string[] = Array.isArray(emails) ? emails : [];
 
     // In a real implementation, this would:
     // 1. Authenticate the user and verify they have admin permissions
@@ -64,8 +73,8 @@ export async function POST(request: Request, { params }: { params: { orgId: stri
 
     return NextResponse.json({
       success: true,
-      invitedCount: emails.length,
-      pendingInvites: emails.map((email) => ({
+      invitedCount: emailList.length,
+      pendingInvites: emailList.map((email: string) => ({
         email,
         status: "pending",
         role,
@@ -78,9 +87,12 @@ export async function POST(request: Request, { params }: { params: { orgId: stri
 }
 
 // DELETE /api/organizations/[orgId]/members - Remove members from an organization
-export async function DELETE(request: Request, { params }: { params: { orgId: string } }) {
+export async function DELETE(
+  request: Request, 
+  { params }: { params: Promise<{ orgId: string }> }
+) {
   try {
-    const { orgId } = params
+    const { orgId } = await params
     const { searchParams } = new URL(request.url)
     const userId = searchParams.get("userId")
 

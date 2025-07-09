@@ -40,11 +40,23 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
+import { logger } from "@/lib/logger"
+
+// Member type definition
+type Member = {
+  id: string;
+  name: string;
+  email: string;
+  role: "admin" | "member";
+  department: string;
+  status: "active" | "pending";
+  lastActive: string | null;
+};
 
 export default function OrganizationDashboardPage() {
   const [activeTab, setActiveTab] = useState("members")
   const [isLoading, setIsLoading] = useState(true)
-  const [members, setMembers] = useState([])
+  const [members, setMembers] = useState<Member[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [inviteEmails, setInviteEmails] = useState("")
   const [isInviting, setIsInviting] = useState(false)
@@ -122,7 +134,7 @@ export default function OrganizationDashboardPage() {
         },
       ])
     } catch (error) {
-      console.error("Failed to fetch members:", error)
+              // Failed to fetch members
       toast({
         title: "Error",
         description: "Failed to load organization members",
@@ -162,7 +174,7 @@ export default function OrganizationDashboardPage() {
 
       // Refresh member list
       fetchMembers()
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to send invitations",
@@ -173,7 +185,7 @@ export default function OrganizationDashboardPage() {
     }
   }
 
-  const handleRemoveMember = async (userId) => {
+  const handleRemoveMember = async (userId: string) => {
     try {
       // In a real app, you'd send to your API
       // await fetch(`/api/organizations/${organization.id}/members?userId=${userId}`, {
@@ -207,7 +219,7 @@ export default function OrganizationDashboardPage() {
     fetchMembers()
   }, [])
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
@@ -215,12 +227,12 @@ export default function OrganizationDashboardPage() {
     })
   }
 
-  const formatTime = (dateString) => {
+  const formatTime = (dateString: string | null) => {
     if (!dateString) return "Never"
 
     const date = new Date(dateString)
     const now = new Date()
-    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
+    const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
 
     if (diffInDays === 0) {
       return "Today, " + date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
@@ -490,10 +502,7 @@ export default function OrganizationDashboardPage() {
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="h-8 w-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-medium">
-                                {member.name
-                                  .split(" ")
-                                  .map((n) => n[0])
-                                  .join("")}
+                                {member?.name ? member.name.split(" ").filter(n => n).map((n) => n[0]).join("") : 'U'}
                               </div>
                               <div className="ml-4">
                                 <div className="text-sm font-medium">{member.name}</div>

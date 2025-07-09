@@ -1,26 +1,47 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { EyeIcon, EyeOffIcon, CheckCircle2, XCircle, AlertCircle } from "lucide-react"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { resetPassword, clearError } from "@/store/features/authSlice"
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
-  const [error, setError] = useState("")
+  const [token, setToken] = useState<string | null>(null)
+  
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const dispatch = useAppDispatch()
+  const { isLoading, error } = useAppSelector((state) => state.auth)
+
+  useEffect(() => {
+    // Extract token from URL parameters
+    const resetToken = searchParams.get('token')
+          // Check for reset token in URL
+      if (resetToken) {
+        setToken(resetToken)
+      } else {
+        // No token found, redirect to forgot password
+      // If no token, redirect to forgot password page
+      router.push('/forgot-password')
+    }
+    
+    // Clear any previous errors
+    dispatch(clearError())
+  }, [searchParams, router, dispatch])
 
   // Password strength validation
-  const getPasswordStrength = (password) => {
+  const getPasswordStrength = (password: string) => {
     if (!password) return { score: 0, text: "No password", color: "bg-gray-200 dark:bg-gray-700" }
 
     let score = 0
@@ -43,37 +64,27 @@ export default function ResetPasswordPage() {
 
   const passwordStrength = getPasswordStrength(password)
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match")
+    if (!token) {
       return
     }
 
-    if (passwordStrength.score < 3) {
-      setError("Please use a stronger password")
-      return
-    }
-
-    setIsLoading(true)
-
-    try {
-      // Simulate API request delay
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      // In a real app, you would send the new password to your API
+    // Validation will be handled by the form's built-in validation
+    // and the visual indicators we already have
+    
+    // Attempt password reset
+    const result = await dispatch(resetPassword({ token, password }))
+    
+    if (resetPassword.fulfilled.match(result)) {
       setIsSuccess(true)
-
       // Redirect to login after 3 seconds
       setTimeout(() => {
         router.push("/login")
       }, 3000)
-    } catch (err) {
-      setError("An error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
+    } else if (resetPassword.rejected.match(result)) {
+      // Handle reset failure
     }
   }
 
@@ -102,6 +113,20 @@ export default function ResetPasswordPage() {
                   <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-center text-sm text-red-600 dark:text-red-400">
                     <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
                     {error}
+                  </div>
+                )}
+
+                {password !== confirmPassword && confirmPassword && (
+                  <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-center text-sm text-red-600 dark:text-red-400">
+                    <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                    Passwords do not match
+                  </div>
+                )}
+
+                {password && passwordStrength.score < 3 && (
+                  <div className="p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-md flex items-center text-sm text-orange-600 dark:text-orange-400">
+                    <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                    Please use a stronger password
                   </div>
                 )}
 
@@ -140,57 +165,15 @@ export default function ResetPasswordPage() {
                       <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div
                           className={`h-full ${passwordStrength.color} transition-all duration-300`}
-                          style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                          style={{ width: `${passwordStrength.score * 20}%` }}
                         ></div>
                       </div>
-                      <ul className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-xs">
-                        <li className="flex items-center">
-                          {password.length >= 8 ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-gray-400 mr-1" />
-                          )}
-                          At least 8 characters
-                        </li>
-                        <li className="flex items-center">
-                          {/[A-Z]/.test(password) ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-gray-400 mr-1" />
-                          )}
-                          Uppercase letter
-                        </li>
-                        <li className="flex items-center">
-                          {/[a-z]/.test(password) ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-gray-400 mr-1" />
-                          )}
-                          Lowercase letter
-                        </li>
-                        <li className="flex items-center">
-                          {/[0-9]/.test(password) ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-gray-400 mr-1" />
-                          )}
-                          Number
-                        </li>
-                        <li className="flex items-center">
-                          {/[^A-Za-z0-9]/.test(password) ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-500 mr-1" />
-                          ) : (
-                            <XCircle className="h-3 w-3 text-gray-400 mr-1" />
-                          )}
-                          Special character
-                        </li>
-                      </ul>
                     </div>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
                   <div className="relative">
                     <Input
                       id="confirmPassword"
@@ -211,42 +194,46 @@ export default function ResetPasswordPage() {
                       <span className="sr-only">{showConfirmPassword ? "Hide password" : "Show password"}</span>
                     </Button>
                   </div>
-                  {password && confirmPassword && password !== confirmPassword && (
-                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
-                  )}
                 </div>
 
-                <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-600" disabled={isLoading}>
-                  {isLoading ? "Resetting Password..." : "Reset Password"}
+                <Button 
+                  type="submit" 
+                  disabled={
+                    isLoading || 
+                    !password || 
+                    !confirmPassword || 
+                    password !== confirmPassword || 
+                    passwordStrength.score < 3 ||
+                    !token
+                  }
+                  className="w-full"
+                  // Button validation removed for production
+                >
+                  {isLoading ? "Resetting..." : "Reset Password"}
                 </Button>
               </form>
             ) : (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3 }}
-                className="text-center py-4"
-              >
-                <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-4">
-                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <h3 className="text-lg font-medium mb-2">Password reset successful!</h3>
-                <p className="text-gray-500 dark:text-gray-400 mb-4">
-                  Your password has been reset successfully. You will be redirected to the login page shortly.
-                </p>
-              </motion.div>
+              <div className="text-center">
+                <CheckCircle2 className="text-green-500 h-16 w-16 mx-auto mb-4" />
+                <h2 className="text-2xl font-bold mb-4">Password reset successful!</h2>
+                <p>You will be redirected to login page in 3 seconds.</p>
+              </div>
             )}
           </CardContent>
-          <CardFooter className="flex justify-center">
-            <div className="text-sm text-center text-gray-500 dark:text-gray-400">
-              Remember your password?{" "}
-              <a href="/login" className="text-blue-500 hover:text-blue-700 hover:underline">
-                Sign in
-              </a>
-            </div>
-          </CardFooter>
         </Card>
       </motion.div>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }

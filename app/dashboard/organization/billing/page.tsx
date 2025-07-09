@@ -66,7 +66,7 @@ export default function OrganizationBillingPage() {
     },
   ]
 
-  const handleDownloadInvoice = (invoiceId) => {
+  const handleDownloadInvoice = (invoiceId: string) => {
     toast({
       title: "Invoice Downloaded",
       description: `Invoice ${invoiceId} has been downloaded.`,
@@ -80,7 +80,7 @@ export default function OrganizationBillingPage() {
     })
   }
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",

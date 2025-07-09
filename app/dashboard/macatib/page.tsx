@@ -18,7 +18,7 @@ export default function NovatePage() {
 
   const handleSaveMedicalNote = (data: any) => {
     // In a real app, this would save to a database
-    console.log("Saving medical note:", data)
+    // Saving medical note
     setIsSaved(true)
 
     toast({
@@ -39,7 +39,26 @@ export default function NovatePage() {
       {!transcriptionData ? (
         <AudioUpload onTranscriptionComplete={handleTranscriptionComplete} />
       ) : (
-        <MedicalNoteWithSidebar initialData={transcriptionData} onSave={handleSaveMedicalNote} />
+        <MedicalNoteWithSidebar 
+          note={transcriptionData} 
+          onSave={handleSaveMedicalNote}
+          onDownload={() => {
+            // TODO: Add download functionality
+            console.log('Download clicked')
+          }}
+          onShare={() => {
+            // TODO: Add share functionality
+            console.log('Share clicked')
+          }}
+          onViewHistory={() => {
+            // TODO: Add view history functionality
+            console.log('View history clicked')
+          }}
+          onPreview={() => {
+            // TODO: Add preview functionality
+            console.log('Preview clicked')
+          }}
+        />
       )}
     </div>
   )

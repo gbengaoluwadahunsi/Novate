@@ -1,48 +1,113 @@
 "use client"
 
-import type React from "react"
+import React, { useEffect, useState } from "react"
 import Image from "next/image"
-import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import logo from "@/public/novateLogo-removebg-preview.png"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { EyeIcon, EyeOffIcon } from "lucide-react"
+import { EyeIcon, EyeOffIcon, AlertCircle, Loader2 } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
+import { login, clearError } from "@/store/features/authSlice"
+import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
+  const { toast } = useToast()
+
+  const dispatch = useAppDispatch()
+  const { isLoading, error, isAuthenticated, user } = useAppSelector((state) => state.auth)
+
+  // Set mounted state
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Clear any previous login errors when the component mounts
+  useEffect(() => {
+    dispatch(clearError())
+  }, [dispatch])
+
+  // Handle successful login and redirect
+  useEffect(() => {
+    if (isAuthenticated && user && mounted) {
+      const redirectPath = typeof window !== 'undefined' ? localStorage.getItem('redirectAfterLogin') || '/dashboard' : '/dashboard'
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('redirectAfterLogin') // Clean up
+      }
+      
+      // Show welcome toast
+      toast({
+        title: `Welcome back, ${user.name}!`,
+        description: "You have successfully logged in.",
+      })
+
+      // Redirect to the appropriate page
+      router.push(redirectPath)
+    }
+  }, [isAuthenticated, user, router, toast, mounted])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
-
-    // Simulate authentication delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    // In a real app, you would validate credentials here
-    // For demo purposes, we'll just redirect to dashboard
-    router.push("/dashboard")
+    try {
+      await dispatch(login({ email, password })).unwrap()
+      
+      // Store email in localStorage if remember me is checked
+      if (rememberMe && typeof window !== 'undefined') {
+        localStorage.setItem('rememberedEmail', email)
+      } else if (typeof window !== 'undefined') {
+        localStorage.removeItem('rememberedEmail')
+      }
+    } catch (err) {
+      // Error is already handled by the auth slice
+    }
   }
 
+  // Load remembered email on mount
+  useEffect(() => {
+    if (!mounted) return
+    
+    if (typeof window !== 'undefined') {
+      const rememberedEmail = localStorage.getItem('rememberedEmail')
+      if (rememberedEmail) {
+        setEmail(rememberedEmail)
+        setRememberMe(true)
+      }
+    }
+  }, [mounted])
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="">
-          <div className="flex justify-center">
-            <div className="relative items-center justify-center">
-              <Image src={logo} alt="Novate AI Logo" className="h-20 w-20 rounded-full" />
-            </div>
+        <CardHeader>
+          <div className="flex justify-center mb-4">
+            <Image 
+              src={logo} 
+              alt="Novate AI Logo" 
+              width={80} 
+              height={80} 
+              className="rounded-full" 
+              priority
+            />
           </div>
           <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
           <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
+          {error && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -53,6 +118,8 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                disabled={isLoading}
+                className="bg-background"
               />
             </div>
             <div className="space-y-2">
@@ -65,13 +132,16 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  disabled={isLoading}
+                  className="bg-background pr-10"
                 />
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400"
+                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                   onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
                 >
                   {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
                   <span className="sr-only">{showPassword ? "Hide password" : "Show password"}</span>
@@ -83,27 +153,37 @@ export default function LoginPage() {
                 <input
                   type="checkbox"
                   id="remember"
-                  className="h-4 w-4 rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 rounded border-input bg-background"
+                  disabled={isLoading}
                 />
-                <Label htmlFor="remember" className="text-sm text-gray-600 dark:text-gray-400">
+                <Label htmlFor="remember" className="text-sm text-muted-foreground">
                   Remember me
                 </Label>
               </div>
             </div>
-            <Button type="submit" className="w-full bg-blue-500 hover:bg-blue-700" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Sign in"
+              )}
             </Button>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-          <div className="text-sm text-center text-gray-500 dark:text-gray-400">
-            <a href="#" className="text-blue-500 hover:underline">
+          <div className="text-sm text-center text-muted-foreground">
+            <a href="/forgot-password" className="text-primary hover:underline">
               Forgot your password?
             </a>
           </div>
-          <div className="text-sm text-center text-gray-500 dark:text-gray-400">
+          <div className="text-sm text-center text-muted-foreground">
             Don't have an account?{" "}
-            <a href="/register" className="text-blue-500 hover:underline">
+            <a href="/register" className="text-primary hover:underline">
               Sign up
             </a>
           </div>

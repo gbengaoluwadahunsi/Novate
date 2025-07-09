@@ -57,6 +57,8 @@ interface MedicalNoteTemplateProps {
   onSave: (data: MedicalNote) => void
 }
 
+type EditData = PatientInfo | PhysicalExamination | string;
+
 export default function MedicalNoteTemplateEditable({ initialData, onSave }: MedicalNoteTemplateProps) {
   const [data, setData] = useState<MedicalNote>(initialData)
   const [editSection, setEditSection] = useState<string | null>(null)
@@ -101,21 +103,18 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
     setEditData(null)
   }
 
-  const handleInputChange = (field: string, value: string) => {
-    setEditData({
-      ...editData,
-      [field]: value,
-    })
+  const handleInputChange = (field: string, value: string | number) => {
+    setEditData((prev: any) => ({ ...prev, [field]: value }));
   }
 
   const handleVitalsChange = (field: string, value: string) => {
-    setEditData({
-      ...editData,
+    setEditData((prev: any) => ({
+      ...prev,
       vitals: {
-        ...editData.vitals,
+        ...prev.vitals,
         [field]: value,
       },
-    })
+    }));
   }
 
   const handleFinalize = () => {
@@ -384,7 +383,7 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
         description: "The medical note has been exported as PDF.",
       })
     } catch (error) {
-      console.error("Error generating PDF:", error)
+      // Error generating PDF
       toast({
         title: "Error",
         description: "Failed to generate PDF. Please try again.",
@@ -504,7 +503,7 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
         description: "The medical note has been exported as Word document.",
       })
     } catch (error) {
-      console.error("Error generating Word document:", error)
+      // Error generating Word document
       toast({
         title: "Error",
         description: "Failed to generate Word document. Please try again.",
@@ -939,8 +938,6 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
                       <div className="mt-4">
                         <SignatureSpace
                           doctorName={data.doctorDetails.name}
-                          registrationNumber={data.doctorDetails.registrationNumber || "RCMP-12345"}
-                          clinic="Novate Medical Center"
                         />
                       </div>
                     </div>
@@ -1052,8 +1049,6 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
                         <div className="text-right">
                           <SignatureSpace
                             doctorName={data.doctorDetails.name}
-                            registrationNumber={data.doctorDetails.registrationNumber || "RCMP-12345"}
-                            clinic="Novate Medical Center"
                           />
                         </div>
                       </div>

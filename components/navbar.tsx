@@ -8,10 +8,16 @@ import { ModeToggle } from "@/components/mode-toggle"
 import logo from "@/public/novateLogo-removebg-preview2.png"
 import Image from "next/image"
 import { Menu, X } from "lucide-react"
+import { useAppSelector, useAppDispatch } from "@/store/hooks"
+import { clearAuth } from "@/store/features/authSlice"
+import { useToast } from "@/hooks/use-toast"
 
 export function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth)
+  const dispatch = useAppDispatch()
+  const { toast } = useToast()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -21,23 +27,32 @@ export function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  const handleLogout = () => {
+    dispatch(clearAuth())
+    toast({
+      title: "Logout Successful",
+      description: "You have been logged out successfully.",
+    })
+  }
+
   return (
     <motion.header
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.5 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? "bg-white/90 dark:bg-gray-900/90 backdrop-blur-md shadow-md py-2"
-          : "bg-white/90 dark:bg-gray-900/90 backdrop-blur-md py-4"
-      }`}
+      className={`sticky top-0 z-50 w-full transition-all duration-300 ${isScrolled ? "bg-white/80 shadow-md backdrop-blur-lg dark:bg-gray-900/80" : "bg-transparent"
+        }`}
     >
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <Image src={logo} alt="Novate AI Logo" className=" rounded-full" width={160} height={160} />
-
+            <Image 
+              src={logo} 
+              alt="Novate AI Logo" 
+              className="rounded-full" 
+              width={160} 
+              height={160}
+              style={{ width: 'auto', height: 'auto' }}
+              priority
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -55,12 +70,29 @@ export function Navbar() {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Button variant="ghost" className="font-medium hover:bg-gray-100 dark:hover:bg-gray-800" asChild>
-              <Link href="/dashboard">Log In</Link>
-            </Button>
-            <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium" asChild>
-              <Link href="/register">Sign Up</Link>
-            </Button>
+            {isLoading && !isAuthenticated && (
+              <div className="h-8 w-36 animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
+            )}
+            {isAuthenticated && (
+              <>
+                <Button variant="ghost" className="font-medium" asChild>
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+                <Button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white font-medium">
+                  Sign Out
+                </Button>
+              </>
+            )}
+            {!isAuthenticated && !isLoading && (
+              <>
+                <Button variant="ghost" className="font-medium hover:bg-gray-100 dark:hover:bg-gray-800" asChild>
+                  <Link href="/login">Log In</Link>
+                </Button>
+                <Button className="bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium" asChild>
+                  <Link href="/register">Sign Up</Link>
+                </Button>
+              </>
+            )}
             <ModeToggle />
           </div>
 
@@ -97,13 +129,30 @@ export function Navbar() {
                   {item}
                 </Link>
               ))}
-              <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700 grid grid-cols-2 gap-2 px-4">
-                <Button variant="outline" className="w-full hover:bg-gray-100 dark:hover:bg-gray-800" asChild>
-                  <Link href="/dashboard">Log In</Link>
-                </Button>
-                <Button className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white" asChild>
-                  <Link href="/register">Sign Up</Link>
-                </Button>
+              <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 gap-2 px-4">
+                {isLoading && !isAuthenticated && (
+                  <div className="h-10 w-full animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
+                )}
+                {isAuthenticated && (
+                  <>
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link href="/dashboard">Dashboard</Link>
+                    </Button>
+                    <Button onClick={handleLogout} className="w-full bg-red-500 hover:bg-red-600 text-white">
+                      Sign Out
+                    </Button>
+                  </>
+                )}
+                {!isAuthenticated && !isLoading && (
+                  <>
+                    <Button variant="outline" className="w-full hover:bg-gray-100 dark:hover:bg-gray-800" asChild>
+                      <Link href="/login">Log In</Link>
+                    </Button>
+                    <Button className="w-full bg-[#2563eb] hover:bg-[#1d4ed8] text-white" asChild>
+                      <Link href="/register">Sign Up</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </nav>
           </motion.div>

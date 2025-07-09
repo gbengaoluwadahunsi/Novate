@@ -30,8 +30,13 @@ const suggestedPrompts = [
   "How should I document a patient with suspected COVID-19?",
 ]
 
+// Type for sample responses
+type SampleResponses = {
+  [key: string]: string;
+};
+
 // Sample responses for demo purposes
-const sampleResponses = {
+const sampleResponses: SampleResponses = {
   "Summarize the latest research on hypertension treatment":
     "Recent research on hypertension treatment emphasizes personalized approaches based on comorbidities. The 2023 guidelines recommend initiating treatment with ACE inhibitors, ARBs, or calcium channel blockers for most patients. Studies show combination therapy at lower doses may be more effective than monotherapy at higher doses. SGLT2 inhibitors have shown cardiovascular benefits beyond blood pressure control. Lifestyle modifications remain foundational, with emphasis on the DASH diet, sodium restriction, and regular physical activity.",
   "What are the common drug interactions with Warfarin?":
