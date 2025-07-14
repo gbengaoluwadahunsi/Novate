@@ -160,7 +160,7 @@ export default function NotePage() {
   }
 
   const handleExportPDF = useReactToPrint({
-    content: () => printComponentRef.current,
+    contentRef: () => printComponentRef.current,
     documentTitle: `medical-note-${note?.id || 'export'}`,
     onAfterPrint: () => toast({ title: "Exported to PDF", description: "The note has been exported to PDF." })
   })
