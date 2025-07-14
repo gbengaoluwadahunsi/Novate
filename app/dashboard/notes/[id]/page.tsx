@@ -41,7 +41,7 @@ export default function NotePage() {
   const noteId = params.id as string
   const [note, setNote] = useState<MedicalNote | null>(null)
   const [versions, setVersions] = useState<NoteVersion[]>([])
-  const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([])
+  // const [auditTrail, setAuditTrail] = useState<AuditTrailEntry[]>([]) // Temporarily disabled
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -67,20 +67,31 @@ export default function NotePage() {
     setIsLoading(true)
 
     try {
-      // Load note, versions, and audit trail in parallel
-      const [noteResponse, versionsResponse, auditResponse] = await Promise.all([
+      // Load note and versions (audit trail temporarily disabled due to backend 404)
+      const [noteResponse, versionsResponse] = await Promise.all([
         apiClient.getMedicalNote(noteId),
-        apiClient.getNoteVersions(noteId),
-        apiClient.getNoteAuditTrail(noteId)
+        apiClient.getNoteVersions(noteId)
       ])
+      
+      // TODO: Re-enable when backend implements audit trail endpoint
+      // const auditResponse = await apiClient.getNoteAuditTrail(noteId)
 
       if (noteResponse.success && noteResponse.data) {
-        console.log('🔍 Backend Note Response:', noteResponse.data)
+        console.log('🔍 COMPLETE Backend Note Response:', JSON.stringify(noteResponse.data, null, 2))
+        console.log('🔍 API Endpoint Called:', `/medical-notes/${noteId}`)
         console.log('🔍 Note Patient Name:', noteResponse.data.patientName)
         console.log('🔍 Note Patient Age:', noteResponse.data.patientAge)
         console.log('🔍 Note Patient Gender:', noteResponse.data.patientGender)
         console.log('🔍 Note Chief Complaint:', noteResponse.data.chiefComplaint)
-        console.log('🔍 Note History:', noteResponse.data.historyOfPresentIllness)
+        console.log('🔍 Note History (historyOfPresentIllness):', noteResponse.data.historyOfPresentIllness)
+        console.log('🔍 Note History (historyOfPresentingIllness):', noteResponse.data.historyOfPresentingIllness)
+        console.log('🔍 Note Past Medical History:', noteResponse.data.pastMedicalHistory)
+        console.log('🔍 Note System Review:', noteResponse.data.systemReview)
+        console.log('🔍 Note Physical Examination:', noteResponse.data.physicalExamination)
+        console.log('🔍 Note Diagnosis:', noteResponse.data.diagnosis)
+        console.log('🔍 Note Treatment Plan:', noteResponse.data.treatmentPlan)
+        console.log('🔍 Note Follow-up Instructions:', noteResponse.data.followUpInstructions)
+        console.log('🔍 Note Additional Notes:', noteResponse.data.additionalNotes)
         console.log('🔍 Full Note Structure:', {
           id: noteResponse.data.id,
           patientName: noteResponse.data.patientName,
@@ -88,9 +99,14 @@ export default function NotePage() {
           patientGender: noteResponse.data.patientGender,
           chiefComplaint: noteResponse.data.chiefComplaint,
           historyOfPresentIllness: noteResponse.data.historyOfPresentIllness,
+          historyOfPresentingIllness: noteResponse.data.historyOfPresentingIllness,
+          pastMedicalHistory: noteResponse.data.pastMedicalHistory,
+          systemReview: noteResponse.data.systemReview,
           physicalExamination: noteResponse.data.physicalExamination,
           diagnosis: noteResponse.data.diagnosis,
           treatmentPlan: noteResponse.data.treatmentPlan,
+          followUpInstructions: noteResponse.data.followUpInstructions,
+          additionalNotes: noteResponse.data.additionalNotes,
           noteType: noteResponse.data.noteType,
           createdAt: noteResponse.data.createdAt
         })
@@ -103,9 +119,10 @@ export default function NotePage() {
         setVersions(versionsResponse.data.versions)
       }
 
-      if (auditResponse.success && auditResponse.data) {
-        setAuditTrail(auditResponse.data.auditTrail)
-      }
+      // TODO: Re-enable audit trail when backend implements the endpoint
+      // if (auditResponse.success && auditResponse.data) {
+      //   setAuditTrail(auditResponse.data.auditTrail)
+      // }
 
       performanceMonitor.endTiming('load-note-data')
     } catch (error) {
@@ -232,337 +249,201 @@ export default function NotePage() {
       // Try backend PDF generation first
       const response = preview 
         ? await apiClient.previewNotePDF(noteId)
-        : await apiClient.exportNotePDF(noteId, {
-            format: 'A4',
-            includeHeader: true,
-            includeFooter: true
-          })
+        : await apiClient.exportNotePDF(noteId)
 
       if (response.success && response.data) {
-        const blob = response.data as Blob
+        const file = new Blob([response.data], { type: 'application/pdf' })
+        const fileURL = URL.createObjectURL(file)
         
-        // Check if the PDF content looks malformed (contains raw JSON)
-        const text = await blob.text()
-        const hasRawJSON = text.includes('{"investigations"') || text.includes('"treatmentAdministered"')
-        
-        if (hasRawJSON) {
-          console.log('🔧 Backend PDF has formatting issues, generating client-side PDF...')
-          await generateClientSidePDF(preview)
+        if (preview) {
+          window.open(fileURL)
         } else {
-          const url = URL.createObjectURL(blob)
-
-          if (preview) {
-            window.open(url, '_blank')
-          } else {
-            const link = document.createElement('a')
-            link.href = url
-            link.download = `medical-note-${note.patientName.replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
-            document.body.appendChild(link)
-            link.click()
-            document.body.removeChild(link)
-          }
-
-          URL.revokeObjectURL(url)
-
-          toast({
-            title: preview ? 'PDF Preview' : 'PDF Downloaded',
-            description: preview ? 'PDF opened in new tab' : 'Medical note exported successfully',
-          })
+          const link = document.createElement('a')
+          link.href = fileURL
+          link.download = `medical-note-${note.patientName.replace(/\s+/g, '_')}-${note.id}.pdf`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
         }
-
-        performanceMonitor.endTiming('export-pdf')
+        
+        toast({
+          title: preview ? 'Preview Generated' : 'PDF Exported',
+          description: `The note has been successfully ${preview ? 'opened for preview' : 'exported as a PDF'}.`
+        })
       } else {
-        console.log('🔧 Backend PDF failed, generating client-side PDF...')
+        // Fallback to client-side generation
+        toast({
+          title: 'Backend PDF Failed',
+          description: 'Could not generate PDF from backend. Trying client-side generation.',
+          variant: 'destructive'
+        })
         await generateClientSidePDF(preview)
       }
     } catch (error) {
-      console.log('🔧 PDF export error, falling back to client-side generation...', error)
+      logger.error('Error exporting PDF:', error)
+      toast({
+        title: 'Export Error',
+        description: 'An unexpected error occurred while exporting PDF. Trying client-side generation.',
+        variant: 'destructive'
+      })
       await generateClientSidePDF(preview)
     } finally {
       setIsExporting(false)
+      performanceMonitor.endTiming('export-pdf')
     }
   }
 
   const generateClientSidePDF = async (preview: boolean = false) => {
-    try {
-      // Create a clean HTML version for PDF generation
-      const htmlContent = generatePDFHTML()
-      
-      // Create a new window for PDF generation
-      const printWindow = window.open('', '_blank')
-      if (!printWindow) {
-        throw new Error('Could not open print window')
-      }
+    if (!note) return
+    const { default: jsPDF } = await import('jspdf')
+    const { default: html2canvas } = await import('html2canvas')
+    
+    const content = generatePDFHTML()
+    const container = document.createElement('div')
+    container.innerHTML = content
+    container.style.width = '210mm'
+    container.style.padding = '20mm'
+    container.style.position = 'absolute'
+    container.style.left = '-9999px' // Render off-screen
+    document.body.appendChild(container)
 
-      printWindow.document.write(htmlContent)
-      printWindow.document.close()
+    const canvas = await html2canvas(container, { scale: 2 })
+    const imgData = canvas.toDataURL('image/png')
+    
+    const pdf = new jsPDF('p', 'mm', 'a4')
+    const pdfWidth = pdf.internal.pageSize.getWidth()
+    const pdfHeight = pdf.internal.pageSize.getHeight()
+    const imgWidth = canvas.width
+    const imgHeight = canvas.height
+    const ratio = imgWidth / imgHeight
+    const height = pdfWidth / ratio
 
-      // Wait for content to load
-      await new Promise(resolve => setTimeout(resolve, 500))
-
-      if (preview) {
-        // For preview, just show the print dialog
-        printWindow.print()
-      } else {
-        // For download, trigger print which can be saved as PDF
-        printWindow.print()
-        
-        toast({
-          title: 'PDF Generation',
-          description: 'Use your browser\'s print dialog to save as PDF',
-        })
-      }
-
-      // Close the window after a delay
-      setTimeout(() => printWindow.close(), 1000)
-
-    } catch (error) {
-      console.error('Client-side PDF generation failed:', error)
-      toast({
-        title: 'PDF Generation Failed',
-        description: 'Unable to generate PDF. Please try again.',
-        variant: 'destructive'
-      })
+    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, height)
+    
+    if (preview) {
+      pdf.output('dataurlnewwindow')
+    } else {
+      pdf.save(`medical-note-${note.patientName.replace(/\s+/g, '_')}.pdf`)
     }
+
+    document.body.removeChild(container)
   }
 
   const generatePDFHTML = () => {
-    // Parse management plan if it's JSON
-    let managementPlan = note?.managementPlan || 'To be determined'
-    if (managementPlan.startsWith('{')) {
-      try {
-        const parsed = JSON.parse(managementPlan)
-        managementPlan = Object.entries(parsed)
-          .filter(([key, value]) => value && value !== 'N/A')
-          .map(([key, value]) => {
-            const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())
-            return `${label}: ${value}`
-          })
-          .join('\n\n')
-      } catch (e) {
-        // Keep original if parsing fails
-      }
-    }
+    if (!note) return ""
 
+    const noteHistory = note.historyOfPresentIllness || note.historyOfPresentingIllness || "Not documented"
+    
     return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <title>Medical Note - ${note?.patientName}</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          max-width: 800px;
-          margin: 0 auto;
-          padding: 20px;
-          line-height: 1.6;
-          color: #333;
-        }
-        .header {
-          text-align: center;
-          border-bottom: 2px solid #007bff;
-          padding-bottom: 20px;
-          margin-bottom: 30px;
-        }
-        .header h1 {
-          color: #007bff;
-          margin: 0;
-          font-size: 28px;
-        }
-        .header p {
-          margin: 5px 0;
-          color: #666;
-        }
-        .section {
-          margin-bottom: 25px;
-          page-break-inside: avoid;
-        }
-        .section h2 {
-          color: #007bff;
-          border-bottom: 1px solid #ddd;
-          padding-bottom: 5px;
-          margin-bottom: 15px;
-          font-size: 18px;
-        }
-        .patient-info {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-          background: #f8f9fa;
-          padding: 15px;
-          border-radius: 5px;
-          margin-bottom: 25px;
-        }
-        .patient-info div {
-          margin-bottom: 10px;
-        }
-        .patient-info strong {
-          color: #007bff;
-        }
-        .clinical-content {
-          background: white;
-          padding: 15px;
-          border-left: 4px solid #007bff;
-          margin-bottom: 15px;
-        }
-        .clinical-content h3 {
-          color: #007bff;
-          margin-top: 0;
-          margin-bottom: 10px;
-          font-size: 16px;
-        }
-        .clinical-content p {
-          margin: 0;
-          white-space: pre-wrap;
-        }
-        .footer {
-          margin-top: 40px;
-          padding-top: 20px;
-          border-top: 1px solid #ddd;
-          text-align: center;
-          color: #666;
-          font-size: 12px;
-        }
-        @media print {
-          body { margin: 0; }
-          .no-print { display: none; }
-        }
-      </style>
-    </head>
-    <body>
-      <div class="header">
-        <h1>MEDICAL NOTE</h1>
-        <p>Generated on ${new Date().toLocaleDateString()}</p>
-        <p>NovateScribe Medical Documentation System</p>
-      </div>
-
-      <div class="patient-info">
-        <div>
-          <strong>Patient Name:</strong><br>
-          ${note?.patientName || 'Not specified'}
-        </div>
-        <div>
-          <strong>Age:</strong><br>
-          ${note?.patientAge ? `${note.patientAge} years` : 'Not specified'}
-        </div>
-        <div>
-          <strong>Gender:</strong><br>
-          ${note?.patientGender || 'Not specified'}
-        </div>
-        <div>
-          <strong>Visit Date:</strong><br>
-          ${note?.visitDate || new Date().toLocaleDateString()}
-        </div>
-        <div>
-          <strong>Visit Time:</strong><br>
-          ${note?.visitTime || 'Not specified'}
-        </div>
-        <div>
-          <strong>Note Type:</strong><br>
-          ${note?.noteType || 'Consultation'}
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>CLINICAL INFORMATION</h2>
+      <div style="font-family: Arial, sans-serif; color: #333;">
+        <header style="border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px;">
+          <h1 style="font-size: 24px; margin: 0;">Medical Note</h1>
+          <p style="font-size: 12px; color: #666;">Note ID: ${note.id}</p>
+        </header>
         
-        <div class="clinical-content">
-          <h3>Chief Complaint</h3>
-          <p>${note?.chiefComplaint || 'Not documented'}</p>
-        </div>
+        <main>
+          <section style="margin-bottom: 20px;">
+            <h2 style="font-size: 18px; border-bottom: 1px solid #ddd; padding-bottom: 5px; margin-bottom: 10px;">Patient Information</h2>
+            <table style="width: 100%; font-size: 14px;">
+              <tr>
+                <td style="width: 33%;"><strong>Name:</strong> ${note.patientName}</td>
+                <td style="width: 33%;"><strong>Age:</strong> ${note.patientAge}</td>
+                <td style="width: 33%;"><strong>Gender:</strong> ${note.patientGender}</td>
+              </tr>
+              <tr>
+                <td><strong>Date:</strong> ${new Date(note.createdAt).toLocaleDateString()}</td>
+                <td colspan="2"><strong>Note Type:</strong> ${note.noteType}</td>
+              </tr>
+            </table>
+          </section>
 
-        <div class="clinical-content">
-          <h3>History of Present Illness</h3>
-          <p>${note?.historyOfPresentIllness || 'Not documented'}</p>
-        </div>
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Chief Complaint</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.chiefComplaint || 'Not specified'}</p>
+          </section>
 
-        <div class="clinical-content">
-          <h3>Physical Examination</h3>
-          <p>${typeof note?.physicalExamination === 'string' ? note.physicalExamination : 'Physical examination findings to be documented'}</p>
-        </div>
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">History of Presenting Illness</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${noteHistory}</p>
+          </section>
 
-        <div class="clinical-content">
-          <h3>Diagnosis</h3>
-          <p>${note?.diagnosis || 'To be determined based on examination'}</p>
-        </div>
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Past Medical History</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.pastMedicalHistory || 'Not documented'}</p>
+          </section>
 
-        <div class="clinical-content">
-          <h3>Management Plan</h3>
-          <p>${managementPlan}</p>
-        </div>
+           <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">System Review</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.systemReview || 'Not documented'}</p>
+          </section>
+
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Physical Examination</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.physicalExamination || 'Not documented'}</p>
+          </section>
+
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Diagnosis</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.diagnosis || 'Not specified'}</p>
+          </section>
+
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Treatment Plan</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.treatmentPlan || 'Not specified'}</p>
+          </section>
+
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Follow-up Instructions</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.followUpInstructions || 'Not documented'}</p>
+          </section>
+
+          <section style="margin-bottom: 20px;">
+            <h3 style="font-size: 16px; margin-bottom: 10px;">Additional Notes</h3>
+            <p style="font-size: 14px; white-space: pre-wrap;">${note.additionalNotes || 'Not documented'}</p>
+          </section>
+
+        </main>
+        
+        <footer style="border-top: 2px solid #eee; padding-top: 10px; margin-top: 20px; font-size: 12px; color: #666; text-align: center;">
+          <p>This is an electronically generated document from NovateScribe.</p>
+        </footer>
       </div>
-
-      <div class="footer">
-        <p>This document was generated by NovateScribe AI Medical Documentation System</p>
-        <p>Generated on ${new Date().toLocaleString()}</p>
-      </div>
-    </body>
-    </html>
     `
   }
 
   const handleCompareVersions = async () => {
-    if (selectedVersions.from === selectedVersions.to) {
-      toast({
-        title: 'Invalid Selection',
-        description: 'Please select different versions to compare',
-        variant: 'destructive'
-      })
+    if (selectedVersions.from >= selectedVersions.to) {
+      toast({ title: 'Invalid Selection', description: '"From" version must be less than "To" version.', variant: 'destructive' })
       return
     }
-
     try {
       const response = await apiClient.compareNoteVersions(noteId, selectedVersions.from, selectedVersions.to)
-
       if (response.success && response.data) {
         setVersionComparison(response.data)
       } else {
-        throw new Error(response.error || 'Failed to compare versions')
+        toast({ title: 'Comparison Failed', description: response.error, variant: 'destructive' })
       }
     } catch (error) {
       logger.error('Error comparing versions:', error)
-      toast({
-        title: 'Comparison Error',
-        description: 'Failed to compare versions',
-        variant: 'destructive'
-      })
+      toast({ title: 'Error', description: 'Failed to compare versions', variant: 'destructive' })
     }
   }
 
   const handleRestoreVersion = async () => {
-    if (!restoreReason.trim()) {
-      toast({
-        title: 'Reason Required',
-        description: 'Please provide a reason for restoring this version',
-        variant: 'destructive'
-      })
-      return
-    }
-
+    if (!showRestoreDialog.open || !restoreReason) return
     try {
       const response = await apiClient.restoreNoteVersion(noteId, showRestoreDialog.version, restoreReason)
-
       if (response.success) {
-        toast({
-          title: 'Version Restored',
-          description: `Note restored to version ${showRestoreDialog.version}`,
-        })
-
-        // Reload note data
-        await loadNoteData()
+        toast({ title: 'Version Restored', description: `Note restored to version ${showRestoreDialog.version}` })
+        await loadNoteData() // Reload all data
         setShowRestoreDialog({ version: 0, open: false })
         setRestoreReason('')
       } else {
-        throw new Error(response.error || 'Failed to restore version')
+        toast({ title: 'Restore Failed', description: response.error, variant: 'destructive' })
       }
     } catch (error) {
       logger.error('Error restoring version:', error)
-      toast({
-        title: 'Restore Error',
-        description: 'Failed to restore version',
-        variant: 'destructive'
-      })
+      toast({ title: 'Error', description: 'Failed to restore version', variant: 'destructive' })
     }
   }
 
@@ -571,326 +452,207 @@ export default function NotePage() {
   }
 
   const getChangeTypeColor = (changeType: string) => {
-    switch (changeType) {
-      case 'CREATE': return 'bg-green-100 text-green-800'
-      case 'UPDATE': return 'bg-blue-100 text-blue-800'
-      case 'RESTORE': return 'bg-yellow-100 text-yellow-800'
-      case 'DELETE': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+    switch (changeType.toLowerCase()) {
+      case 'create':
+      case 'added':
+        return 'bg-green-100 text-green-800'
+      case 'update':
+      case 'modified':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'restore':
+        return 'bg-blue-100 text-blue-800'
+      case 'delete':
+      case 'removed':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading note...</span>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-12 w-12 animate-spin" />
       </div>
     )
   }
 
   if (!note) {
     return (
-      <div className="text-center py-8">
-        <h2 className="text-2xl font-bold text-gray-900">Note Not Found</h2>
-        <p className="text-gray-600 mt-2">The requested medical note could not be found.</p>
-        <Button onClick={() => router.push('/dashboard/notes')} className="mt-4">
-          Back to Notes
+      <div className="flex flex-col items-center justify-center h-screen">
+        <h2 className="text-2xl font-bold mb-4">Note not found</h2>
+        <p className="text-gray-600 mb-8">The requested medical note could not be found.</p>
+        <Button onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Go back to notes
         </Button>
       </div>
     )
   }
 
-  // Debug what's being rendered
-  console.log('🔍 Rendering note:', note)
-  console.log('🔍 Display values:', {
-    patientName: note.patientName,
-    patientAge: note.patientAge,
-    patientGender: note.patientGender,
-    chiefComplaint: note.chiefComplaint,
-    historyOfPresentIllness: note.historyOfPresentIllness
-  })
-
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Medical Note</h1>
-          <p className="text-gray-600">Patient: {note.patientName}</p>
-        </div>
+      <div className="flex items-center justify-between mb-6">
+        <Button variant="ghost" onClick={handleBack}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Notes
+        </Button>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => handleExportPDF(true)}
-            disabled={isExporting}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            Preview PDF
-          </Button>
-          <Button
-            onClick={() => handleExportPDF(false)}
-            disabled={isExporting}
-          >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4 mr-2" />
-            )}
-            Export PDF
-          </Button>
-          <Button
-            variant={isEditing ? "destructive" : "default"}
-            onClick={() => {
-              if (isEditing) {
-                setIsEditing(false)
-                setEditedNote(note)
-              } else {
-                setIsEditing(true)
-              }
-            }}
-          >
-            {isEditing ? (
-              <>
-                <X className="h-4 w-4 mr-2" />
+          {isEditing ? (
+            <>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Save
+              </Button>
+              <Button variant="outline" onClick={() => setIsEditing(false)}>
+                <X className="mr-2 h-4 w-4" />
                 Cancel
-              </>
-            ) : (
-              <>
-                <Edit2 className="h-4 w-4 mr-2" />
-                Edit
-              </>
-            )}
-          </Button>
-          {isEditing && (
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
-              )}
-              Save
+              </Button>
+            </>
+          ) : (
+            <Button onClick={handleEdit}>
+              <Edit2 className="mr-2 h-4 w-4" /> Edit Note
             </Button>
           )}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <FileDown className="mr-2 h-4 w-4" /> Export
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Export Note</DialogTitle>
+                <DialogDescription>
+                  Choose a format to export the medical note.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-around p-4">
+                <Button onClick={() => handleExportPDF(false)} disabled={isExporting}>
+                  {isExporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  PDF
+                </Button>
+                <Button onClick={() => handleExportPDF(true)} disabled={isExporting}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview PDF
+                </Button>
+                <Button onClick={handleDownload}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Word
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={handlePrint}>
+            <Printer className="mr-2 h-4 w-4" /> Print
+          </Button>
         </div>
       </div>
 
-      <Tabs defaultValue="note" className="space-y-4">
-        <TabsList>
+      <Tabs defaultValue="note" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="note">Medical Note</TabsTrigger>
-          <TabsTrigger value="versions">Version History</TabsTrigger>
-          <TabsTrigger value="audit">Audit Trail</TabsTrigger>
+          <TabsTrigger value="history">Version History</TabsTrigger>
         </TabsList>
 
         {/* Medical Note Tab */}
         <TabsContent value="note" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Patient Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Patient Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label>Name</Label>
-                  {isEditing ? (
-                    <Input
-                      value={editedNote.patientName || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, patientName: e.target.value })}
-                    />
-                  ) : (
-                    <p className="text-sm font-medium">{note.patientName}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>Age</Label>
-                  {isEditing ? (
-                    <Input
-                      type="number"
-                      value={editedNote.patientAge || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, patientAge: parseInt(e.target.value) })}
-                    />
-                  ) : (
-                    <p className="text-sm font-medium">
-                      {note.patientAge ? `${note.patientAge} years` : 'Age not specified'}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label>Gender</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedNote.patientGender || ''}
-                      onValueChange={(value) => setEditedNote({ ...editedNote, patientGender: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <p className="text-sm font-medium capitalize">{note.patientGender}</p>
-                  )}
-                </div>
-                <div>
-                  <Label>Note Type</Label>
-                  {isEditing ? (
-                    <Select
-                      value={editedNote.noteType || ''}
-                      onValueChange={(value) => setEditedNote({ ...editedNote, noteType: value as any })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="consultation">Consultation</SelectItem>
-                        <SelectItem value="follow-up">Follow-up</SelectItem>
-                        <SelectItem value="assessment">Assessment</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <Badge variant="outline" className="capitalize">{note.noteType}</Badge>
-                  )}
-                </div>
-                <div>
-                  <Label>Visit Date</Label>
-                  {isEditing ? (
-                    <Input
-                      type="date"
-                      value={editedNote.visitDate || new Date(note.createdAt).toISOString().split('T')[0]}
-                      onChange={(e) => setEditedNote({ ...editedNote, visitDate: e.target.value })}
-                    />
-                  ) : (
-                    <p className="text-sm font-medium">
-                      {new Date(note.createdAt).toLocaleDateString()}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <Label>Visit Time</Label>
-                  {isEditing ? (
-                    <Input
-                      type="time"
-                      value={editedNote.visitTime || new Date(note.createdAt).toTimeString().slice(0, 5)}
-                      onChange={(e) => setEditedNote({ ...editedNote, visitTime: e.target.value })}
-                    />
-                  ) : (
-                    <p className="text-sm font-medium">
-                      {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Clinical Information */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle>Clinical Information</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label>Chief Complaint</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedNote.chiefComplaint || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, chiefComplaint: e.target.value })}
-                      rows={3}
-                    />
-                  ) : (
-                    <p className="text-sm mt-1">{note.chiefComplaint || 'Not specified'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label>History of Present Illness</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedNote.historyOfPresentIllness || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, historyOfPresentIllness: e.target.value })}
-                      rows={4}
-                    />
-                  ) : (
-                    <p className="text-sm mt-1">{note.historyOfPresentIllness || 'Not documented'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Physical Examination</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedNote.physicalExamination || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, physicalExamination: e.target.value })}
-                      rows={4}
-                    />
-                  ) : (
-                    <p className="text-sm mt-1">{note.physicalExamination || 'Not documented'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Diagnosis</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedNote.diagnosis || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, diagnosis: e.target.value })}
-                      rows={3}
-                    />
-                  ) : (
-                    <p className="text-sm mt-1">{note.diagnosis || 'Not specified'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <Label>Treatment Plan</Label>
-                  {isEditing ? (
-                    <Textarea
-                      value={editedNote.treatmentPlan || ''}
-                      onChange={(e) => setEditedNote({ ...editedNote, treatmentPlan: e.target.value })}
-                      rows={4}
-                    />
-                  ) : (
-                    <p className="text-sm mt-1">{note.treatmentPlan || 'Not specified'}</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Metadata */}
           <Card>
             <CardHeader>
-              <CardTitle>Note Information</CardTitle>
+              <CardTitle>Medical Note Details</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div>
-                  <Label>Created</Label>
-                  <p className="text-sm font-medium">{formatDate(note.createdAt)}</p>
+            <CardContent className="space-y-6">
+              {isEditing ? (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="patientName">Patient Name</Label>
+                    <Input id="patientName" value={editedNote.patientName || ''} onChange={e => setEditedNote({...editedNote, patientName: e.target.value})} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="patientAge">Patient Age</Label>
+                      <Input id="patientAge" type="number" value={editedNote.patientAge || ''} onChange={e => setEditedNote({...editedNote, patientAge: parseInt(e.target.value, 10)})} />
+                    </div>
+                    <div>
+                      <Label htmlFor="patientGender">Patient Gender</Label>
+                      <Input id="patientGender" value={editedNote.patientGender || ''} onChange={e => setEditedNote({...editedNote, patientGender: e.target.value})} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="chiefComplaint">Chief Complaint</Label>
+                    <Textarea id="chiefComplaint" value={editedNote.chiefComplaint || ''} onChange={e => setEditedNote({...editedNote, chiefComplaint: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="historyOfPresentingIllness">History of Presenting Illness</Label>
+                    <Textarea id="historyOfPresentingIllness" value={editedNote.historyOfPresentingIllness || editedNote.historyOfPresentIllness || ''} onChange={e => setEditedNote({...editedNote, historyOfPresentingIllness: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="pastMedicalHistory">Past Medical History</Label>
+                    <Textarea id="pastMedicalHistory" value={editedNote.pastMedicalHistory || ''} onChange={e => setEditedNote({...editedNote, pastMedicalHistory: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="systemReview">System Review</Label>
+                    <Textarea id="systemReview" value={editedNote.systemReview || ''} onChange={e => setEditedNote({...editedNote, systemReview: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="physicalExamination">Physical Examination</Label>
+                    <Textarea id="physicalExamination" value={editedNote.physicalExamination || ''} onChange={e => setEditedNote({...editedNote, physicalExamination: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="diagnosis">Diagnosis</Label>
+                    <Textarea id="diagnosis" value={editedNote.diagnosis || ''} onChange={e => setEditedNote({...editedNote, diagnosis: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="treatmentPlan">Treatment Plan</Label>
+                    <Textarea id="treatmentPlan" value={editedNote.treatmentPlan || ''} onChange={e => setEditedNote({...editedNote, treatmentPlan: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="followUpInstructions">Follow-up Instructions</Label>
+                    <Textarea id="followUpInstructions" value={editedNote.followUpInstructions || ''} onChange={e => setEditedNote({...editedNote, followUpInstructions: e.target.value})} />
+                  </div>
+                  <div>
+                    <Label htmlFor="additionalNotes">Additional Notes</Label>
+                    <Textarea id="additionalNotes" value={editedNote.additionalNotes || ''} onChange={e => setEditedNote({...editedNote, additionalNotes: e.target.value})} />
+                  </div>
                 </div>
-                <div>
-                  <Label>Last Modified</Label>
-                  <p className="text-sm font-medium">{formatDate(note.updatedAt)}</p>
+              ) : (
+                <div className="space-y-4">
+                  {/* Patient Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <h3 className="font-semibold text-gray-600">Patient Name</h3>
+                      <p>{note?.patientName}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-600">Age</h3>
+                      <p>{note?.patientAge}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-600">Gender</h3>
+                      <p>{note?.patientGender}</p>
+                    </div>
+                  </div>
+                  <Separator />
+                  
+                  {/* Medical Details */}
+                  <div className="space-y-4">
+                    <NoteSection title="Chief Complaint" content={note?.chiefComplaint} />
+                    <NoteSection title="History of Presenting Illness" content={note?.historyOfPresentingIllness || note?.historyOfPresentIllness} />
+                    <NoteSection title="Past Medical History" content={note?.pastMedicalHistory} />
+                    <NoteSection title="System Review" content={note?.systemReview} />
+                    <NoteSection title="Physical Examination" content={note?.physicalExamination} />
+                    <NoteSection title="Diagnosis" content={note?.diagnosis} />
+                    <NoteSection title="Treatment Plan" content={note?.treatmentPlan} />
+                    <NoteSection title="Follow-up Instructions" content={note?.followUpInstructions} />
+                    <NoteSection title="Additional Notes" content={note?.additionalNotes} />
+                  </div>
                 </div>
-                <div>
-                  <Label>Time Saved</Label>
-                  <p className="text-sm font-medium">{note.timeSaved ? `${Math.round(note.timeSaved / 60)} minutes` : 'N/A'}</p>
-                </div>
-                <div>
-                  <Label>Note ID</Label>
-                  <p className="text-sm font-medium font-mono">{note.id.slice(0, 8)}...</p>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Version History Tab */}
-        <TabsContent value="versions" className="space-y-6">
+        <TabsContent value="history" className="space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -900,150 +662,96 @@ export default function NotePage() {
             </CardHeader>
             <CardContent>
               {versions.length > 0 ? (
-                <div className="space-y-4">
-                  {/* Version Comparison */}
-                  <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Label>Compare:</Label>
-                      <Select
-                        value={selectedVersions.from.toString()}
-                        onValueChange={(value) => setSelectedVersions({ ...selectedVersions, from: parseInt(value) })}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {versions.map((v) => (
-                            <SelectItem key={v.version} value={v.version.toString()}>
-                              v{v.version}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <span>with</span>
-                      <Select
-                        value={selectedVersions.to.toString()}
-                        onValueChange={(value) => setSelectedVersions({ ...selectedVersions, to: parseInt(value) })}
-                      >
-                        <SelectTrigger className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {versions.map((v) => (
-                            <SelectItem key={v.version} value={v.version.toString()}>
-                              v{v.version}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button onClick={handleCompareVersions} size="sm">
-                        <GitCompare className="h-4 w-4 mr-2" />
-                        Compare
-                      </Button>
-                    </div>
+                <>
+                  <div className="flex items-center gap-4 mb-4">
+                    <Select value={String(selectedVersions.from)} onValueChange={v => setSelectedVersions({...selectedVersions, from: Number(v)})}>
+                      <SelectTrigger><SelectValue placeholder="From" /></SelectTrigger>
+                      <SelectContent>
+                        {versions.map(v => <SelectItem key={v.version} value={String(v.version)}>Version {v.version}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Select value={String(selectedVersions.to)} onValueChange={v => setSelectedVersions({...selectedVersions, to: Number(v)})}>
+                      <SelectTrigger><SelectValue placeholder="To" /></SelectTrigger>
+                      <SelectContent>
+                        {versions.map(v => <SelectItem key={v.version} value={String(v.version)}>Version {v.version}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Button onClick={handleCompareVersions}>
+                      <GitCompare className="mr-2 h-4 w-4" />
+                      Compare
+                    </Button>
                   </div>
 
-                  {/* Version Comparison Results */}
                   {versionComparison && (
-                    <Alert>
-                      <AlertDescription>
+                    <Card className="my-4">
+                      <CardHeader>
+                        <CardTitle>Comparison between Version {versionComparison.fromVersion.version} and {versionComparison.toVersion.version}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
                         <div className="space-y-2">
-                          <h4 className="font-semibold">
-                            Comparison: Version {versionComparison.fromVersion.version} → Version {versionComparison.toVersion.version}
-                          </h4>
-                          <p className="text-sm text-gray-600">
-                            {versionComparison.totalChanges} changes found
-                          </p>
-                          <div className="space-y-1">
-                            {versionComparison.differences.map((diff, index) => (
-                              <div key={index} className="text-sm">
-                                <span className="font-medium">{diff.field}:</span>
-                                <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                                  diff.changeType === 'added' ? 'bg-green-100 text-green-800' :
-                                  diff.changeType === 'removed' ? 'bg-red-100 text-red-800' :
-                                  'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {diff.changeType}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
+                          {versionComparison.differences.map((diff, index) => (
+                            <div key={index} className="p-2 rounded-md bg-gray-50">
+                              <p className="font-semibold">{diff.field}</p>
+                              <p className="text-sm text-red-600">
+                                <span className="font-medium">From:</span> {String(diff.oldValue)}
+                              </p>
+                              <p className="text-sm text-green-600">
+                                <span className="font-medium">To:</span> {String(diff.newValue)}
+                              </p>
+                            </div>
+                          ))}
                         </div>
-                      </AlertDescription>
-                    </Alert>
+                      </CardContent>
+                    </Card>
                   )}
 
-                  {/* Version List */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     {versions.map((version) => (
-                      <div key={version.id} className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Badge className={getChangeTypeColor(version.changeType)}>
-                              Version {version.version}
-                            </Badge>
-                            <span className="text-sm font-medium">{version.changeDescription}</span>
-                          </div>
+                      <div key={version.version} className="border-l-4 border-gray-300 pl-4 pb-4">
+                        <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <div className="text-right text-xs text-gray-500">
-                              <div className="flex items-center gap-1">
-                                <User className="h-3 w-3" />
-                                {version.changedByUser.name}
-                              </div>
-                              <div className="flex items-center gap-1">
-                                <Clock className="h-3 w-3" />
-                                {formatDate(version.changedAt)}
-                              </div>
-                            </div>
-                            {version.version !== versions[0]?.version && (
-                              <Dialog
-                                open={showRestoreDialog.open && showRestoreDialog.version === version.version}
-                                onOpenChange={(open) => setShowRestoreDialog({ version: version.version, open })}
-                              >
-                                <DialogTrigger asChild>
-                                  <Button variant="outline" size="sm">
-                                    <RotateCcw className="h-4 w-4 mr-2" />
-                                    Restore
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                  <DialogHeader>
-                                    <DialogTitle>Restore Version {version.version}</DialogTitle>
-                                    <DialogDescription>
-                                      This will restore the note to version {version.version}. Please provide a reason for this action.
-                                    </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4">
-                                    <div>
-                                      <Label>Reason for Restoration</Label>
-                                      <Textarea
-                                        value={restoreReason}
-                                        onChange={(e) => setRestoreReason(e.target.value)}
-                                        placeholder="Explain why you're restoring this version..."
-                                        rows={3}
-                                      />
-                                    </div>
-                                    <div className="flex justify-end gap-2">
-                                      <Button
-                                        variant="outline"
-                                        onClick={() => setShowRestoreDialog({ version: 0, open: false })}
-                                      >
-                                        Cancel
-                                      </Button>
-                                      <Button onClick={handleRestoreVersion}>
-                                        Restore Version
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            )}
+                            <Badge className={getChangeTypeColor(version.changeType)}>
+                              {version.changeType}
+                            </Badge>
+                            <span className="font-medium">Version {version.version}</span>
                           </div>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm" onClick={() => setShowRestoreDialog({ version: version.version, open: true })}>
+                                <RotateCcw className="h-3 w-3" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Restore to Version {version.version}</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <Alert variant="destructive">
+                                  <AlertDescription>
+                                    Are you sure you want to restore to this version? This will create a new version with the content of version {version.version}.
+                                  </AlertDescription>
+                                </Alert>
+                                <Textarea
+                                  placeholder="Reason for restoring (optional)"
+                                  value={restoreReason}
+                                  onChange={(e) => setRestoreReason(e.target.value)}
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <Button variant="ghost" onClick={() => setShowRestoreDialog({ version: 0, open: false })}>Cancel</Button>
+                                  <Button onClick={handleRestoreVersion}>Restore</Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+                        <p className="text-sm text-gray-700 mb-2">{version.changeDescription}</p>
+                        <div className="text-xs text-gray-500">
+                          Changed by: {version.changedByUser.name} on {formatDate(version.changedAt)}
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </>
               ) : (
                 <p className="text-gray-500 text-center py-8">No version history available</p>
               )}
@@ -1051,7 +759,8 @@ export default function NotePage() {
           </Card>
         </TabsContent>
 
-        {/* Audit Trail Tab */}
+        {/* Audit Trail Tab - Temporarily disabled due to backend 404 */}
+        {/*
         <TabsContent value="audit" className="space-y-6">
           <Card>
             <CardHeader>
@@ -1110,7 +819,20 @@ export default function NotePage() {
             </CardContent>
           </Card>
         </TabsContent>
+        */}
       </Tabs>
+    </div>
+  )
+}
+
+// Helper component to render sections and handle empty content
+const NoteSection = ({ title, content }: { title: string; content?: string | null }) => {
+  if (!content) return null
+
+  return (
+    <div>
+      <h3 className="font-semibold text-gray-700 text-lg mb-2 border-b pb-1">{title}</h3>
+      <p className="text-gray-800 whitespace-pre-wrap">{content}</p>
     </div>
   )
 }

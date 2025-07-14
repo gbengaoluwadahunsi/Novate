@@ -7,38 +7,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useEffect, useState } from "react"
 import { apiClient } from "@/lib/api-client"
 import ClientOnly from "@/components/client-only"
+import { useUserDashboardStats } from "@/hooks/use-dashboard-stats"
+import { useAppSelector } from "@/store/hooks"
 
 export default function Dashboard() {
-  const [notesCount, setNotesCount] = useState<number>(0)
-  const [timeSaved, setTimeSaved] = useState<string>("-")
+  const { stats: userStats, loading: statsLoading, error: statsError } = useUserDashboardStats()
+  const { user } = useAppSelector((state) => state.auth)
   const [recentNotes, setRecentNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    async function fetchStats() {
+    async function fetchNotes() {
       setLoading(true)
       setError(null)
       try {
-        // Fetch user-specific dashboard stats (requires authentication)
-        const userStatsRes = await apiClient.getUserDashboardStats();
-        if (userStatsRes.success && userStatsRes.data) {
-          setNotesCount(userStatsRes.data.notesCreated || 0);
-          const totalMinutes = Math.floor((userStatsRes.data.timeSavedSeconds || 0) / 60);
-          const hours = Math.floor(totalMinutes / 60);
-          const minutes = totalMinutes % 60;
-          setTimeSaved(`${hours}h ${minutes}m`);
-        } else {
-          // Fallback to global stats if user stats not available
-          const statsRes = await apiClient.getDashboardStats();
-          if (statsRes.success && statsRes.data) {
-            setNotesCount(statsRes.data.notesProcessed || 0);
-            const totalMinutes = statsRes.data.additionalMetrics?.totalTimeSavedHours ? statsRes.data.additionalMetrics.totalTimeSavedHours * 60 : 0;
-            const hours = Math.floor(totalMinutes / 60);
-            const minutes = totalMinutes % 60;
-            setTimeSaved(`${hours}h ${minutes}m`);
-          }
-        }
         // Fetch recent notes (for the authenticated user) - limit to 5
         const notesRes = await apiClient.getMedicalNotes({ page: 1, limit: 5 });
         if (notesRes.success && notesRes.data && Array.isArray(notesRes.data.notes)) {
@@ -47,32 +30,43 @@ export default function Dashboard() {
           setRecentNotes([]);
         }
       } catch (e) {
-        console.error('Error fetching dashboard data:', e);
-        setError('Failed to load dashboard data');
-        setNotesCount(0);
-        setTimeSaved('0h 0m');
+        console.error('Error fetching notes:', e);
+        setError('Failed to load recent notes');
         setRecentNotes([]);
       } finally {
         setLoading(false);
       }
     }
-    fetchStats();
+    fetchNotes();
   }, []);
+
+  // Format time saved
+  const formatTimeSaved = (seconds: number) => {
+    if (!seconds || isNaN(seconds) || seconds < 0) {
+      return "0h 0m";
+    }
+    const totalMinutes = Math.floor(seconds / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    return `${hours}h ${minutes}m`;
+  };
 
   return (
     <ClientOnly fallback={<div className="flex-1 p-8">Loading dashboard...</div>}>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between">
-                      <h2 className="text-3xl font-bold tracking-tight">Welcome NovateScribe</h2>
+          <h2 className="text-3xl font-bold tracking-tight">
+            Welcome {user?.name ? user.name.split(' ')[0] : user?.firstName || 'NovateScribe'}
+          </h2>
           <Link href="/dashboard/transcribe">
             <Button className="bg-sky-500 hover:bg-sky-600">New Transcription</Button>
           </Link>
         </div>
         <p className="text-muted-foreground">Your AI-powered medical documentation assistant</p>
 
-        {error && (
+        {(statsError || error) && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
+            {statsError || error}
           </div>
         )}
 
@@ -83,7 +77,7 @@ export default function Dashboard() {
               <FileText className="h-4 w-4 text-sky-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? "-" : notesCount}</div>
+              <div className="text-2xl font-bold">{statsLoading ? "-" : (userStats?.notesCreated ?? 0)}</div>
             </CardContent>
           </Card>
           <Card>
@@ -92,7 +86,7 @@ export default function Dashboard() {
               <Clock className="h-4 w-4 text-sky-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{loading ? "-" : timeSaved}</div>
+              <div className="text-2xl font-bold">{statsLoading ? "-" : formatTimeSaved(userStats?.timeSavedSeconds ?? 0)}</div>
             </CardContent>
           </Card>
         </div>

@@ -13,6 +13,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { apiClient } from "@/lib/api-client"
 import type { FastTranscriptionResponse, TranscriptionResult } from "@/lib/api-client"
 import { useAppSelector } from "@/store/hooks"
+import { fetchSupportedLanguages, type Language } from "@/app/config/languages"
 
 // Types
 interface MedicalNote {
@@ -288,6 +289,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const [isPaused, setIsPaused] = useState(false)
   const [recordingTime, setRecordingTime] = useState(0)
   const [language, setLanguage] = useState(user?.preferredLanguage || "en-US")
+  const [availableLanguages, setAvailableLanguages] = useState<Language[]>([])
   const [noiseReduction, setNoiseReduction] = useState(true)
   const [detectedKeywords, setDetectedKeywords] = useState<string[]>([])
   const [demoMode, setDemoMode] = useState(false)
@@ -314,6 +316,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       setLanguage(user.preferredLanguage)
     }
   }, [user?.preferredLanguage])
+
+  useEffect(() => {
+    fetchSupportedLanguages().then(setAvailableLanguages)
+  }, [])
 
   // Function to animate progress for a specific stage
   const animateStageProgress = (stageName: string, targetProgress: number, duration: number = 2000) => {
@@ -1086,24 +1092,9 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en-US">English (US)</SelectItem>
-                  <SelectItem value="en-GB">English (UK)</SelectItem>
-                  <SelectItem value="es-ES">Spanish</SelectItem>
-                  <SelectItem value="fr-FR">French</SelectItem>
-                  <SelectItem value="de-DE">German</SelectItem>
-                  <SelectItem value="it-IT">Italian</SelectItem>
-                  <SelectItem value="pt-PT">Portuguese</SelectItem>
-                  <SelectItem value="ru-RU">Russian</SelectItem>
-                  <SelectItem value="ja-JP">Japanese</SelectItem>
-                  <SelectItem value="ko-KR">Korean</SelectItem>
-                  <SelectItem value="zh-CN">Chinese</SelectItem>
-                  <SelectItem value="ar-SA">Arabic</SelectItem>
-                  <SelectItem value="hi-IN">Hindi</SelectItem>
-                  <SelectItem value="ms-MY">Malay (Malaysia)</SelectItem>
-                  <SelectItem value="nl-NL">Dutch</SelectItem>
-                  <SelectItem value="sv-SE">Swedish</SelectItem>
-                  <SelectItem value="no-NO">Norwegian</SelectItem>
-                  <SelectItem value="da-DK">Danish</SelectItem>
+                  {availableLanguages.map((lang) => (
+                    <SelectItem key={lang.code} value={lang.code}>{lang.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
           </div>

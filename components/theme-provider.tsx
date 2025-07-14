@@ -12,7 +12,11 @@ export function ThemeProvider({ children, ...props }: NextThemeProviderProps) {
   }, [])
 
   if (!mounted) {
-    return <>{children}</>
+    return (
+      <div suppressHydrationWarning>
+        {children}
+      </div>
+    )
   }
 
   return (

@@ -33,8 +33,10 @@ export default function LoginPage() {
 
   // Clear any previous login errors when the component mounts
   useEffect(() => {
-    dispatch(clearError())
-  }, [dispatch])
+    if (mounted) {
+      dispatch(clearError())
+    }
+  }, [dispatch, mounted])
 
   // Handle successful login and redirect
   useEffect(() => {
@@ -83,6 +85,58 @@ export default function LoginPage() {
       }
     }
   }, [mounted])
+
+  // Don't render anything until mounted to prevent hydration mismatch
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <div className="flex justify-center mb-4">
+              <Image 
+                src={logo} 
+                alt="Novate AI Logo" 
+                width={80} 
+                height={80} 
+                className="rounded-full" 
+                priority
+              />
+            </div>
+            <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
+            <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="doctor@example.com"
+                  disabled
+                  className="bg-background"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  disabled
+                  className="bg-background"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Loading...
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

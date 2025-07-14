@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAppDispatch } from "@/store/hooks"
 import { register } from "@/store/features/authSlice"
 import { INITIAL_LANGUAGES, fetchSupportedLanguages, type Language } from "@/app/config/languages"
+import { resendVerificationEmail } from "@/store/features/authSlice"
 
 interface FormData {
   firstName: string
@@ -59,6 +60,8 @@ export default function RegisterPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [registrationComplete, setRegistrationComplete] = useState(false)
   const [apiError, setApiError] = useState("")
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
   const [availableLanguages, setAvailableLanguages] = useState<Language[]>(INITIAL_LANGUAGES)
   
   const router = useRouter()
@@ -93,7 +96,15 @@ export default function RegisterPage() {
     const newErrors: FormErrors = {}
 
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
+    else if (formData.firstName.trim().length < 2) newErrors.firstName = "First name must be at least 2 characters"
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
+    else if (formData.lastName.trim().length < 2) newErrors.lastName = "Last name must be at least 2 characters"
+    
+    // Check if first name and last name are identical (likely user error)
+    if (formData.firstName.trim() === formData.lastName.trim() && formData.firstName.trim().length > 0) {
+      newErrors.firstName = "First name and last name cannot be identical"
+      newErrors.lastName = "Please enter your first name and last name separately"
+    }
     if (!formData.email.trim()) {
       newErrors.email = "Email is required"
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
@@ -164,7 +175,8 @@ export default function RegisterPage() {
       const registrationData: any = {
         email: formData.email.trim(),
         password: formData.password,
-        name: `Dr. ${formData.firstName.trim()} ${formData.lastName.trim()}`,
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
         preferredLanguage: formData.preferredLanguage,
       }
       if (formData.specialization) registrationData.specialization = formData.specialization
@@ -183,6 +195,28 @@ export default function RegisterPage() {
       setApiError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (!formData.email || resendLoading) return
+    
+    setResendLoading(true)
+    setApiError("")
+    try {
+      const result = await dispatch(resendVerificationEmail(formData.email))
+      if (result.type === 'auth/resendVerificationEmail/fulfilled') {
+        setResendSuccess(true)
+        // Reset success message after 5 seconds
+        setTimeout(() => setResendSuccess(false), 5000)
+      } else {
+        const errorMessage = result.payload as string || "Failed to resend verification email"
+        setApiError(errorMessage)
+      }
+    } catch (error) {
+      setApiError("An unexpected error occurred. Please try again.")
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -206,6 +240,18 @@ export default function RegisterPage() {
                   <p className="text-sm text-gray-600 dark:text-gray-400">Please check your email and click the verification link to activate your account.</p>
                 </div>
               </div>
+              {apiError && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{apiError}</AlertDescription>
+                </Alert>
+              )}
+              {resendSuccess && (
+                <Alert className="bg-green-50 text-green-700 border-green-200">
+                  <CheckCircle2 className="h-4 w-4" />
+                  <AlertDescription>Verification email has been resent successfully!</AlertDescription>
+                </Alert>
+              )}
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -217,8 +263,12 @@ export default function RegisterPage() {
               <Button variant="outline" className="w-full" onClick={() => router.push('/login')}>Go to Login Page</Button>
               <div className="text-sm text-center text-gray-500 dark:text-gray-400">
                 Didn't receive the email?{" "}
-                <button className="text-blue-500 hover:text-blue-700 hover:underline" onClick={() => alert("Resend functionality will be implemented")}>
-                  Resend verification email
+                <button 
+                  className={`text-blue-500 hover:text-blue-700 hover:underline ${resendLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onClick={handleResendVerification}
+                  disabled={resendLoading}
+                >
+                  {resendLoading ? "Sending..." : "Resend verification email"}
                 </button>
               </div>
             </CardFooter>
@@ -263,15 +313,18 @@ export default function RegisterPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="firstName">First Name *</Label>
-                      <Input id="firstName" name="firstName" placeholder="John" value={formData.firstName} onChange={handleChange} className={errors.firstName ? "border-red-500" : ""} />
+                      <Input id="firstName" name="firstName" placeholder="e.g., Gbenga" value={formData.firstName} onChange={handleChange} className={errors.firstName ? "border-red-500" : ""} />
                       {errors.firstName && <p className="text-sm text-red-500">{errors.firstName}</p>}
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="lastName">Last Name *</Label>
-                      <Input id="lastName" name="lastName" placeholder="Doe" value={formData.lastName} onChange={handleChange} className={errors.lastName ? "border-red-500" : ""} />
+                      <Input id="lastName" name="lastName" placeholder="e.g., Oluwadahunsi" value={formData.lastName} onChange={handleChange} className={errors.lastName ? "border-red-500" : ""} />
                       {errors.lastName && <p className="text-sm text-red-500">{errors.lastName}</p>}
                     </div>
                   </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Please enter your first name and last name separately. For example, if your full name is "Gbenga Oluwadahunsi", enter "Gbenga" as first name and "Oluwadahunsi" as last name.
+                  </p>
                   <div className="space-y-2">
                     <Label htmlFor="email">Email Address *</Label>
                     <Input id="email" name="email" type="email" placeholder="doctor@example.com" value={formData.email} onChange={handleChange} className={errors.email ? "border-red-500" : ""} />
@@ -344,18 +397,18 @@ export default function RegisterPage() {
                   <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
                     <h3 className="font-medium text-lg mb-2">Review Your Information</h3>
                     <div className="grid grid-cols-1 gap-y-2 text-sm">
-                      <div className="grid grid-cols-2 gap-x-4">
-                        <span className="text-gray-500 dark:text-gray-400">Name:</span><span>Dr. {formData.firstName} {formData.lastName}</span>
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">Name:</span><span className="break-words">Dr. {formData.firstName} {formData.lastName}</span>
                       </div>
-                      <div className="grid grid-cols-2 gap-x-4">
-                        <span className="text-gray-500 dark:text-gray-400">Email:</span><span>{formData.email}</span>
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">Email:</span><span className="break-all text-xs sm:text-sm">{formData.email}</span>
                       </div>
-                      {formData.specialization && <div className="grid grid-cols-2 gap-x-4"><span className="text-gray-500 dark:text-gray-400">Specialization:</span><span>{formData.specialization}</span></div>}
-                      {formData.registrationNo && <div className="grid grid-cols-2 gap-x-4"><span className="text-gray-500 dark:text-gray-400">Registration No:</span><span>{formData.registrationNo}</span></div>}
-                      {formData.licenseNumber && <div className="grid grid-cols-2 gap-x-4"><span className="text-gray-500 dark:text-gray-400">License Number:</span><span>{formData.licenseNumber}</span></div>}
-                      {formData.hospital && <div className="grid grid-cols-2 gap-x-4"><span className="text-gray-500 dark:text-gray-400">Hospital/Clinic:</span><span>{formData.hospital}</span></div>}
-                      <div className="grid grid-cols-2 gap-x-4">
-                        <span className="text-gray-500 dark:text-gray-400">Language:</span><span>{formData.preferredLanguage || "Not selected"}</span>
+                      {formData.specialization && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Specialization:</span><span className="break-words">{formData.specialization}</span></div>}
+                      {formData.registrationNo && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Registration No:</span><span className="break-words">{formData.registrationNo}</span></div>}
+                      {formData.licenseNumber && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">License Number:</span><span className="break-words">{formData.licenseNumber}</span></div>}
+                      {formData.hospital && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Hospital/Clinic:</span><span className="break-words">{formData.hospital}</span></div>}
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">Language:</span><span className="break-words">{availableLanguages.find(lang => lang.code === formData.preferredLanguage)?.name || "Not selected"}</span>
                       </div>
                     </div>
                   </div>

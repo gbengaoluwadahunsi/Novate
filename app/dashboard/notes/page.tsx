@@ -166,7 +166,7 @@ export default function NotesPage() {
       try {
         const token = localStorage.getItem('token')
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://novatescribebackend.onrender.com'
-        const directResponse = await fetch(`${backendUrl}/notes`, {
+        const directResponse = await fetch(`${backendUrl}/medical-notes`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
@@ -292,7 +292,7 @@ export default function NotesPage() {
     })
   }
 
-  const getNoteTypeColor = (noteType: string) => {
+  const getNoteTypeColor = (noteType: string | null) => {
     switch (noteType) {
       case 'consultation': return 'bg-blue-100 text-blue-800'
       case 'follow-up': return 'bg-green-100 text-green-800'
@@ -404,7 +404,7 @@ export default function NotesPage() {
                       )}
                     </div>
                     <Badge className={getNoteTypeColor(note.noteType)}>
-                      {note.noteType}
+                      {note.noteType || 'Note'}
                     </Badge>
                   </div>
                 </CardHeader>

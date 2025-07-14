@@ -23,7 +23,9 @@ export function Sidebar({ className }: SidebarProps) {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { toast } = useToast()
-  const { user } = useAppSelector((state) => state?.auth || {})
+  const { user, isAuthenticated } = useAppSelector((state) => state?.auth || {})
+
+
 
   const handleLogout = () => {
     dispatch(clearAuth())
@@ -97,12 +99,22 @@ export function Sidebar({ className }: SidebarProps) {
           <Link href="/dashboard/settings">
             <Avatar className="h-8 w-8">
               <AvatarImage src="/doctor-profile-avatar.png" alt={user?.name || "User"} />
-              <AvatarFallback>{user?.name ? user.name.split(' ').filter(n => n).map(n => n[0]).join('').toUpperCase() : 'U'}</AvatarFallback>
+              <AvatarFallback>
+                {user?.name 
+                  ? user.name.split(' ').filter(n => n).map(n => n[0]).join('').toUpperCase() 
+                  : user?.firstName && user?.lastName 
+                    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+                    : user?.firstName 
+                      ? user.firstName[0].toUpperCase() 
+                      : 'U'}
+              </AvatarFallback>
             </Avatar>
           </Link>
           <div className="flex-1">
-            <p className="text-sm font-medium">{user?.name || "Dr. Sarah Johnson"}</p>
-            <p className="text-xs text-muted-foreground">{user?.role || "General Medicine"}</p>
+            <p className="text-sm font-medium">
+              {user?.name || (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.firstName || "Loading...")}
+            </p>
+            <p className="text-xs text-muted-foreground">{user?.role || "DOCTOR"}</p>
           </div>
         </div>
         <Button

@@ -26,16 +26,20 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 
     // Check if there's a stored token and verify it
     const initializeAuth = async () => {
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token')
-        if (token) {
-          try {
-            // Verify the token with the backend. The slice will handle the status.
-            await dispatch(verifyToken()).unwrap()
-          } catch (error) {
-            // If token verification fails, the slice will set status to unauthenticated
-            console.log('Token verification failed on startup:', error)
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        try {
+          const token = localStorage.getItem('token')
+          if (token) {
+            try {
+              // Verify the token with the backend. The slice will handle the status.
+              await dispatch(verifyToken()).unwrap()
+            } catch (error) {
+              // If token verification fails, the slice will set status to unauthenticated
+              console.log('Token verification failed on startup:', error)
+            }
           }
+        } catch (error) {
+          console.warn('Failed to access localStorage during auth initialization:', error)
         }
       }
       // Mark auth check as completed after verification attempt

@@ -29,7 +29,9 @@ export const login = createAsyncThunk(
     try {
       const response = await apiClient.login(credentials)
       if (response.success && response.data?.token) {
-        localStorage.setItem('token', response.data.token)
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          localStorage.setItem('token', response.data.token)
+        }
         return response.data
       } else {
         return rejectWithValue(response.error || 'Login failed')
@@ -44,11 +46,7 @@ export const register = createAsyncThunk(
   'auth/register',
   async (userData: { email: string; password: string; firstName: string; lastName: string }, { rejectWithValue }) => {
     try {
-      const { firstName, lastName, ...rest } = userData;
-      const response = await apiClient.register({
-        ...rest,
-        name: `${firstName} ${lastName}`,
-      })
+      const response = await apiClient.register(userData)
       if (response.success) {
         return response.data
       } else {
@@ -65,10 +63,14 @@ export const logout = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       await apiClient.logout()
-      localStorage.removeItem('token')
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+      }
       return null
     } catch (error) {
-      localStorage.removeItem('token')
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+      }
       return rejectWithValue(error instanceof Error ? error.message : 'Logout failed')
     }
   }
@@ -105,11 +107,15 @@ export const verifyToken = createAsyncThunk(
       if (response.success) {
         return response.data
       } else {
-        localStorage.removeItem('token')
+        if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+          localStorage.removeItem('token')
+        }
         return rejectWithValue('Invalid token')
       }
     } catch (error) {
-      localStorage.removeItem('token')
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+      }
       return rejectWithValue(error instanceof Error ? error.message : 'Token verification failed')
     }
   }
@@ -173,7 +179,9 @@ const authSlice = createSlice({
       state.token = null
       state.isAuthenticated = false
       state.error = null
-      localStorage.removeItem('token')
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.removeItem('token')
+      }
     },
     clearError: (state) => {
       state.error = null
@@ -183,13 +191,20 @@ const authSlice = createSlice({
     },
     setToken: (state, action: PayloadAction<string>) => {
       state.token = action.payload
-      localStorage.setItem('token', action.payload)
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        localStorage.setItem('token', action.payload)
+      }
     },
     loadTokenFromStorage: (state) => {
-      if (typeof window !== 'undefined') {
-        const token = localStorage.getItem('token')
-        if (token) {
-          state.token = token
+      // Only access localStorage on the client side
+      if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+        try {
+          const token = localStorage.getItem('token')
+          if (token) {
+            state.token = token
+          }
+        } catch (error) {
+          console.warn('Failed to load token from localStorage:', error)
         }
       }
     },

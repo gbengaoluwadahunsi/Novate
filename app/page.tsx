@@ -8,8 +8,8 @@ import { Navbar } from "@/components/navbar"
  import logo from "@/public/novateLogo-removebg-preview2.png"
 import Image from "next/image"
 import { ArrowRight, CheckCircle2, Mic, FileText, Clock, BarChart3, Shield, Sparkles, ChevronRight } from "lucide-react"
-import { useDashboardStats } from "@/hooks/use-dashboard-stats"
 import ClientOnly from "@/components/client-only"
+import { usePublicDashboardStats } from "@/hooks/use-dashboard-stats"
 
 // Medical Note Component for Hero
 function MedicalNoteVisual() {
@@ -467,7 +467,7 @@ export default function HomePage() {
   const heroY = useTransform(scrollYProgress, [0, 0.2], [0, -50])
   
   // Fetch dynamic dashboard statistics
-  const { stats, loading, error } = useDashboardStats()
+  const { stats, loading, error } = usePublicDashboardStats()
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -618,26 +618,6 @@ export default function HomePage() {
               description="Smart recommendations for diagnoses, treatments, and follow-ups based on patient history."
               delay={0.6}
             />
-          </div>
-        </div>
-      </section>
-
-      {/* Stats Section */}
-      <section className="py-16 px-4 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-teal-500/5"></div>
-        <div className="container mx-auto max-w-6xl relative z-10">
-          {error && (
-            <div className="text-center mb-4">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Using cached statistics • Real-time data temporarily unavailable
-              </p>
-            </div>
-          )}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            <StatsCounter value={stats.timeSavedPercentage} label="Time Saved (%)" delay={0.1} loading={loading} />
-            <StatsCounter value={stats.accuracy} label="Accuracy (%)" delay={0.2} loading={loading} />
-            <StatsCounter value={stats.doctorsUsing} label="Doctors Using NovateScribe" delay={0.3} loading={loading} />
-            <StatsCounter value={stats.notesProcessed} label="Notes Processed" delay={0.4} loading={loading} />
           </div>
         </div>
       </section>
@@ -846,20 +826,28 @@ export default function HomePage() {
             {/* Global usage indicators */}
             <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">120+</div>
-                <div className="text-blue-200 text-sm">Countries</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {loading ? "-" : `${stats.timeSavedPercentage}+`}%
+                </div>
+                <div className="text-blue-200 text-sm">Time Saved</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">{typeof stats.doctorsUsing === 'number' ? stats.doctorsUsing.toLocaleString() : '5,000'}+</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {loading ? "-" : `${stats.doctorsUsing.toLocaleString()}+`}
+                </div>
                 <div className="text-blue-200 text-sm">Healthcare Professionals</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">5M+</div>
-                <div className="text-blue-200 text-sm">Patient Records</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {loading ? "-" : `${stats.notesProcessed.toLocaleString()}+`}
+                </div>
+                <div className="text-blue-200 text-sm">Notes Processed</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">98%</div>
-                <div className="text-blue-200 text-sm">Satisfaction Rate</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {loading ? "-" : `${stats.accuracy}+`}%
+                </div>
+                <div className="text-blue-200 text-sm">Accuracy Rate</div>
               </div>
             </div>
           </motion.div>

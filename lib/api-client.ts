@@ -1,3 +1,5 @@
+"use client"
+
 // API Client for NovateScribe Backend Integration
 // Updated to match comprehensive backend API documentation
 
@@ -44,7 +46,9 @@ interface User {
   id: string;
   userId: string; // Backward compatibility
   email: string;
-  name: string;
+  name?: string; // Optional for backward compatibility
+  firstName?: string; // New field from backend
+  lastName?: string; // New field from backend
   specialization?: string;
   registrationNo?: string;
   licenseNumber?: string;
@@ -67,20 +71,25 @@ interface User {
 interface MedicalNote {
   id: string;
   patientName: string;
-  patientAge: number;
+  patientAge: number | null;
   patientGender: string;
   visitDate?: string;
   visitTime?: string;
   chiefComplaint?: string;
   historyOfPresentIllness?: string;
+  historyOfPresentingIllness?: string; // Backend field name
+  pastMedicalHistory?: string;
+  systemReview?: string;
   physicalExamination?: string;
   diagnosis?: string;
   treatmentPlan?: string;
   managementPlan?: string;
+  followUpInstructions?: string;
+  additionalNotes?: string;
   prescriptions?: Prescription[];
-  noteType: 'consultation' | 'follow-up' | 'assessment';
+  noteType: 'consultation' | 'follow-up' | 'assessment' | null;
   audioJobId?: string;
-  timeSaved?: number;
+  timeSaved?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -449,7 +458,8 @@ class ApiClient {
   async register(userData: {
     email: string;
     password: string;
-    name: string;
+    firstName: string;
+    lastName: string;
     specialization?: string;
     registrationNo?: string;
     licenseNumber?: string;
@@ -584,6 +594,9 @@ class ApiClient {
     return this.request('/auth/resend-verification', {
       method: 'POST',
       body: JSON.stringify({ email }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   }
 
@@ -714,7 +727,7 @@ class ApiClient {
     noteType: 'consultation' | 'follow-up' | 'assessment';
     audioJobId?: string;
   }): Promise<ApiResponse<MedicalNote>> {
-    return this.request('/notes', {
+    return this.request('/medical-notes', {
       method: 'POST',
       body: JSON.stringify(noteData),
     });
@@ -732,7 +745,7 @@ class ApiClient {
       if (params?.search) searchParams.set('search', params.search);
 
       const queryString = searchParams.toString();
-      const response = await this.request<{ notes: MedicalNote[]; pagination: PaginationMeta }>(`/notes${queryString ? `?${queryString}` : ''}`);
+      const response = await this.request<{ notes: MedicalNote[]; pagination: PaginationMeta }>(`/medical-notes${queryString ? `?${queryString}` : ''}`);
       let transformedResponse = response;
 
       // Handle legacy response format
@@ -775,9 +788,27 @@ class ApiClient {
 
   async getMedicalNote(noteId: string): Promise<ApiResponse<MedicalNote>> {
     try {
-      const response = await this.request<MedicalNote>(`/notes/${noteId}`);
+      console.log('🚀 API Client: Calling getMedicalNote with noteId:', noteId);
+      console.log('🚀 API Client: Base URL:', this.baseUrl);
+      console.log('🚀 API Client: Full endpoint:', `${this.baseUrl}/medical-notes/${noteId}`);
+      
+      // Use the new medical-notes endpoint as per backend API documentation
+      const response = await this.request<MedicalNote>(`/medical-notes/${noteId}`);
+      
+      console.log('✅ API Client: getMedicalNote response:', response);
+      if (response.success && response.data) {
+        console.log('✅ API Client: Note data received:', {
+          patientName: response.data.patientName,
+          patientAge: response.data.patientAge,
+          chiefComplaint: response.data.chiefComplaint,
+          historyOfPresentingIllness: response.data.historyOfPresentingIllness,
+          diagnosis: response.data.diagnosis
+        });
+      }
+      
       return response;
     } catch (error) {
+      console.error('❌ API Client: getMedicalNote error:', error);
       return {
         success: false,
         error: 'Failed to fetch medical note',
@@ -787,14 +818,14 @@ class ApiClient {
   }
 
   async updateMedicalNote(noteId: string, noteData: Partial<MedicalNote>): Promise<ApiResponse<MedicalNote>> {
-    return this.request(`/notes/${noteId}`, {
+    return this.request(`/medical-notes/${noteId}`, {
       method: 'PUT',
       body: JSON.stringify(noteData),
     });
   }
 
   async deleteMedicalNote(noteId: string): Promise<ApiResponse> {
-    return this.request(`/notes/${noteId}`, {
+    return this.request(`/medical-notes/${noteId}`, {
       method: 'DELETE',
     });
   }
@@ -881,11 +912,11 @@ class ApiClient {
     if (options?.includeFooter !== undefined) searchParams.append('includeFooter', options.includeFooter.toString());
 
     const queryString = searchParams.toString();
-    return this.requestPDF(`/notes/${noteId}/export/pdf${queryString ? `?${queryString}` : ''}`);
+    return this.requestPDF(`/medical-notes/${noteId}/export/pdf${queryString ? `?${queryString}` : ''}`);
   }
 
   async previewNotePDF(noteId: string): Promise<ApiResponse<Blob>> {
-    return this.requestPDF(`/notes/${noteId}/preview/pdf`);
+    return this.requestPDF(`/medical-notes/${noteId}/preview/pdf`);
   }
 
   // ==========================================
@@ -893,15 +924,15 @@ class ApiClient {
   // ==========================================
 
   async getNoteVersions(noteId: string): Promise<ApiResponse<{ noteId: string; versions: NoteVersion[]; total: number }>> {
-    return this.request(`/notes/${noteId}/versions`);
+    return this.request(`/medical-notes/${noteId}/versions`);
   }
 
   async getNoteVersion(noteId: string, version: number): Promise<ApiResponse<NoteVersion>> {
-    return this.request(`/notes/${noteId}/versions/${version}`);
+    return this.request(`/medical-notes/${noteId}/versions/${version}`);
   }
 
   async compareNoteVersions(noteId: string, fromVersion: number, toVersion: number): Promise<ApiResponse<VersionComparison>> {
-    return this.request(`/notes/${noteId}/versions/compare?from=${fromVersion}&to=${toVersion}`);
+    return this.request(`/medical-notes/${noteId}/versions/compare?from=${fromVersion}&to=${toVersion}`);
   }
 
   async restoreNoteVersion(noteId: string, version: number, reason: string): Promise<ApiResponse<{
@@ -912,18 +943,25 @@ class ApiClient {
     reason: string;
     restoredAt: string;
   }>> {
-    return this.request(`/notes/${noteId}/versions/${version}/restore`, {
+    return this.request(`/medical-notes/${noteId}/versions/${version}/restore`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
   }
 
   async getNoteAuditTrail(noteId: string): Promise<ApiResponse<{ noteId: string; auditTrail: AuditTrailEntry[]; totalEntries: number }>> {
-    return this.request(`/notes/${noteId}/audit-trail`);
+    const endpoint = `/medical-notes/${noteId}/audit-trail`;
+    console.log('🔍 Audit Trail API Call:', {
+      endpoint,
+      fullUrl: `${this.baseUrl}${endpoint}`,
+      noteId,
+      baseUrl: this.baseUrl
+    });
+    return this.request(endpoint);
   }
 
   async getNoteVersionHistory(noteId: string): Promise<ApiResponse<{ noteId: string; versions: NoteVersion[]; total: number }>> {
-    return this.request(`/notes/${noteId}/versions/history`);
+    return this.request(`/medical-notes/${noteId}/versions/history`);
   }
 
   // ==========================================
@@ -1094,17 +1132,8 @@ class ApiClient {
     return this.request('/health/languages');
   }
 
-  async getDashboardStats(): Promise<ApiResponse<{
-    timeSavedPercentage: number;
-    accuracy: number;
-    doctorsUsing: number;
-    notesProcessed: number;
-    additionalMetrics: {
-      totalTimeSavedHours: number;
-      totalUsers: number;
-      averageTimeSavedPerNote: number;
-    };
-  }>> {
+  // Public dashboard stats for homepage/landing page (no auth required)
+  async getPublicDashboardStats(): Promise<ApiResponse<DashboardStats>> {
     return this.request('/health/dashboard-stats');
   }
 
@@ -1115,7 +1144,7 @@ class ApiClient {
     return this.request('/user-stats/dashboard', { 
       method: 'GET', 
       credentials: 'include' 
-    })
+    });
   }
 }
 
