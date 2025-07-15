@@ -601,11 +601,27 @@ class ApiClient {
   }
 
   async logout(): Promise<ApiResponse> {
-    const response = await this.request('/auth/logout', {
-      method: 'POST',
-    });
-    this.removeToken();
-    return response;
+    try {
+      // Since backend doesn't have a logout endpoint, we handle logout client-side
+      // Clear local storage and remove token
+      this.removeToken();
+      
+      // Clear any other stored data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('user');
+        sessionStorage.clear();
+      }
+      
+      return {
+        success: true,
+        message: 'Logged out successfully'
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Logout failed'
+      };
+    }
   }
 
   // ==========================================
@@ -691,21 +707,11 @@ class ApiClient {
   }
 
   async getTranscriptionResult(jobId: string): Promise<ApiResponse<TranscriptionResult>> {
-    try {
-      const response = await this.request<TranscriptionResult>(`/transcribe/result/${jobId}`);
-      
-      return response;
-    } catch (error) {
-      return {
-        success: false,
-        error: `Failed to get transcription result: ${error instanceof Error ? error.message : 'Unknown error'}`
-      };
-    }
+    return this.request(`/transcribe/result/${jobId}`);
   }
 
-  async getTranscriptionStatus(jobId: string): Promise<ApiResponse<TranscriptionResult>> {
-    return this.request(`/transcribe/status/${jobId}`);
-  }
+  // Note: Backend doesn't have a separate status endpoint
+  // Use getTranscriptionResult instead for status checking
 
   // ==========================================
   // MEDICAL NOTES METHODS
@@ -1014,10 +1020,14 @@ class ApiClient {
   // USER PROFILE METHODS
   // ==========================================
 
+  // Note: Backend doesn't have separate profile endpoints
+  // Use getCurrentUser instead for getting profile
   async getProfile(): Promise<ApiResponse<User>> {
-    return this.request('/profile');
+    return this.getCurrentUser();
   }
 
+  // Note: Backend doesn't have a separate update profile endpoint
+  // This method is kept for compatibility but may need backend implementation
   async updateProfile(profileData: {
     name?: string;
     specialization?: string;
@@ -1025,10 +1035,12 @@ class ApiClient {
     preferredLanguage?: string;
     preferredLanguages?: string[];
   }): Promise<ApiResponse<User>> {
-    return this.request('/profile', {
-      method: 'PUT',
-      body: JSON.stringify(profileData),
-    });
+    // TODO: Backend needs to implement user profile update endpoint
+    // For now, return an error indicating this feature is not available
+    return {
+      success: false,
+      error: 'Profile update not yet implemented on backend'
+    };
   }
 
   // ==========================================
@@ -1106,18 +1118,48 @@ class ApiClient {
     return this.request('/health');
   }
 
+  // Note: Backend doesn't have separate liveness endpoint
+  // Use healthCheck instead
   async livenessCheck(): Promise<ApiResponse<{
     status: string;
     timestamp: string;
   }>> {
-    return this.request('/health/live');
+    const healthResponse = await this.healthCheck();
+    if (healthResponse.success && healthResponse.data) {
+      return {
+        success: true,
+        data: {
+          status: healthResponse.data.status,
+          timestamp: healthResponse.data.timestamp
+        }
+      };
+    }
+    return {
+      success: false,
+      error: 'Health check failed'
+    };
   }
 
+  // Note: Backend doesn't have separate readiness endpoint
+  // Use healthCheck instead
   async readinessCheck(): Promise<ApiResponse<{
     status: string;
     timestamp: string;
   }>> {
-    return this.request('/health/ready');
+    const healthResponse = await this.healthCheck();
+    if (healthResponse.success && healthResponse.data) {
+      return {
+        success: true,
+        data: {
+          status: healthResponse.data.status,
+          timestamp: healthResponse.data.timestamp
+        }
+      };
+    }
+    return {
+      success: false,
+      error: 'Health check failed'
+    };
   }
 
   async getPerformanceMetrics(): Promise<ApiResponse<PerformanceMetrics>> {

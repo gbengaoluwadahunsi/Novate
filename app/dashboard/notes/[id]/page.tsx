@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Document, Packer, Paragraph, TextRun } from "docx"
-import { useReactToPrint } from "react-to-print"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Separator } from '@/components/ui/separator'
 import { Input } from '@/components/ui/input'
@@ -38,7 +37,6 @@ export default function NotePage() {
   const [restoreReason, setRestoreReason] = useState('')
 
   const performanceMonitor = PerformanceMonitor.getInstance()
-  const printComponentRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (noteId) {
@@ -159,11 +157,77 @@ export default function NotePage() {
     })
   }
 
-  const handleExportPDF = useReactToPrint({
-    contentRef: () => printComponentRef.current,
-    documentTitle: `medical-note-${note?.id || 'export'}`,
-    onAfterPrint: () => toast({ title: "Exported to PDF", description: "The note has been exported to PDF." })
-  })
+  const handleExportPDF = () => {
+    if (!note) return;
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Medical Note</title>
+            <style>
+              body { font-family: 'Arial', sans-serif; font-size: 12px; line-height: 1.5; }
+              h1 { font-size: 24px; margin-bottom: 10px; }
+              h2 { font-size: 18px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 5px; }
+              p { margin-bottom: 5px; }
+              strong { font-weight: bold; }
+              .print-section { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px dashed #000; }
+            </style>
+          </head>
+          <body>
+            <div class="print-section">
+              <h1>Medical Note</h1>
+              <p><strong>Patient Name:</strong> ${note?.patientName || 'N/A'}</p>
+              <p><strong>Age:</strong> ${note?.patientAge || 'N/A'}</p>
+              <p><strong>Gender:</strong> ${note?.patientGender || 'N/A'}</p>
+              <p><strong>Date:</strong> ${new Date(note?.createdAt || '').toLocaleDateString()}</p>
+              <p><strong>Note Type:</strong> ${note?.noteType || 'N/A'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Chief Complaint</h2>
+              <p>${note?.chiefComplaint || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>History of Presenting Illness</h2>
+              <p>${note?.historyOfPresentingIllness || note?.historyOfPresentIllness || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Past Medical History</h2>
+              <p>${note?.pastMedicalHistory || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>System Review</h2>
+              <p>${note?.systemReview || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Physical Examination</h2>
+              <p>${note?.physicalExamination || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Diagnosis</h2>
+              <p>${note?.diagnosis || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Treatment Plan</h2>
+              <p>${note?.treatmentPlan || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Follow-up Instructions</h2>
+              <p>${note?.followUpInstructions || 'No content available.'}</p>
+            </div>
+            <div class="print-section">
+              <h2>Additional Notes</h2>
+              <p>${note?.additionalNotes || 'No content available.'}</p>
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
+  }
 
   const handleCompareVersions = async () => {
     if (!note || !selectedVersions.from || !selectedVersions.to) return
@@ -285,10 +349,6 @@ export default function NotePage() {
           </CardContent>
         </Card>
 
-        <div className="hidden">
-          {note && <PrintableNote ref={printComponentRef} note={note} />}
-        </div>
-
         <Tabs defaultValue="note" className="w-full lg:col-span-3">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="note"><Eye className="mr-2 h-4 w-4" /> Medical Note</TabsTrigger>
@@ -321,8 +381,8 @@ export default function NotePage() {
                     <li key={v.version} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
                       <div>
                         <span className="font-semibold">Version {v.version}</span>
-                        <span className="text-sm text-gray-500 ml-4">({formatDate(v.createdAt)})</span>
-                        <p className="text-sm text-gray-600 mt-1">{v.reason}</p>
+                        <span className="text-sm text-gray-500 ml-4">({formatDate(v.changedAt)})</span>
+                        <p className="text-sm text-gray-600 mt-1">{v.changeDescription}</p>
                       </div>
                       <Dialog>
                         <DialogTrigger asChild>
@@ -404,55 +464,6 @@ const NoteSection = ({ title, content, isEditing, onChange }: { title: string; c
       ) : (
         <p className="text-gray-600 whitespace-pre-wrap">{content || <span className="text-gray-400">N/A</span>}</p>
       )}
-    </div>
-  )
-}
-
-const PrintableNote = forwardRef<HTMLDivElement, { note: MedicalNote }>(({ note }, ref) => {
-  return (
-    <div ref={ref} className="p-10 bg-white text-black">
-      <div className="border-b-2 border-black pb-4 mb-6">
-        <h1 className="text-3xl font-bold">Medical Note</h1>
-        <div className="flex justify-between items-center mt-2 text-sm">
-          <span>{`Patient: ${note.patientName}`}</span>
-          <span>{`ID: ${note.id}`}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
-        <div><strong>Patient Name:</strong> {note.patientName}</div>
-        <div><strong>Age:</strong> {note.patientAge}</div>
-        <div><strong>Gender:</strong> {note.patientGender}</div>
-        <div><strong>Date:</strong> {new Date(note.createdAt).toLocaleDateString()}</div>
-        <div className="col-span-2"><strong>Note Type:</strong> {note.noteType}</div>
-      </div>
-      
-      <div className="space-y-6">
-        <PrintSection title="Chief Complaint" content={note.chiefComplaint} />
-        <PrintSection title="History of Presenting Illness" content={note.historyOfPresentingIllness || note.historyOfPresentIllness} />
-        <PrintSection title="Past Medical History" content={note.pastMedicalHistory} />
-        <PrintSection title="System Review" content={note.systemReview} />
-        <PrintSection title="Physical Examination" content={note.physicalExamination} />
-        <PrintSection title="Diagnosis" content={note.diagnosis} />
-        <PrintSection title="Treatment Plan" content={note.treatmentPlan} />
-        <PrintSection title="Follow-up Instructions" content={note.followUpInstructions} />
-        <PrintSection title="Additional Notes" content={note.additionalNotes} />
-      </div>
-
-      <div className="mt-12 pt-4 border-t-2 border-gray-300 text-center text-xs">
-        <p>Generated by NovateScribe</p>
-      </div>
-    </div>
-  )
-})
-PrintableNote.displayName = "PrintableNote";
-
-const PrintSection = ({ title, content }: { title: string, content: string | null | undefined }) => {
-  if (!content) return null;
-  return (
-    <div className="mb-4">
-      <h2 className="text-xl font-bold border-b border-gray-300 pb-2 mb-2">{title}</h2>
-      <p className="text-base whitespace-pre-wrap">{content}</p>
     </div>
   )
 }
