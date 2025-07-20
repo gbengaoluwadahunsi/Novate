@@ -43,9 +43,127 @@ export default function NotesPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalNotes, setTotalNotes] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  
+  // Enhanced filter state
+  const [filters, setFilters] = useState({
+    patientName: '',
+    ageRange: { min: '', max: '' },
+    gender: 'all',
+    dateRange: { from: '', to: '' },
+    noteType: 'all',
+    diagnosis: ''
+  })
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   const performanceMonitor = PerformanceMonitor.getInstance()
   const ITEMS_PER_PAGE = 12
+
+  // Filter functions
+  const applyFilters = useCallback((notesToFilter: MedicalNote[]) => {
+    return notesToFilter.filter(note => {
+      // Search term filter
+      if (searchTerm.trim()) {
+        const searchLower = searchTerm.toLowerCase()
+        const matchesSearch = (
+          (note.patientInformation?.name || '').toLowerCase().includes(searchLower) ||
+          (note.chiefComplaint || '').toLowerCase().includes(searchLower) ||
+          (note.assessmentAndDiagnosis || '').toLowerCase().includes(searchLower) ||
+          (note.historyOfPresentingIllness || '').toLowerCase().includes(searchLower)
+        )
+        if (!matchesSearch) return false
+      }
+
+      // Patient name filter
+      if (filters.patientName.trim()) {
+        const patientName = (note.patientInformation?.name || '').toLowerCase()
+        if (!patientName.includes(filters.patientName.toLowerCase())) return false
+      }
+
+      // Age range filter
+      if (filters.ageRange.min || filters.ageRange.max) {
+        const noteAge = parseInt(note.patientInformation?.age || '0')
+        const minAge = parseInt(filters.ageRange.min || '0')
+        const maxAge = parseInt(filters.ageRange.max || '150')
+        
+        if (filters.ageRange.min && noteAge < minAge) return false
+        if (filters.ageRange.max && noteAge > maxAge) return false
+      }
+
+      // Gender filter
+      if (filters.gender !== 'all') {
+        const noteGender = (note.patientInformation?.gender || '').toLowerCase()
+        if (!noteGender.includes(filters.gender.toLowerCase())) return false
+      }
+
+      // Date range filter
+      if (filters.dateRange.from || filters.dateRange.to) {
+        const noteDate = new Date(note.createdAt || '')
+        const fromDate = filters.dateRange.from ? new Date(filters.dateRange.from) : new Date('1900-01-01')
+        const toDate = filters.dateRange.to ? new Date(filters.dateRange.to) : new Date()
+        
+        if (noteDate < fromDate || noteDate > toDate) return false
+      }
+
+      // Note type filter
+      if (filters.noteType !== 'all') {
+        if (note.noteType !== filters.noteType) return false
+      }
+
+      // Diagnosis filter
+      if (filters.diagnosis.trim()) {
+        const diagnosis = (note.assessmentAndDiagnosis || '').toLowerCase()
+        if (!diagnosis.includes(filters.diagnosis.toLowerCase())) return false
+      }
+
+      return true
+    })
+  }, [searchTerm, filters])
+
+  // Get unique values for filter dropdowns
+  const uniquePatientNames = useMemo(() => {
+    const names = notes
+      .map(note => note.patientInformation?.name || '')
+      .filter(name => name.trim() !== '')
+      .filter((name, index, array) => array.indexOf(name) === index)
+      .sort()
+    return names
+  }, [notes])
+
+  const uniqueGenders = useMemo(() => {
+    const genders = notes
+      .map(note => note.patientInformation?.gender || '')
+      .filter(gender => gender.trim() !== '' && gender.toLowerCase() !== 'not specified')
+      .filter((gender, index, array) => array.indexOf(gender) === index)
+      .sort()
+    return genders
+  }, [notes])
+
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm('')
+    setFilters({
+      patientName: '',
+      ageRange: { min: '', max: '' },
+      gender: 'all',
+      dateRange: { from: '', to: '' },
+      noteType: 'all',
+      diagnosis: ''
+    })
+    setNoteTypeFilter('all')
+  }
+
+  // Apply filters to get filtered notes
+  const filteredNotes = useMemo(() => {
+    return applyFilters(notes)
+  }, [notes, applyFilters])
+
+  // Update pagination based on filtered results
+  const paginatedNotes = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredNotes.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  }, [filteredNotes, currentPage, ITEMS_PER_PAGE])
+
+  const totalFilteredPages = Math.ceil(filteredNotes.length / ITEMS_PER_PAGE)
 
   // Memoized loadNotes function
   const loadNotes = useCallback(async (page: number = currentPage, search: string = searchTerm, filter: string = noteTypeFilter) => {
@@ -200,9 +318,16 @@ export default function NotesPage() {
 
   // Handle filter changes
   useEffect(() => {
-    setCurrentPage(1)
+    setCurrentPage(1) // Reset to page 1 when filters change
     loadNotes(1, searchTerm, noteTypeFilter)
-  }, [noteTypeFilter, searchTerm, loadNotes])
+  }, [noteTypeFilter, searchTerm, filters, loadNotes])
+
+  // Reset page when filters change significantly
+  useEffect(() => {
+    if (currentPage > totalFilteredPages && totalFilteredPages > 0) {
+      setCurrentPage(1)
+    }
+  }, [currentPage, totalFilteredPages])
 
   const handleDeleteNote = async (noteId: string) => {
     if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
@@ -313,7 +438,11 @@ export default function NotesPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Medical Notes</h1>
           <p className="text-gray-600">
-            {totalNotes > 0 ? `${totalNotes} notes found` : 'No notes available'}
+            {filteredNotes.length > 0 ? (
+              filteredNotes.length === notes.length 
+                ? `${totalNotes} notes found` 
+                : `${filteredNotes.length} of ${totalNotes} notes found`
+            ) : 'No notes match your filters'}
           </p>
         </div>
         <Button onClick={() => router.push('/dashboard/transcribe')}>
@@ -322,10 +451,11 @@ export default function NotesPage() {
         </Button>
       </div>
 
-      {/* Filters */}
+      {/* Enhanced Filters */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          {/* Basic Search and Quick Filters */}
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -350,8 +480,146 @@ export default function NotesPage() {
                   <SelectItem value="assessment">Assessment</SelectItem>
                 </SelectContent>
               </Select>
+              <Button
+                variant="outline"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="whitespace-nowrap"
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                {showAdvancedFilters ? 'Hide' : 'Show'} Filters
+              </Button>
+              <Button
+                variant="outline"
+                onClick={clearAllFilters}
+                className="whitespace-nowrap"
+              >
+                Clear All
+              </Button>
             </div>
           </div>
+
+          {/* Advanced Filters */}
+          {showAdvancedFilters && (
+            <div className="border-t pt-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Patient Name Filter */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Patient Name</label>
+                  <Select value={filters.patientName} onValueChange={(value) => setFilters(prev => ({ ...prev, patientName: value }))}>
+                    <SelectTrigger>
+                      <User className="h-4 w-4 mr-2" />
+                      <SelectValue placeholder="Any Patient" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Any Patient</SelectItem>
+                      {uniquePatientNames.map(name => (
+                        <SelectItem key={name} value={name}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Gender Filter */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Gender</label>
+                  <Select value={filters.gender} onValueChange={(value) => setFilters(prev => ({ ...prev, gender: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Any Gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Any Gender</SelectItem>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      {uniqueGenders.map(gender => (
+                        <SelectItem key={gender} value={gender}>{gender}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Age Range */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Age Range</label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Min"
+                      type="number"
+                      value={filters.ageRange.min}
+                      onChange={(e) => setFilters(prev => ({ 
+                        ...prev, 
+                        ageRange: { ...prev.ageRange, min: e.target.value }
+                      }))}
+                      className="w-20"
+                    />
+                    <span className="self-center">-</span>
+                    <Input
+                      placeholder="Max"
+                      type="number"
+                      value={filters.ageRange.max}
+                      onChange={(e) => setFilters(prev => ({ 
+                        ...prev, 
+                        ageRange: { ...prev.ageRange, max: e.target.value }
+                      }))}
+                      className="w-20"
+                    />
+                  </div>
+                </div>
+
+                {/* Diagnosis Filter */}
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Diagnosis</label>
+                  <Input
+                    placeholder="Search diagnosis..."
+                    value={filters.diagnosis}
+                    onChange={(e) => setFilters(prev => ({ ...prev, diagnosis: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Date Range Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">From Date</label>
+                  <Input
+                    type="date"
+                    value={filters.dateRange.from}
+                    onChange={(e) => setFilters(prev => ({ 
+                      ...prev, 
+                      dateRange: { ...prev.dateRange, from: e.target.value }
+                    }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">To Date</label>
+                  <Input
+                    type="date"
+                    value={filters.dateRange.to}
+                    onChange={(e) => setFilters(prev => ({ 
+                      ...prev, 
+                      dateRange: { ...prev.dateRange, to: e.target.value }
+                    }))}
+                  />
+                </div>
+              </div>
+
+              {/* Filter Summary */}
+              <div className="text-sm text-gray-600">
+                {(() => {
+                  const activeFilters = []
+                  if (searchTerm.trim()) activeFilters.push('Search')
+                  if (filters.patientName) activeFilters.push('Patient Name')
+                  if (filters.gender !== 'all') activeFilters.push('Gender')
+                  if (filters.ageRange.min || filters.ageRange.max) activeFilters.push('Age Range')
+                  if (filters.dateRange.from || filters.dateRange.to) activeFilters.push('Date Range')
+                  if (noteTypeFilter !== 'all') activeFilters.push('Note Type')
+                  if (filters.diagnosis) activeFilters.push('Diagnosis')
+                  
+                  if (activeFilters.length === 0) return 'No filters active'
+                  return `Active filters: ${activeFilters.join(', ')}`
+                })()}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -377,10 +645,10 @@ export default function NotesPage() {
             </Card>
           ))}
         </div>
-      ) : (notes && notes.length > 0) ? (
+      ) : (filteredNotes && filteredNotes.length > 0) ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {notes.map((note) => (
+            {paginatedNotes.map((note) => (
               <Card key={note.id} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader 
                   className="pb-3"
@@ -389,7 +657,7 @@ export default function NotesPage() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <CardTitle className="text-xl font-bold line-clamp-1 text-cyan-500">
-                        {note.patientName || `Patient ${((currentPage - 1) * ITEMS_PER_PAGE) + notes.indexOf(note) + 1}`}
+                        {note.patientName || `Medical Case ${String(((currentPage - 1) * ITEMS_PER_PAGE) + notes.indexOf(note) + 1).padStart(3, '0')}`}
                       </CardTitle>
                       <p className="text-sm text-gray-600 mt-1">
                         Age {note.patientAge} • {note.patientGender}
@@ -499,14 +767,14 @@ export default function NotesPage() {
                 
                 {/* Page numbers */}
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  {Array.from({ length: Math.min(5, totalFilteredPages) }, (_, i) => {
                     let pageNum
-                    if (totalPages <= 5) {
+                    if (totalFilteredPages <= 5) {
                       pageNum = i + 1
                     } else if (currentPage <= 3) {
                       pageNum = i + 1
-                    } else if (currentPage >= totalPages - 2) {
-                      pageNum = totalPages - 4 + i
+                    } else if (currentPage >= totalFilteredPages - 2) {
+                      pageNum = totalFilteredPages - 4 + i
                     } else {
                       pageNum = currentPage - 2 + i
                     }
@@ -529,7 +797,7 @@ export default function NotesPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= totalPages}
+                  disabled={currentPage >= totalFilteredPages}
                 >
                   Next
                   <ChevronRight className="h-4 w-4" />
@@ -543,20 +811,45 @@ export default function NotesPage() {
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="h-12 w-12 text-gray-400 mb-4" />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchTerm || noteTypeFilter !== 'all' ? 'No matching notes found' : 'No notes yet'}
+              {(() => {
+                const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
+                  filters.patientName || filters.gender !== 'all' || 
+                  filters.ageRange.min || filters.ageRange.max || 
+                  filters.dateRange.from || filters.dateRange.to || 
+                  filters.diagnosis.trim()
+                
+                if (notes.length === 0) return 'No notes yet'
+                if (hasActiveFilters) return 'No matching notes found'
+                return 'No notes available'
+              })()}
             </h3>
             <p className="text-gray-600 text-center mb-6 max-w-md">
-              {searchTerm || noteTypeFilter !== 'all' 
-                ? 'Try adjusting your search terms or filters to find what you\'re looking for.'
-                : 'Start by creating your first medical note using our AI transcription service.'
-              }
+              {(() => {
+                const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
+                  filters.patientName || filters.gender !== 'all' || 
+                  filters.ageRange.min || filters.ageRange.max || 
+                  filters.dateRange.from || filters.dateRange.to || 
+                  filters.diagnosis.trim()
+                
+                if (notes.length === 0) return 'Start by creating your first medical note using our AI transcription service.'
+                if (hasActiveFilters) return 'Try adjusting your search terms or filters to find what you\'re looking for, or clear all filters to see all notes.'
+                return 'Start by creating your first medical note using our AI transcription service.'
+              })()}
             </p>
-            {!searchTerm && noteTypeFilter === 'all' && (
-              <Button onClick={() => router.push('/dashboard/transcribe')}>
-                <Plus className="h-4 w-4 mr-2" />
-                Create First Note
-              </Button>
-            )}
+            {(() => {
+              const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
+                filters.patientName || filters.gender !== 'all' || 
+                filters.ageRange.min || filters.ageRange.max || 
+                filters.dateRange.from || filters.dateRange.to || 
+                filters.diagnosis.trim()
+              
+              return !hasActiveFilters && (
+                <Button onClick={() => router.push('/dashboard/transcribe')}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create First Note
+                </Button>
+              )
+            })()}
           </CardContent>
         </Card>
       )}

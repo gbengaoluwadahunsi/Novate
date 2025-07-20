@@ -130,7 +130,7 @@ export default function RegisterPage() {
   const validateStep2 = (): boolean => {
     const newErrors: FormErrors = {}
     if (!formData.preferredLanguage) {
-      newErrors.preferredLanguage = "Please select a preferred language for transcription services"
+      newErrors.preferredLanguage = "Please select the common language of your patients for transcription services"
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -376,10 +376,10 @@ export default function RegisterPage() {
                     <Input id="hospital" name="hospital" placeholder="City General Hospital" value={formData.hospital} onChange={handleChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Preferred Language for Transcription *</Label>
+                    <Label>Common Language of Patients *</Label>
                     <Select value={formData.preferredLanguage} onValueChange={(value) => handleSelectChange("preferredLanguage", value)}>
                       <SelectTrigger className={errors.preferredLanguage ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Select your preferred language" />
+                        <SelectValue placeholder="Select the common language of your patients" />
                       </SelectTrigger>
                       <SelectContent>
                         {availableLanguages.map((language) => (
@@ -388,7 +388,7 @@ export default function RegisterPage() {
                       </SelectContent>
                     </Select>
                     {errors.preferredLanguage && <p className="text-sm text-red-500">{errors.preferredLanguage}</p>}
-                    <p className="text-xs text-gray-500">This language will be used for transcription.</p>
+                    <p className="text-xs text-gray-500">This language will be used for transcription based on your patients' common language.</p>
                   </div>
                 </motion.div>
               )}

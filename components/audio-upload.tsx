@@ -299,6 +299,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const [useFastTranscription, setUseFastTranscription] = useState(true) // Default to fast mode
   const [overallProgress, setOverallProgress] = useState(0)
   
+  // Add patient information state
+  const [patientName, setPatientName] = useState("")
+  const [patientAge, setPatientAge] = useState("")
+  const [patientGender, setPatientGender] = useState("")
+  
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
@@ -364,6 +369,12 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     })
   }
 
+  const clearPatientForm = () => {
+    setPatientName('')
+    setPatientAge('')
+    setPatientGender('')
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const uploadedFile = e.target.files[0]
@@ -379,6 +390,9 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       // Reset keywords for new file
       setDetectedKeywords([])
       setTranscriptionComplete(false)
+      
+      // Optionally clear patient form for new file
+      // clearPatientForm()
     }
   }
 
@@ -777,7 +791,14 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         // Animate progress for fast transcription
         animateStageProgress('Fast Transcription', 85, 3000); // Animate to 85% over 3 seconds
         
-        const response = await apiClient.fastTranscription(audioFile, {}, language);
+        // Prepare patient information for API call
+        const patientData = {
+          patientName: patientName.trim() || undefined,
+          patientAge: patientAge.trim() || undefined,
+          patientGender: patientGender || undefined,
+        };
+        
+        const response = await apiClient.fastTranscription(audioFile, patientData, language);
         
         if (!response.success) {
           toast({
@@ -844,7 +865,14 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         // Animate progress for standard transcription
         animateStageProgress('Transcribing', 80, 4000); // Animate to 80% over 4 seconds
         
-        const response = await apiClient.startTranscription(audioFile, {}, language);
+        // Prepare patient information for API call
+        const patientData = {
+          patientName: patientName.trim() || undefined,
+          patientAge: patientAge.trim() || undefined,
+          patientGender: patientGender || undefined,
+        };
+        
+        const response = await apiClient.startTranscription(audioFile, patientData, language);
         
         if (!response.success) {
           toast({
@@ -983,16 +1011,21 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   const handleTranscriptionComplete = async (transcriptionData: FastTranscriptionResponse | { transcript?: string; language: string; processingTime: string }) => {
     try {
-      // Extract patient info and medical note data
-      const patientInfo = 'patientInfo' in transcriptionData ? transcriptionData.patientInfo : undefined;
+      // Extract patient info and medical note data from API response
+      const apiPatientInfo = 'patientInfo' in transcriptionData ? transcriptionData.patientInfo : undefined;
       const medicalNote = 'medicalNote' in transcriptionData ? transcriptionData.medicalNote : undefined;
       const jobId = 'jobId' in transcriptionData ? transcriptionData.jobId : undefined;
       
+      // Use form patient information if provided, otherwise fall back to API data or defaults
+      const finalPatientName = patientName.trim() || apiPatientInfo?.name || 'Patient Name';
+      const finalPatientAge = parseInt(patientAge || apiPatientInfo?.age || '0', 10);
+      const finalPatientGender = patientGender || apiPatientInfo?.gender || 'Not Specified';
+      
       // Create note data with available information
       const noteData: MedicalNote = {
-        patientName: patientInfo?.name || 'Patient Name',
-        patientAge: parseInt(patientInfo?.age || '0', 10),
-        patientGender: patientInfo?.gender || 'Not Specified',
+        patientName: finalPatientName,
+        patientAge: finalPatientAge,
+        patientGender: finalPatientGender,
         noteType: 'consultation',
         chiefComplaint: medicalNote?.chiefComplaint || 'To be documented',
         historyOfPresentIllness: medicalNote?.historyOfPresentIllness || 'To be documented',
@@ -1003,6 +1036,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
       // Call the completion handler with the note data
       onTranscriptionComplete(noteData);
+      
+      // Clear patient information form after successful transcription (optional)
+      // setPatientName('');
+      // setPatientAge('');
+      // setPatientGender('');
     } catch (error) {
       toast({
         title: "Error",
@@ -1086,10 +1124,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
           {/* Language Selector - Full Width */}
           <div className="w-full">
-              <label className="text-sm font-medium mb-2 block">Language</label>
+              <label className="text-sm font-medium mb-2 block">Common Language of Patients</label>
               <Select value={language} onValueChange={setLanguage}>
               <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select language" />
+                  <SelectValue placeholder="Select the common language of your patients" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableLanguages.map((lang) => (
@@ -1097,6 +1135,56 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                   ))}
                 </SelectContent>
               </Select>
+          </div>
+
+          {/* Patient Information - Optional but Recommended */}
+          <div className="w-full space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <h3 className="text-sm font-medium">Patient Information (Optional)</h3>
+              <Badge variant="outline" className="text-xs">Recommended for better results</Badge>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Patient Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g., John Smith"
+                  value={patientName}
+                  onChange={(e) => setPatientName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Age</label>
+                <input
+                  type="number"
+                  placeholder="e.g., 35"
+                  min="0"
+                  max="150"
+                  value={patientAge}
+                  onChange={(e) => setPatientAge(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Gender</label>
+                <Select value={patientGender} onValueChange={setPatientGender}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Not specified</SelectItem>
+                    <SelectItem value="Male">Male</SelectItem>
+                    <SelectItem value="Female">Female</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                    <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              💡 Tip: Providing patient information helps our AI generate more accurate and personalized medical notes.
+            </p>
           </div>
 
           {/* Action Buttons - Equal Width Grid */}
@@ -1268,7 +1356,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                   <div className="flex items-center gap-2">
                     <Languages className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      Transcribing in:{" "}
+                      Patient language:{" "}
                       <span className="font-medium">
                         {language === "en-US"
                           ? "English (US)"
@@ -1319,6 +1407,17 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                     </div>
                   )}
                 </div>
+
+                {/* Patient Name Validation Warning */}
+                {!patientName.trim() && (
+                  <Alert className="bg-yellow-50 border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800">
+                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertTitle className="text-yellow-900 dark:text-yellow-100">Patient Name Recommended</AlertTitle>
+                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                      For better AI accuracy, consider adding the patient's name above. This helps generate more personalized medical notes.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 {!transcriptionComplete ? (
                   <Button

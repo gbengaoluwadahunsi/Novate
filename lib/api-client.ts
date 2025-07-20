@@ -7,17 +7,38 @@ const getBackendUrl = () => {
   // Check if we're in development mode
   const isDevelopment = process.env.NODE_ENV === 'development';
   
-  // Use environment variable if set, otherwise fallback based on environment
-  return process.env.NEXT_PUBLIC_BACKEND_URL || 
-    (isDevelopment ? 'http://localhost:5000' : 'https://novatescribebackend.onrender.com');
+  // Environment-based URL selection:
+  // - Development: http://localhost:5000 (local backend)
+  // - Production: https://api.novatescribe.com (render deployment)
+  const environmentUrl = isDevelopment 
+    ? 'http://localhost:5000' 
+    : 'https://api.novatescribe.com';
+  
+  // Use environment variable override if provided, otherwise use environment-based URL
+  const finalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || environmentUrl;
+  
+  console.log('🔧 Backend URL Selection:', {
+    nodeEnv: process.env.NODE_ENV,
+    isDevelopment,
+    environmentUrl,
+    envOverride: process.env.NEXT_PUBLIC_BACKEND_URL,
+    finalUrl,
+    isClient: typeof window !== 'undefined',
+    userAgent: typeof window !== 'undefined' ? window.navigator?.userAgent?.slice(0, 50) : 'server'
+  });
+  
+  return finalUrl;
 };
 
 const API_BASE_URL = getBackendUrl();
 
-// Log the backend URL only in development
-if (process.env.NODE_ENV === 'development') {
-  console.log('🔌 API Client initialized with backend URL:', API_BASE_URL);
-}
+// Log the backend URL and environment info
+console.log('🔌 API Client initialization:', {
+  backendUrl: API_BASE_URL,
+  nodeEnv: process.env.NODE_ENV,
+  envBackendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
+  isDevelopment: process.env.NODE_ENV === 'development'
+});
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -308,6 +329,11 @@ class ApiClient {
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
+    console.log('🏗️ ApiClient constructor:', {
+      baseUrl: this.baseUrl,
+      inputBaseUrl: baseUrl,
+      API_BASE_URL: API_BASE_URL
+    });
     this.loadToken();
   }
 
@@ -366,10 +392,57 @@ class ApiClient {
         headers.set('Authorization', `Bearer ${this.token}`);
       }
 
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+      // Ensure proper URL construction
+      const cleanBaseUrl = this.baseUrl.replace(/\/$/, '');
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      let fullUrl = `${cleanBaseUrl}${cleanEndpoint}`;
+      
+      // Critical debugging: Check if URL is absolute
+      const isAbsolute = fullUrl.startsWith('http://') || fullUrl.startsWith('https://');
+      
+      console.log('🌐 Request Details:', {
+        originalBaseUrl: this.baseUrl,
+        cleanBaseUrl,
+        originalEndpoint: endpoint,
+        cleanEndpoint,
+        finalUrl: fullUrl,
+        isAbsolute: isAbsolute,
+        method: options.method || 'GET'
+      });
+      
+      if (!isAbsolute) {
+        console.error('❌ CRITICAL ERROR: URL is not absolute!', fullUrl);
+        console.error('This will be treated as relative by the browser and hit Next.js API routes!');
+        console.error('Expected: https://api.novatescribe.com/medical-notes');
+        console.error('Actual:', fullUrl);
+        
+        // Force absolute URL as a fallback
+        const fallbackUrl = fullUrl.startsWith('/') 
+          ? `https://api.novatescribe.com${fullUrl}`
+          : fullUrl;
+        console.log('🔧 Using fallback URL:', fallbackUrl);
+        // Use the fallback URL instead
+        fullUrl = fallbackUrl;
+      }
+
+      console.log('🚀 About to make fetch request:', {
+        url: fullUrl,
+        method: options.method || 'GET',
+        hasAuth: headers.has('Authorization'),
+        timestamp: new Date().toISOString()
+      });
+      
+      const response = await fetch(fullUrl, {
         ...options,
         headers,
         signal: controller.signal,
+      });
+      
+      console.log('📥 Fetch response received:', {
+        url: response.url, // This shows the actual URL that was hit
+        status: response.status,
+        statusText: response.statusText,
+        timestamp: new Date().toISOString()
       });
 
       clearTimeout(timeoutId);
@@ -732,10 +805,60 @@ class ApiClient {
     prescriptions?: Prescription[];
     noteType: 'consultation' | 'follow-up' | 'assessment';
     audioJobId?: string;
+    // Optional doctor information (will be fetched from backend if not provided)
+    doctorName?: string;
+    doctorRegistrationNumber?: string;
   }): Promise<ApiResponse<MedicalNote>> {
+    // Transform data to match backend's expected format
+    const backendData = {
+      patientInformation: {
+        name: noteData.patientName || 'Unknown Patient',
+        age: (noteData.patientAge && noteData.patientAge > 0) ? noteData.patientAge.toString() : '25',
+        gender: noteData.patientGender || 'Not specified',
+        visitDate: noteData.visitDate || new Date().toISOString().split('T')[0]
+      },
+      chiefComplaint: noteData.chiefComplaint || '',
+      historyOfPresentingIllness: noteData.historyOfPresentIllness || '',
+      pastMedicalHistory: '', // Add if needed
+      socialHistory: '', // Add if needed  
+      systemReview: '', // Add if needed
+      physicalExamination: noteData.physicalExamination || '',
+      assessmentAndDiagnosis: noteData.diagnosis || '',
+      managementPlan: {
+        investigations: '',
+        treatmentAdministered: '',
+        medicationsPrescribed: noteData.treatmentPlan || noteData.managementPlan || '',
+        patientEducation: '',
+        followUp: ''
+      },
+      medicalCertificate: '', // Add if needed
+      doctorDetails: {
+        name: noteData.doctorName || '', // Backend should populate from JWT if empty
+        registrationNumber: noteData.doctorRegistrationNumber || '',
+        signature: '',
+        timestamp: new Date().toISOString()
+      },
+      noteType: noteData.noteType,
+      startedAt: new Date().toISOString(),
+      audioDuration: 0 // Add if available
+    };
+
+    console.log('🚀 API Client: Creating medical note with data:', backendData);
+    console.log('🌐 API Client: Base URL:', this.baseUrl);
+    console.log('📡 API Client: Full endpoint will be:', `${this.baseUrl}/medical-notes`);
+    
+    // Add detailed debugging before making the request
+    console.log('⚡ Making POST request to /medical-notes with:', {
+      endpoint: '/medical-notes',
+      method: 'POST',
+      baseUrl: this.baseUrl,
+      hasToken: !!this.token,
+      bodySize: JSON.stringify(backendData).length
+    });
+    
     return this.request('/medical-notes', {
       method: 'POST',
-      body: JSON.stringify(noteData),
+      body: JSON.stringify(backendData),
     });
   }
 
@@ -774,6 +897,62 @@ class ApiClient {
         transformedResponse = response;
       }
 
+      // Transform nested backend structure to flat frontend structure for each note
+      if (transformedResponse.success && transformedResponse.data?.notes) {
+        console.log('🔄 Transforming notes data structure...');
+        
+        transformedResponse.data.notes = transformedResponse.data.notes.map((backendNote: any) => {
+          const transformedNote: MedicalNote = {
+            ...backendNote,
+            // Map nested patientInformation to flat fields
+            patientName: backendNote.patientInformation?.name || backendNote.patientName || '',
+            patientAge: (() => {
+              const age = backendNote.patientInformation?.age || backendNote.patientAge;
+              if (age === 'N/A' || age === '' || age === null || age === undefined) return 'N/A';
+              const numAge = parseInt(age);
+              return isNaN(numAge) ? age : numAge;
+            })(),
+            patientGender: backendNote.patientInformation?.gender || backendNote.patientGender || '',
+            visitDate: backendNote.patientInformation?.visitDate || backendNote.visitDate || '',
+            
+            // Map nested managementPlan to flat fields  
+            treatmentPlan: backendNote.managementPlan?.medicationsPrescribed || 
+                          backendNote.managementPlan?.treatmentAdministered || 
+                          backendNote.treatmentPlan || '',
+            
+            // Map assessmentAndDiagnosis to diagnosis
+            diagnosis: backendNote.assessmentAndDiagnosis || backendNote.diagnosis || '',
+            
+            // Ensure other fields are preserved
+            chiefComplaint: backendNote.chiefComplaint || '',
+            historyOfPresentingIllness: backendNote.historyOfPresentingIllness || '',
+            physicalExamination: backendNote.physicalExamination || '',
+            pastMedicalHistory: backendNote.pastMedicalHistory || '',
+            socialHistory: backendNote.socialHistory || '',
+            systemReview: backendNote.systemReview || '',
+            
+            // Preserve other fields
+            noteType: backendNote.noteType || 'consultation',
+            createdAt: backendNote.createdAt || '',
+            updatedAt: backendNote.updatedAt || '',
+            id: backendNote.id || '',
+            
+            // Handle doctorDetails
+            doctorName: backendNote.doctorDetails?.name || backendNote.doctorName || '',
+            doctorRegistrationNumber: backendNote.doctorDetails?.registrationNumber || backendNote.doctorRegistrationNumber || ''
+          };
+          
+          return transformedNote;
+        });
+        
+        console.log('✅ Transformed notes:', transformedResponse.data.notes.length, 'notes processed');
+        console.log('📝 Sample transformed note:', {
+          patientName: transformedResponse.data.notes[0]?.patientName,
+          patientAge: transformedResponse.data.notes[0]?.patientAge,
+          chiefComplaint: transformedResponse.data.notes[0]?.chiefComplaint
+        });
+      }
+
       return transformedResponse;
     } catch (error) {
       return {
@@ -802,14 +981,63 @@ class ApiClient {
       const response = await this.request<MedicalNote>(`/medical-notes/${noteId}`);
       
       console.log('✅ API Client: getMedicalNote response:', response);
+      
       if (response.success && response.data) {
-        console.log('✅ API Client: Note data received:', {
-          patientName: response.data.patientName,
-          patientAge: response.data.patientAge,
-          chiefComplaint: response.data.chiefComplaint,
-          historyOfPresentingIllness: response.data.historyOfPresentingIllness,
-          diagnosis: response.data.diagnosis
+        // Transform nested backend structure to flat frontend structure
+        const backendData = response.data as any;
+        
+        console.log('🔄 Raw backend data:', backendData);
+        
+        const transformedData: MedicalNote = {
+          ...backendData,
+          // Map nested patientInformation to flat fields
+          patientName: backendData.patientInformation?.name || backendData.patientName || '',
+          patientAge: (() => {
+            const age = backendData.patientInformation?.age || backendData.patientAge;
+            if (age === 'N/A' || age === '' || age === null || age === undefined) return 'N/A';
+            const numAge = parseInt(age);
+            return isNaN(numAge) ? age : numAge;
+          })(),
+          patientGender: backendData.patientInformation?.gender || backendData.patientGender || '',
+          visitDate: backendData.patientInformation?.visitDate || backendData.visitDate || '',
+          
+          // Map nested managementPlan to flat fields  
+          treatmentPlan: backendData.managementPlan?.medicationsPrescribed || 
+                        backendData.managementPlan?.treatmentAdministered || 
+                        backendData.treatmentPlan || '',
+          
+          // Map assessmentAndDiagnosis to diagnosis
+          diagnosis: backendData.assessmentAndDiagnosis || backendData.diagnosis || '',
+          
+          // Ensure other fields are preserved
+          chiefComplaint: backendData.chiefComplaint || '',
+          historyOfPresentingIllness: backendData.historyOfPresentingIllness || '',
+          physicalExamination: backendData.physicalExamination || '',
+          pastMedicalHistory: backendData.pastMedicalHistory || '',
+          socialHistory: backendData.socialHistory || '',
+          systemReview: backendData.systemReview || '',
+          
+          // Preserve other fields
+          noteType: backendData.noteType || 'consultation',
+          createdAt: backendData.createdAt || '',
+          updatedAt: backendData.updatedAt || '',
+          id: backendData.id || '',
+          
+          // Handle doctorDetails
+          doctorName: backendData.doctorDetails?.name || backendData.doctorName || '',
+          doctorRegistrationNumber: backendData.doctorDetails?.registrationNumber || backendData.doctorRegistrationNumber || ''
+        };
+        
+        console.log('✅ Transformed data:', {
+          patientName: transformedData.patientName,
+          patientAge: transformedData.patientAge,
+          patientGender: transformedData.patientGender,
+          chiefComplaint: transformedData.chiefComplaint,
+          diagnosis: transformedData.diagnosis,
+          treatmentPlan: transformedData.treatmentPlan
         });
+        
+        response.data = transformedData as any;
       }
       
       return response;
@@ -1183,10 +1411,45 @@ class ApiClient {
     notesCreated: number;
     timeSavedSeconds: number;
   }>> {
-    return this.request('/user-stats/dashboard', { 
-      method: 'GET', 
-      credentials: 'include' 
-    });
+    try {
+      console.log('📊 Fetching user dashboard stats...');
+      const response = await this.request('/user-stats/dashboard', { 
+        method: 'GET', 
+        credentials: 'include' 
+      });
+      
+      console.log('📊 Raw user dashboard stats response:', response);
+      
+      if (response.success && response.data) {
+        const backendData = response.data as any;
+        console.log('📊 Backend data structure:', backendData);
+        
+        // Transform nested backend structure to flat frontend structure
+        const transformedData = {
+          notesCreated: backendData.stats?.notesCreated || backendData.notesCreated || 0,
+          timeSavedSeconds: backendData.stats?.timeSaved?.totalSeconds || 
+                           backendData.stats?.timeSavedSeconds || 
+                           backendData.timeSavedSeconds || 0
+        };
+        
+        console.log('✅ Transformed user stats:', transformedData);
+        
+        return {
+          success: true,
+          data: transformedData,
+          message: response.message
+        };
+      }
+      
+      return response;
+    } catch (error) {
+      console.error('❌ Error fetching user dashboard stats:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch user stats',
+        data: { notesCreated: 0, timeSavedSeconds: 0 }
+      };
+    }
   }
 }
 

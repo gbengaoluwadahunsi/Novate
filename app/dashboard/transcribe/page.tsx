@@ -39,6 +39,14 @@ export default function TranscribePage() {
 
   const handleTranscriptionComplete = async (data: any) => {
     console.log('🎯 Transcription complete, data received:', data);
+    console.log('🔍 Data structure analysis:', {
+      hasPatientInfo: !!data.patientInfo,
+      hasPatientInformation: !!data.patientInformation,
+      hasMedicalNote: !!data.medicalNote,
+      patientInfoContent: data.patientInfo,
+      patientInformationContent: data.patientInformation,
+      medicalNoteContent: data.medicalNote
+    });
     
     // Check if it's a minimal/error response
     if (data.isMinimal) {
@@ -51,19 +59,23 @@ export default function TranscribePage() {
     
     // Automatically create a draft note in the backend
     try {
+      // Extract patient info from the transcription data
+      const patientInfo = data.patientInfo || data.patientInformation || {};
+      const medicalNote = data.medicalNote || {};
+      
       const noteData = {
-        patientName: data.patientName || 'Unknown Patient',
-        patientAge: data.patientAge || 0,
-        patientGender: data.patientGender || 'Not specified',
-        visitDate: data.visitDate || new Date().toISOString().split('T')[0],
+        patientName: patientInfo.name || data.patientName || 'Unknown Patient',
+        patientAge: parseInt(patientInfo.age || data.patientAge || '0', 10),
+        patientGender: patientInfo.gender || data.patientGender || 'Not specified',
+        visitDate: patientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
         visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
-        chiefComplaint: data.chiefComplaint || '',
-        historyOfPresentIllness: data.historyOfPresentingIllness || '',
+        chiefComplaint: medicalNote.chiefComplaint || data.chiefComplaint || '',
+        historyOfPresentIllness: medicalNote.historyOfPresentingIllness || data.historyOfPresentingIllness || '',
         physicalExamination: typeof data.physicalExamination === 'object' 
           ? JSON.stringify(data.physicalExamination) 
           : data.physicalExamination || '',
-        diagnosis: data.diagnosis || '',
-        treatmentPlan: data.managementPlan || '',
+        diagnosis: medicalNote.assessmentAndDiagnosis || medicalNote.diagnosis || data.diagnosis || '',
+        treatmentPlan: medicalNote.treatmentPlan || data.managementPlan || '',
         noteType: 'consultation' as const,
         audioJobId: data.audioJobId,
       };
@@ -90,14 +102,18 @@ export default function TranscribePage() {
     console.log('💾 Saving medical note:', data);
     
     try {
+      // Extract patient info from the transcription data
+      const patientInfo = data.patientInfo || data.patientInformation || {};
+      const medicalNote = data.medicalNote || {};
+      
       // Create note data in the format expected by the backend
       const noteData = {
-        patientName: data.patientName || 'Unknown Patient',
-        patientAge: data.patientAge || 0,
-        patientGender: data.patientGender || 'Not specified',
-        visitDate: data.visitDate || new Date().toISOString().split('T')[0],
+        patientName: patientInfo.name || data.patientName || 'Unknown Patient',
+        patientAge: parseInt(patientInfo.age || data.patientAge || '0', 10),
+        patientGender: patientInfo.gender || data.patientGender || 'Not specified',
+        visitDate: patientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
         visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
-        chiefComplaint: data.chiefComplaint || '',
+        chiefComplaint: medicalNote.chiefComplaint || data.chiefComplaint || '',
         historyOfPresentIllness: data.historyOfPresentingIllness || '',
         physicalExamination: typeof data.physicalExamination === 'object' 
           ? JSON.stringify(data.physicalExamination) 
@@ -358,7 +374,7 @@ Diagnosis: ${transcriptionData.diagnosis}`
       duration: duration,
       status: 'recorded',
       patientInfo: {
-        name: `Patient ${queuedRecordings.length + 1}`,
+        name: `Medical Case ${String(queuedRecordings.length + 1).padStart(3, '0')}`,
         age: undefined
       }
     }

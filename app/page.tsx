@@ -10,6 +10,7 @@ import Image from "next/image"
 import { ArrowRight, CheckCircle2, Mic, FileText, Clock, BarChart3, Shield, Sparkles, ChevronRight } from "lucide-react"
 import ClientOnly from "@/components/client-only"
 import { usePublicDashboardStats } from "@/hooks/use-dashboard-stats"
+import { useAppSelector } from "@/store/hooks"
 
 // Medical Note Component for Hero
 function MedicalNoteVisual() {
@@ -468,6 +469,9 @@ export default function HomePage() {
   
   // Fetch dynamic dashboard statistics
   const { stats, loading, error } = usePublicDashboardStats()
+  
+  // Get authentication state
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
@@ -528,8 +532,8 @@ export default function HomePage() {
                 className="flex flex-wrap gap-4 justify-center lg:justify-start"
               >
                 <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white" asChild>
-                  <Link href="/dashboard">
-                    Get Started <ArrowRight className="ml-2 h-5 w-5" />
+                  <Link href={isAuthenticated ? "/dashboard" : "/register"}>
+                    {isAuthenticated ? "Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>
@@ -590,8 +594,8 @@ export default function HomePage() {
             />
             <FeatureCard
               icon={FileText}
-              title="Structured Templates"
-              description="Automatically organizes information into professional medical templates that follow industry standards."
+              title="Structured but Customizable Templates"
+              description="Generative AI creates customizable medical templates that cater to your specific specialty and subspecialty in medicine."
               delay={0.2}
             />
             <FeatureCard
@@ -615,7 +619,7 @@ export default function HomePage() {
             <FeatureCard
               icon={Sparkles}
               title="AI Suggestions"
-              description="Smart recommendations for diagnoses, treatments, and follow-ups based on patient history."
+              description="Patient progress and record summarization with smart recommendations for diagnoses, treatments, and follow-ups."
               delay={0.6}
             />
           </div>
@@ -631,7 +635,7 @@ export default function HomePage() {
             subtitle="Three simple steps to transform your medical documentation workflow"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
             {[
               {
                 step: "1",
@@ -647,7 +651,7 @@ export default function HomePage() {
               {
                 step: "3",
                 title: "Review & Save",
-                description: "Quickly review, make any edits if needed, and save to your EHR system with one click.",
+                description: "Quickly review the generated medical note, make any edits if needed, and save securely to Cloud.",
               },
             ].map((item, i) => (
               <motion.div
@@ -659,14 +663,14 @@ export default function HomePage() {
                 className="text-center relative overflow-hidden rounded-xl"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-blue-500/10 to-teal-400/10 backdrop-blur-sm"></div>
-                <div className="relative p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl">
+                <div className="relative p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl h-full flex flex-col">
                   <div
                     className={`h-16 w-16 rounded-full bg-sky-500 flex items-center justify-center text-2xl font-bold mx-auto mb-4 text-white`}
                   >
                     {item.step}
                   </div>
                   <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                  <p className="text-gray-500 dark:text-gray-400">{item.description}</p>
+                  <p className="text-gray-500 dark:text-gray-400 flex-1">{item.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -674,7 +678,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
+      {/* Testimonials Section - Hidden for now */}
+      {false && (
       <section id="testimonials" className="py-20 px-4 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-teal-50/50 dark:via-teal-950/20 to-transparent"></div>
         <div className="container mx-auto max-w-6xl relative z-10">
@@ -708,8 +713,10 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
-      {/* Pricing Section */}
+      {/* Pricing Section - Hidden for now */}
+      {false && (
       <section id="pricing" className="py-20 px-4 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-purple-50/50 dark:via-purple-950/20 to-transparent"></div>
         <div className="container mx-auto max-w-6xl relative z-10">
@@ -763,6 +770,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* CTA Section with World Map Background */}
       <section className="py-20 px-4 relative">
@@ -802,7 +810,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               className="text-xl text-blue-100 mb-8"
             >
-              Join thousands of healthcare professionals worldwide who are saving time and improving patient care with
+              Join healthcare professionals worldwide who are saving time and improving patient care with
                NovateScribe<sup className="text-black font-normal">TM</sup>.
             </motion.p>
             <motion.div
@@ -817,31 +825,19 @@ export default function HomePage() {
                 className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white px-8 py-6 text-lg font-medium"
                 asChild
               >
-                <Link href="/dashboard">
-                  Get Started Today <span className="ml-2">→</span>
+                <Link href={isAuthenticated ? "/dashboard" : "/register"}>
+                  {isAuthenticated ? "Go to Dashboard" : "Get Started Today"} <span className="ml-2">→</span>
                 </Link>
               </Button>
             </motion.div>
 
             {/* Global usage indicators */}
-            <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="mt-12 grid grid-cols-2 gap-6 max-w-md mx-auto">
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">
                   {loading ? "-" : `${stats.timeSavedPercentage}+`}%
                 </div>
                 <div className="text-blue-200 text-sm">Time Saved</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">
-                  {loading ? "-" : `${stats.doctorsUsing.toLocaleString()}+`}
-                </div>
-                <div className="text-blue-200 text-sm">Healthcare Professionals</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">
-                  {loading ? "-" : `${stats.notesProcessed.toLocaleString()}+`}
-                </div>
-                <div className="text-blue-200 text-sm">Notes Processed</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-400">
@@ -881,101 +877,51 @@ export default function HomePage() {
                 </li>
                 <li>
                   <Link
-                    href="#pricing"
+                    href="#how-it-works"
                     className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
                   >
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    Security
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    Integrations
+                    How It Works
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Resources</h4>
+              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Get Started</h4>
               <ul className="space-y-2">
                 <li>
                   <Link
-                    href="#"
+                    href="/register"
                     className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
                   >
-                    Documentation
+                    Sign Up
                   </Link>
                 </li>
                 <li>
                   <Link
-                    href="#"
+                    href="/login"
                     className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
                   >
-                    Blog
+                    Login
                   </Link>
                 </li>
                 <li>
                   <Link
-                    href="#"
+                    href="/dashboard"
                     className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
                   >
-                    Case Studies
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    Support
+                    Dashboard
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Company</h4>
+              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Support</h4>
               <ul className="space-y-2">
                 <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    About Us
-                  </Link>
+                  <span className="text-gray-500 dark:text-gray-400">Contact: Coming Soon</span>
                 </li>
                 <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    Careers
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    Contact
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
-                  >
-                    Privacy Policy
-                  </Link>
+                  <span className="text-gray-500 dark:text-gray-400">Help Center: Coming Soon</span>
                 </li>
               </ul>
             </div>

@@ -100,9 +100,33 @@ export const createMedicalNote = createAsyncThunk(
     }>;
     noteType: 'consultation' | 'follow-up' | 'assessment';
     audioJobId?: string;
-  }, { rejectWithValue }) => {
+  }, { rejectWithValue, getState }) => {
     try {
-      const response = await apiClient.createMedicalNote(noteData)
+      // Get current user from auth state
+      const state = getState() as { auth: { user: any } }
+      const currentUser = state.auth?.user
+      
+      // Add doctor information from current user
+      const noteDataWithDoctor = {
+        ...noteData,
+        doctorName: currentUser?.name || currentUser?.firstName && currentUser?.lastName 
+          ? `${currentUser.firstName} ${currentUser.lastName}` 
+          : '',
+        doctorRegistrationNumber: currentUser?.registrationNo || currentUser?.registrationNumber || ''
+      }
+      
+      console.log('👨‍⚕️ Creating medical note with doctor info:', {
+        doctorName: noteDataWithDoctor.doctorName,
+        doctorRegistrationNumber: noteDataWithDoctor.doctorRegistrationNumber,
+        currentUser: currentUser ? { 
+          name: currentUser.name, 
+          firstName: currentUser.firstName, 
+          lastName: currentUser.lastName,
+          registrationNo: currentUser.registrationNo 
+        } : 'null'
+      })
+      
+      const response = await apiClient.createMedicalNote(noteDataWithDoctor)
       if (response.success) {
         return response.data
       } else {

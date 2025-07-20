@@ -111,7 +111,7 @@ export default function Dashboard() {
                   <div key={note?.id || Math.random()} className="flex items-center justify-between border-b pb-2 last:border-b-0">
                     <div className="flex-1">
                       <p className="font-medium text-cyan-600">
-                        {note?.patientName || `Patient ${index + 1}`}
+                        {note?.patientName || `Medical Case ${String(index + 1).padStart(3, '0')}`}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {note?.createdAt ? new Date(note.createdAt).toLocaleDateString() + ' at ' + new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
