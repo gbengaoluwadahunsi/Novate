@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { FileText, Clock } from "lucide-react"
+import { FileText, Clock, Mic } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useEffect, useState } from "react"
@@ -53,86 +53,137 @@ export default function Dashboard() {
 
   return (
     <ClientOnly fallback={<div className="flex-1 p-8">Loading dashboard...</div>}>
-      <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">
-            Welcome {user?.name ? user.name.split(' ')[0] : user?.firstName || 'NovateScribe'}
-          </h2>
-          <Link href="/dashboard/transcribe">
-            <Button className="bg-sky-500 hover:bg-sky-600">New Transcription</Button>
+      <div className="flex-1 space-y-4 md:space-y-6 p-4 md:p-8 pt-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <h2 className="text-2xl md:text-3xl font-bold tracking-tight">
+              Welcome {user?.name ? user.name.split(' ')[0] : user?.firstName || 'NovateScribe'}
+            </h2>
+            <p className="text-sm md:text-base text-muted-foreground mt-1">Your AI-powered medical documentation assistant</p>
+          </div>
+          <Link href="/dashboard/transcribe" className="w-full md:w-auto">
+            <Button className="bg-sky-500 hover:bg-sky-600 w-full md:w-auto">
+              <span className="hidden sm:inline">New Transcription</span>
+              <span className="sm:hidden">New Recording</span>
+            </Button>
           </Link>
         </div>
-        <p className="text-muted-foreground">Your AI-powered medical documentation assistant</p>
 
         {(statsError || error) && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-3 rounded-md text-sm">
             {statsError || error}
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
-          <Card>
+        <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2">
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Notes Created</CardTitle>
-              <FileText className="h-4 w-4 text-sky-500" />
+              <div className="h-8 w-8 rounded-full bg-sky-100 dark:bg-sky-900/30 flex items-center justify-center">
+                <FileText className="h-4 w-4 text-sky-500" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statsLoading ? "-" : (userStats?.notesCreated ?? 0)}</div>
+              <div className="text-2xl md:text-3xl font-bold">{statsLoading ? "-" : (userStats?.notesCreated ?? 0)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Medical notes generated
+              </p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Time Saved</CardTitle>
-              <Clock className="h-4 w-4 text-sky-500" />
+              <div className="h-8 w-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Clock className="h-4 w-4 text-green-500" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{statsLoading ? "-" : formatTimeSaved(userStats?.timeSavedSeconds ?? 0)}</div>
+              <div className="text-2xl md:text-3xl font-bold">{statsLoading ? "-" : formatTimeSaved(userStats?.timeSavedSeconds ?? 0)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Through AI automation
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Notes</CardTitle>
-              <CardDescription>Your recently created medical notes</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {loading ? (
-                  <div className="text-center py-4 text-muted-foreground">Loading recent notes...</div>
-                ) : !Array.isArray(recentNotes) || recentNotes.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                    <p className="text-lg font-medium">No recent notes</p>
-                    <p className="text-sm">Your latest medical notes will appear here</p>
+        <Card className="hover:shadow-md transition-shadow">
+          <CardHeader>
+            <CardTitle className="text-lg md:text-xl">Recent Notes</CardTitle>
+            <CardDescription className="text-sm">Your recently created medical notes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <div className="animate-pulse space-y-3">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between">
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                        <div className="h-8 bg-gray-200 rounded w-16"></div>
+                      </div>
+                    ))}
                   </div>
-                ) : recentNotes.map((note, index) => (
-                  <div key={note?.id || Math.random()} className="flex items-center justify-between border-b pb-2 last:border-b-0">
-                    <div className="flex-1">
-                      <p className="font-medium text-cyan-600">
-                        {note?.patientName || `Medical Case ${String(index + 1).padStart(3, '0')}`}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {note?.createdAt ? new Date(note.createdAt).toLocaleDateString() + ' at ' + new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "-"}
-                      </p>
+                </div>
+              ) : !Array.isArray(recentNotes) || recentNotes.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p className="text-base font-medium mb-2">No recent notes</p>
+                  <p className="text-sm mb-4">Your latest medical notes will appear here</p>
+                  <Link href="/dashboard/transcribe">
+                    <Button size="sm">
+                      <Mic className="h-4 w-4 mr-2" />
+                      Create Your First Note
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                recentNotes.map((note, index) => (
+                  <div key={note?.id || Math.random()} className="flex items-center justify-between border-b pb-3 last:border-b-0 last:pb-0">
+                    <div className="flex-1 min-w-0">
+                      <Link href={`/dashboard/notes/${note?.id || ''}`} className="block">
+                        <p className="font-medium text-cyan-600 hover:text-cyan-700 transition-colors text-sm md:text-base truncate">
+                          {note?.patientName || `Medical Case ${String(index + 1).padStart(3, '0')}`}
+                        </p>
+                        <p className="text-xs md:text-sm text-muted-foreground mt-1">
+                          {note?.createdAt ? (
+                            <>
+                              <span className="hidden sm:inline">
+                                {new Date(note.createdAt).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                })} at {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                              <span className="sm:hidden">
+                                {new Date(note.createdAt).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric'
+                                })}
+                              </span>
+                            </>
+                          ) : "-"}
+                        </p>
+                      </Link>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs bg-sky-100 text-sky-800 px-2 py-1 rounded-full">
+                    <div className="flex items-center gap-2 shrink-0 ml-4">
+                      <span className="text-xs bg-sky-100 dark:bg-sky-900/30 text-sky-800 dark:text-sky-300 px-2 py-1 rounded-full whitespace-nowrap">
                         {note?.noteType || "Note"}
                       </span>
                       <Link href={`/dashboard/notes/${note?.id || ''}`}>
-                        <Button variant="ghost" size="sm">
+                        <Button variant="ghost" size="sm" className="text-xs px-2">
                           View
                         </Button>
                       </Link>
                     </div>
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </ClientOnly>
   )

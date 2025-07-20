@@ -1137,55 +1137,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
               </Select>
           </div>
 
-          {/* Patient Information - Optional but Recommended */}
-          <div className="w-full space-y-4 border-t border-gray-200 dark:border-gray-700 pt-6">
-            <div className="flex items-center gap-2 mb-3">
-              <h3 className="text-sm font-medium">Patient Information (Optional)</h3>
-              <Badge variant="outline" className="text-xs">Recommended for better results</Badge>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Patient Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., John Smith"
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Age</label>
-                <input
-                  type="number"
-                  placeholder="e.g., 35"
-                  min="0"
-                  max="150"
-                  value={patientAge}
-                  onChange={(e) => setPatientAge(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:border-gray-600 dark:text-white"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Gender</label>
-                <Select value={patientGender} onValueChange={setPatientGender}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select gender" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Not specified</SelectItem>
-                    <SelectItem value="Male">Male</SelectItem>
-                    <SelectItem value="Female">Female</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                    <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              💡 Tip: Providing patient information helps our AI generate more accurate and personalized medical notes.
-            </p>
-          </div>
+
 
           {/* Action Buttons - Equal Width Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">

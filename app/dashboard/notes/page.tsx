@@ -23,12 +23,14 @@ import {
   Trash2,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  MoreHorizontal
 } from 'lucide-react'
 import { apiClient, type MedicalNote } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
 import { debounce } from '@/lib/performance'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -431,13 +433,19 @@ export default function NotesPage() {
     loadNotes(newPage, searchTerm, noteTypeFilter)
   }
 
+  const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
+    filters.patientName || filters.gender !== 'all' || 
+    filters.ageRange.min || filters.ageRange.max || 
+    filters.dateRange.from || filters.dateRange.to || 
+    filters.diagnosis.trim()
+
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-3 md:py-6 space-y-4 md:space-y-6 px-4 md:px-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Medical Notes</h1>
-          <p className="text-gray-600">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Medical Notes</h1>
+          <p className="text-sm md:text-base text-gray-600 mt-1">
             {filteredNotes.length > 0 ? (
               filteredNotes.length === notes.length 
                 ? `${totalNotes} notes found` 
@@ -445,31 +453,38 @@ export default function NotesPage() {
             ) : 'No notes match your filters'}
           </p>
         </div>
-        <Button onClick={() => router.push('/dashboard/transcribe')}>
+        <Button 
+          onClick={() => router.push('/dashboard/transcribe')}
+          className="w-full md:w-auto justify-center shrink-0"
+        >
           <Plus className="h-4 w-4 mr-2" />
-          Create New Note
+          <span className="hidden sm:inline">Create New Note</span>
+          <span className="sm:hidden">New Note</span>
         </Button>
       </div>
 
       {/* Enhanced Filters */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-4 md:pt-6">
           {/* Basic Search and Quick Filters */}
-          <div className="flex flex-col md:flex-row gap-4 mb-4">
-            <div className="flex-1">
+          <div className="space-y-4">
+            {/* Search Bar - Full width on mobile */}
+            <div className="w-full">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search notes by patient name, diagnosis, or content..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 text-sm md:text-base"
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            
+            {/* Filter Controls - Stack on mobile */}
+            <div className="flex flex-col sm:flex-row gap-2">
               <Select value={noteTypeFilter} onValueChange={setNoteTypeFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40">
                   <Filter className="h-4 w-4 mr-2" />
                   <SelectValue />
                 </SelectTrigger>
@@ -480,33 +495,38 @@ export default function NotesPage() {
                   <SelectItem value="assessment">Assessment</SelectItem>
                 </SelectContent>
               </Select>
-              <Button
-                variant="outline"
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="whitespace-nowrap"
-              >
-                <Filter className="h-4 w-4 mr-2" />
-                {showAdvancedFilters ? 'Hide' : 'Show'} Filters
-              </Button>
-              <Button
-                variant="outline"
-                onClick={clearAllFilters}
-                className="whitespace-nowrap"
-              >
-                Clear All
-              </Button>
+              
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                  className="flex-1 sm:flex-none whitespace-nowrap text-sm"
+                >
+                  <Filter className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">{showAdvancedFilters ? 'Hide' : 'Show'} Filters</span>
+                  <span className="sm:hidden">Filters</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearAllFilters}
+                  className="flex-1 sm:flex-none whitespace-nowrap text-sm"
+                >
+                  <span className="hidden sm:inline">Clear All</span>
+                  <span className="sm:hidden">Clear</span>
+                </Button>
+              </div>
             </div>
           </div>
 
           {/* Advanced Filters */}
           {showAdvancedFilters && (
-            <div className="border-t pt-4 space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="border-t pt-4 mt-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Patient Name Filter */}
                 <div>
                   <label className="text-sm font-medium mb-2 block">Patient Name</label>
                   <Select value={filters.patientName} onValueChange={(value) => setFilters(prev => ({ ...prev, patientName: value }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-sm">
                       <User className="h-4 w-4 mr-2" />
                       <SelectValue placeholder="Any Patient" />
                     </SelectTrigger>
@@ -523,7 +543,7 @@ export default function NotesPage() {
                 <div>
                   <label className="text-sm font-medium mb-2 block">Gender</label>
                   <Select value={filters.gender} onValueChange={(value) => setFilters(prev => ({ ...prev, gender: value }))}>
-                    <SelectTrigger>
+                    <SelectTrigger className="text-sm">
                       <SelectValue placeholder="Any Gender" />
                     </SelectTrigger>
                     <SelectContent>
@@ -549,9 +569,8 @@ export default function NotesPage() {
                         ...prev, 
                         ageRange: { ...prev.ageRange, min: e.target.value }
                       }))}
-                      className="w-20"
+                      className="text-sm"
                     />
-                    <span className="self-center">-</span>
                     <Input
                       placeholder="Max"
                       type="number"
@@ -560,63 +579,46 @@ export default function NotesPage() {
                         ...prev, 
                         ageRange: { ...prev.ageRange, max: e.target.value }
                       }))}
-                      className="w-20"
+                      className="text-sm"
                     />
                   </div>
                 </div>
 
-                {/* Diagnosis Filter */}
+                {/* Date Range */}
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Diagnosis</label>
-                  <Input
-                    placeholder="Search diagnosis..."
-                    value={filters.diagnosis}
-                    onChange={(e) => setFilters(prev => ({ ...prev, diagnosis: e.target.value }))}
-                  />
+                  <label className="text-sm font-medium mb-2 block">Date Range</label>
+                  <div className="space-y-2">
+                    <Input
+                      type="date"
+                      value={filters.dateRange.start}
+                      onChange={(e) => setFilters(prev => ({ 
+                        ...prev, 
+                        dateRange: { ...prev.dateRange, start: e.target.value }
+                      }))}
+                      className="text-sm"
+                    />
+                    <Input
+                      type="date"
+                      value={filters.dateRange.end}
+                      onChange={(e) => setFilters(prev => ({ 
+                        ...prev, 
+                        dateRange: { ...prev.dateRange, end: e.target.value }
+                      }))}
+                      className="text-sm"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Date Range Row */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">From Date</label>
-                  <Input
-                    type="date"
-                    value={filters.dateRange.from}
-                    onChange={(e) => setFilters(prev => ({ 
-                      ...prev, 
-                      dateRange: { ...prev.dateRange, from: e.target.value }
-                    }))}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">To Date</label>
-                  <Input
-                    type="date"
-                    value={filters.dateRange.to}
-                    onChange={(e) => setFilters(prev => ({ 
-                      ...prev, 
-                      dateRange: { ...prev.dateRange, to: e.target.value }
-                    }))}
-                  />
-                </div>
-              </div>
-
-              {/* Filter Summary */}
-              <div className="text-sm text-gray-600">
-                {(() => {
-                  const activeFilters = []
-                  if (searchTerm.trim()) activeFilters.push('Search')
-                  if (filters.patientName) activeFilters.push('Patient Name')
-                  if (filters.gender !== 'all') activeFilters.push('Gender')
-                  if (filters.ageRange.min || filters.ageRange.max) activeFilters.push('Age Range')
-                  if (filters.dateRange.from || filters.dateRange.to) activeFilters.push('Date Range')
-                  if (noteTypeFilter !== 'all') activeFilters.push('Note Type')
-                  if (filters.diagnosis) activeFilters.push('Diagnosis')
-                  
-                  if (activeFilters.length === 0) return 'No filters active'
-                  return `Active filters: ${activeFilters.join(', ')}`
-                })()}
+              {/* Diagnosis Filter - Full width */}
+              <div>
+                <label className="text-sm font-medium mb-2 block">Diagnosis</label>
+                <Input
+                  placeholder="Search by diagnosis..."
+                  value={filters.diagnosis}
+                  onChange={(e) => setFilters(prev => ({ ...prev, diagnosis: e.target.value }))}
+                  className="text-sm"
+                />
               </div>
             </div>
           )}
@@ -625,20 +627,20 @@ export default function NotesPage() {
 
       {/* Notes Grid */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
           {Array.from({ length: 6 }).map((_, index) => (
             <Card key={index}>
-              <CardHeader>
-                <Skeleton className="h-6 w-3/4" />
-                <Skeleton className="h-4 w-1/2" />
+              <CardHeader className="pb-3">
+                <Skeleton className="h-5 md:h-6 w-3/4" />
+                <Skeleton className="h-3 md:h-4 w-1/2" />
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-2/3" />
+                  <Skeleton className="h-3 md:h-4 w-full" />
+                  <Skeleton className="h-3 md:h-4 w-2/3" />
                   <div className="flex justify-between">
-                    <Skeleton className="h-6 w-20" />
-                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 md:h-6 w-20" />
+                    <Skeleton className="h-3 md:h-4 w-24" />
                   </div>
                 </div>
               </CardContent>
@@ -647,31 +649,31 @@ export default function NotesPage() {
         </div>
       ) : (filteredNotes && filteredNotes.length > 0) ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 md:gap-6">
             {paginatedNotes.map((note) => (
               <Card key={note.id} className="hover:shadow-md transition-shadow cursor-pointer">
                 <CardHeader 
                   className="pb-3"
                   onClick={() => router.push(`/dashboard/notes/${note.id}`)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-xl font-bold line-clamp-1 text-cyan-500">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-lg md:text-xl font-bold line-clamp-1 text-cyan-500">
                         {note.patientName || `Medical Case ${String(((currentPage - 1) * ITEMS_PER_PAGE) + notes.indexOf(note) + 1).padStart(3, '0')}`}
                       </CardTitle>
-                      <p className="text-sm text-gray-600 mt-1">
-                        Age {note.patientAge} • {note.patientGender}
+                      <p className="text-xs md:text-sm text-gray-600 mt-1">
+                        Age {note.patientAge !== 'N/A' && note.patientAge ? note.patientAge : 'N/A'} • {note.patientGender}
                       </p>
                       {/* Show a brief summary instead of full chief complaint */}
                       {note.chiefComplaint && (
                         <p className="text-xs text-gray-500 mt-1 line-clamp-1">
-                          {note.chiefComplaint.length > 50 
-                            ? note.chiefComplaint.substring(0, 50) + '...' 
+                          {note.chiefComplaint.length > 40 
+                            ? note.chiefComplaint.substring(0, 40) + '...' 
                             : note.chiefComplaint}
                         </p>
                       )}
                     </div>
-                    <Badge className={getNoteTypeColor(note.noteType)}>
+                    <Badge className={`${getNoteTypeColor(note.noteType)} text-xs px-2 py-1 shrink-0`}>
                       {note.noteType || 'Note'}
                     </Badge>
                   </div>
@@ -681,8 +683,8 @@ export default function NotesPage() {
                     {/* Diagnosis - Keep this as it's useful medical info */}
                     {note.diagnosis && (
                       <div>
-                        <p className="text-sm font-medium text-gray-700">Diagnosis:</p>
-                        <p className="text-sm text-gray-600 line-clamp-2">
+                        <p className="text-xs md:text-sm font-medium text-gray-700">Diagnosis:</p>
+                        <p className="text-xs md:text-sm text-gray-600 line-clamp-2 leading-relaxed">
                           {note.diagnosis}
                         </p>
                       </div>
@@ -692,17 +694,19 @@ export default function NotesPage() {
                     <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        {formatDate(note.createdAt)}
+                        <span className="truncate">
+                          {formatDate(note.createdAt)}
+                        </span>
                       </div>
                       {note.timeSaved && (
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Clock className="h-3 w-3" />
                           {Math.round(note.timeSaved / 60)}min saved
                         </div>
                       )}
                     </div>
 
-                    {/* Actions */}
+                    {/* Actions - Better mobile layout */}
                     <div className="flex items-center gap-2 pt-2">
                       <Button
                         size="sm"
@@ -711,6 +715,7 @@ export default function NotesPage() {
                           e.stopPropagation()
                           router.push(`/dashboard/notes/${note.id}`)
                         }}
+                        className="flex-1 text-xs"
                       >
                         <Eye className="h-3 w-3 mr-1" />
                         View
@@ -722,25 +727,55 @@ export default function NotesPage() {
                           e.stopPropagation()
                           handleExportPDF(note.id, note.patientName)
                         }}
+                        className="flex-1 text-xs"
                       >
                         <Download className="h-3 w-3 mr-1" />
-                        PDF
+                        <span className="hidden sm:inline">PDF</span>
+                        <span className="sm:hidden">PDF</span>
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleDeleteNote(note.id)
-                        }}
-                        disabled={isDeleting === note.id}
-                      >
-                        {isDeleting === note.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-3 w-3" />
-                        )}
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={(e) => e.stopPropagation()}
+                            className="px-2"
+                          >
+                            <MoreHorizontal className="h-3 w-3" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              router.push(`/dashboard/notes/${note.id}`)
+                            }}
+                          >
+                            <Eye className="h-3 w-3 mr-2" />
+                            View Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleExportPDF(note.id, note.patientName)
+                            }}
+                          >
+                            <Download className="h-3 w-3 mr-2" />
+                            Export PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteNote(note.id)
+                            }}
+                            className="text-red-600 focus:text-red-600"
+                          >
+                            <Trash2 className="h-3 w-3 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                 </CardContent>
@@ -748,37 +783,30 @@ export default function NotesPage() {
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-600">
-                Showing page {currentPage} of {totalPages}
-              </p>
-              <div className="flex items-center gap-2">
+          {/* Mobile-friendly Pagination */}
+          {totalFilteredPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
+              <div className="text-sm text-gray-600 order-2 sm:order-1">
+                Page {currentPage} of {totalFilteredPages}
+              </div>
+              <div className="flex items-center gap-2 order-1 sm:order-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage - 1)}
                   disabled={currentPage <= 1}
+                  className="text-sm"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Previous
+                  <span className="hidden sm:inline ml-1">Previous</span>
                 </Button>
                 
-                {/* Page numbers */}
-                <div className="flex items-center gap-1">
+                {/* Show page numbers on larger screens only */}
+                <div className="hidden md:flex items-center gap-1">
                   {Array.from({ length: Math.min(5, totalFilteredPages) }, (_, i) => {
-                    let pageNum
-                    if (totalFilteredPages <= 5) {
-                      pageNum = i + 1
-                    } else if (currentPage <= 3) {
-                      pageNum = i + 1
-                    } else if (currentPage >= totalFilteredPages - 2) {
-                      pageNum = totalFilteredPages - 4 + i
-                    } else {
-                      pageNum = currentPage - 2 + i
-                    }
-
+                    const pageNum = Math.max(1, Math.min(totalFilteredPages - 4, currentPage - 2)) + i
+                    if (pageNum > totalFilteredPages) return null
+                    
                     return (
                       <Button
                         key={pageNum}
@@ -792,14 +820,15 @@ export default function NotesPage() {
                     )
                   })}
                 </div>
-
+                
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => handlePageChange(currentPage + 1)}
                   disabled={currentPage >= totalFilteredPages}
+                  className="text-sm"
                 >
-                  Next
+                  <span className="hidden sm:inline mr-1">Next</span>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -808,48 +837,27 @@ export default function NotesPage() {
         </>
       ) : (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {(() => {
-                const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
-                  filters.patientName || filters.gender !== 'all' || 
-                  filters.ageRange.min || filters.ageRange.max || 
-                  filters.dateRange.from || filters.dateRange.to || 
-                  filters.diagnosis.trim()
-                
-                if (notes.length === 0) return 'No notes yet'
-                if (hasActiveFilters) return 'No matching notes found'
-                return 'No notes available'
-              })()}
+          <CardContent className="text-center py-12">
+            <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {hasActiveFilters ? 'No notes match your filters' : 'No medical notes yet'}
             </h3>
-            <p className="text-gray-600 text-center mb-6 max-w-md">
-              {(() => {
-                const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
-                  filters.patientName || filters.gender !== 'all' || 
-                  filters.ageRange.min || filters.ageRange.max || 
-                  filters.dateRange.from || filters.dateRange.to || 
-                  filters.diagnosis.trim()
-                
-                if (notes.length === 0) return 'Start by creating your first medical note using our AI transcription service.'
-                if (hasActiveFilters) return 'Try adjusting your search terms or filters to find what you\'re looking for, or clear all filters to see all notes.'
-                return 'Start by creating your first medical note using our AI transcription service.'
-              })()}
+            <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+              {hasActiveFilters 
+                ? 'Try adjusting your search criteria or clearing the filters to see more results.'
+                : 'Create your first medical note by uploading an audio file or using the voice recorder.'
+              }
             </p>
-            {(() => {
-              const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
-                filters.patientName || filters.gender !== 'all' || 
-                filters.ageRange.min || filters.ageRange.max || 
-                filters.dateRange.from || filters.dateRange.to || 
-                filters.diagnosis.trim()
-              
-              return !hasActiveFilters && (
-                <Button onClick={() => router.push('/dashboard/transcribe')}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create First Note
-                </Button>
-              )
-            })()}
+            {hasActiveFilters ? (
+              <Button variant="outline" onClick={clearAllFilters}>
+                Clear All Filters
+              </Button>
+            ) : (
+              <Button onClick={() => router.push('/dashboard/transcribe')}>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Note
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

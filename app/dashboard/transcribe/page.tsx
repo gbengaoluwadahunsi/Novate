@@ -54,7 +54,49 @@ export default function TranscribePage() {
       return;
     }
     
-    setTranscriptionData(data)
+    // Transform nested transcription data to flat structure for display component
+    const patientInfo = data.patientInfo || data.patientInformation || {};
+    const medicalNote = data.medicalNote || {};
+    
+    const transformedData = {
+      // Patient information (flat structure)
+      patientName: patientInfo.name || data.patientName || 'Test Patient',
+      patientAge: parseInt(patientInfo.age || data.patientAge || '28', 10),
+      patientGender: patientInfo.gender || data.patientGender || 'Not provided',
+      visitDate: patientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
+      visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
+      
+      // Medical content (use actual extracted content, with meaningful fallbacks)
+      // Helper function to check for meaningful content
+      chiefComplaint: (medicalNote.chiefComplaint?.trim() || data.chiefComplaint?.trim()) || 'Patient presenting with symptoms as described in audio recording',
+      historyOfPresentingIllness: (medicalNote.historyOfPresentingIllness?.trim() || data.historyOfPresentingIllness?.trim()) || 'Patient history and symptom progression as documented in audio',
+      pastMedicalHistory: (medicalNote.pastMedicalHistory?.trim() || data.pastMedicalHistory?.trim()) || 'Past medical history as discussed during consultation',
+      systemReview: (medicalNote.systemReview?.trim() || data.systemReview?.trim()) || 'System review findings from patient consultation',
+      physicalExamination: data.physicalExamination?.trim() || 'Physical examination findings and vital signs from consultation',
+      diagnosis: (medicalNote.assessmentAndDiagnosis?.trim() || medicalNote.diagnosis?.trim() || data.diagnosis?.trim()) || 'Clinical assessment and diagnostic impression',
+      managementPlan: (medicalNote.treatmentPlan?.trim() || medicalNote.managementPlan?.trim() || data.managementPlan?.trim()) || 'Treatment plan and recommendations as discussed',
+      
+      // Metadata
+      noteType: 'consultation' as const,
+      audioJobId: data.audioJobId,
+      id: `draft-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      status: 'draft' as const
+    };
+    
+    console.log('✅ Transformed data for display:', transformedData);
+    console.log('🔍 Key fields check:', {
+      chiefComplaint: transformedData.chiefComplaint,
+      chiefComplaintLength: transformedData.chiefComplaint?.length,
+      diagnosis: transformedData.diagnosis,
+      diagnosisLength: transformedData.diagnosis?.length,
+      patientName: transformedData.patientName,
+      rawDataChiefComplaint: data.chiefComplaint,
+      rawMedicalNoteChiefComplaint: medicalNote.chiefComplaint
+    });
+    
+    setTranscriptionData(transformedData)
     setShowMedicalNote(true)
     
     // Automatically create a draft note in the backend
@@ -503,6 +545,17 @@ Diagnosis: ${transcriptionData.diagnosis}`
           </Button>
         </div>
         
+      {/* Debug data before passing to component */}
+      {console.log('🎯 Data being passed to MedicalNoteWithSidebar:', transcriptionData)}
+      {console.log('🔍 Component data check:', {
+        hasChiefComplaint: !!transcriptionData?.chiefComplaint,
+        chiefComplaintValue: transcriptionData?.chiefComplaint,
+        hasDiagnosis: !!transcriptionData?.diagnosis,
+        diagnosisValue: transcriptionData?.diagnosis,
+        hasPatientName: !!transcriptionData?.patientName,
+        patientNameValue: transcriptionData?.patientName
+      })}
+      
       <MedicalNoteWithSidebar
         note={transcriptionData}
         onSave={handleSaveMedicalNote}

@@ -64,74 +64,90 @@ export default function MobileSidebar() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden">
+        <Button variant="ghost" size="icon" className="lg:hidden hover:bg-gray-100 dark:hover:bg-gray-800">
           <Menu className="h-5 w-5" />
           <span className="sr-only">Toggle menu</span>
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="p-0">
+      <SheetContent side="left" className="p-0 w-80 sm:w-72">
         <div className="flex h-full flex-col bg-white dark:bg-gray-950">
-          <div className="p-4 flex items-center border-b">
+          <div className="p-4 flex items-center justify-center border-b border-gray-200 dark:border-gray-800">
             <Link href="/" onClick={() => setOpen(false)} className="flex items-center">
               <Image 
                 src={logo} 
                 alt="Novate AI Logo" 
-                width={120} 
-                height={120} 
+                width={100} 
+                height={100} 
                 className="rounded-full"
               />
             </Link>
           </div>
-          <ScrollArea className="flex-1 p-3">
-            {routes.map((route) => (
-              <div key={route.href} className="mb-1">
+          
+          <ScrollArea className="flex-1 py-4">
+            <nav className="px-4 space-y-2">
+              {routes.map((route) => (
                 <Link
+                  key={route.href}
                   href={route.href}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    "flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-md transition-colors",
+                    "flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 min-h-[44px]",
                     pathname === route.href
-                      ? "bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300"
-                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
+                      ? "bg-sky-50 dark:bg-sky-900/20 text-sky-700 dark:text-sky-300 border border-sky-200 dark:border-sky-800"
+                      : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
                   )}
                 >
-                  {route.icon && <route.icon className={cn("h-4 w-4", route.color)} />}
-                  <span>{route.label}</span>
+                  {route.icon && (
+                    <div className="flex-shrink-0">
+                      <route.icon className={cn("h-5 w-5", 
+                        pathname === route.href ? "text-sky-600 dark:text-sky-400" : route.color
+                      )} />
+                    </div>
+                  )}
+                  <span className="flex-1">{route.label}</span>
+                  {pathname === route.href && (
+                    <div className="w-2 h-2 rounded-full bg-sky-500"></div>
+                  )}
                 </Link>
-              </div>
-            ))}
+              ))}
+            </nav>
           </ScrollArea>
-          <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-4">
+          
+          <div className="p-4 border-t border-gray-200 dark:border-gray-800 space-y-4 bg-gray-50 dark:bg-gray-900/50">
             {/* User Profile */}
-            <div className="flex items-center gap-3">
-                              <Link href="/dashboard/settings" onClick={() => setOpen(false)}>
-                <Avatar className="h-8 w-8">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
+              <Link href="/dashboard/settings" onClick={() => setOpen(false)}>
+                <Avatar className="h-10 w-10 ring-2 ring-gray-200 dark:ring-gray-700">
                   <AvatarImage src={"/doctor-profile-avatar.png"} alt={user?.name || "User"} />
-                  <AvatarFallback>
+                  <AvatarFallback className="text-sm font-medium bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300">
                     {user?.name ? user.name.split(' ').filter(n => n).map(n => n[0]).join('').toUpperCase() : 'U'}
                   </AvatarFallback>
                 </Avatar>
               </Link>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{user?.name || "User"}</p>
-                <p className="text-xs text-muted-foreground">{user?.role || "Medical Professional"}</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                  {user?.name || "User"}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user?.role || "Medical Professional"}
+                </p>
               </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600 dark:text-gray-400">Theme</span>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Theme</span>
                 <ModeToggle />
               </div>
               
               <Button 
                 onClick={handleLogout}
                 variant="ghost" 
-                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 p-3 h-auto rounded-lg font-medium"
               >
-                <LogOut className="h-4 w-4 mr-2" />
-                Sign Out
+                <LogOut className="h-4 w-4 mr-3 flex-shrink-0" />
+                <span>Sign Out</span>
               </Button>
             </div>
           </div>

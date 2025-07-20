@@ -25,18 +25,20 @@ export default function DashboardLayout({ children }: PropsWithChildren<{}>) {
   return (
     <ProtectedRoute>
       <NotesProvider>
-        <div className="flex min-h-screen bg-background">
+        <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900">
           <Sidebar className="hidden lg:block" />
-          <div className="flex-1">
-            <div className="border-b">
-              <div className="flex h-16 items-center px-4">
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
+              <div className="flex h-16 items-center px-4 sm:px-6">
                 <MobileSidebar />
-                <div className="ml-auto flex items-center space-x-4">
+                <div className="ml-auto flex items-center space-x-3 sm:space-x-4">
                   <ModeToggle />
                 </div>
               </div>
             </div>
-            <main>{children}</main>
+            <main className="flex-1 overflow-x-hidden">
+              {children}
+            </main>
           </div>
         </div>
       </NotesProvider>
