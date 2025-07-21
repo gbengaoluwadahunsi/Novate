@@ -20,6 +20,7 @@ import { apiClient, type MedicalNote, type NoteVersion, type AuditTrailEntry, ty
 import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
 import { useAppSelector } from '@/store/hooks'
+import { MedicalNotePDFGenerator } from '@/lib/pdf-generator'
 
 // Extended interface for editable medical note with doctor information
 interface EditableMedicalNote extends MedicalNote {
@@ -77,7 +78,7 @@ export default function NotePage() {
           doctorName: (noteResponse.data as any).doctorName || user?.name || 
                      (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
                      "Dr. [Name]",
-          doctorRegistrationNo: (noteResponse.data as any).doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]",
+          doctorRegistrationNo: (noteResponse.data as any).doctorRegistrationNo || user?.registrationNo || "",
           doctorDepartment: (noteResponse.data as any).doctorDepartment || user?.specialization || "General Medicine",
           dateOfIssue: (noteResponse.data as any).dateOfIssue || new Date().toISOString().split('T')[0],
           doctorSignature: (noteResponse.data as any).doctorSignature || null
@@ -123,7 +124,7 @@ export default function NotePage() {
       doctorName: (note as any)?.doctorName || user?.name || 
                  (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
                  "Dr. [Name]",
-      doctorRegistrationNo: (note as any)?.doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]",
+      doctorRegistrationNo: (note as any)?.doctorRegistrationNo || user?.registrationNo || "",
       doctorDepartment: (note as any)?.doctorDepartment || user?.specialization || "General Medicine",
       dateOfIssue: (note as any)?.dateOfIssue || new Date().toISOString().split('T')[0],
       doctorSignature: (note as any)?.doctorSignature || null
@@ -256,8 +257,68 @@ export default function NotePage() {
     URL.revokeObjectURL(url)
   }
 
+  // Show practice selector dialog for PDF export
+  const [showPracticeSelector, setShowPracticeSelector] = useState<{open: boolean, patientName: string} | null>(null)
+
   const handleExportPDF = () => {
-    window.print()
+    setShowPracticeSelector({ open: true, patientName: note.patientName || 'Patient' })
+  }
+
+  // PDF export with selected practice info
+  const exportPDFWithPractice = async (patientName: string, practiceInfo: {
+    organizationName: string;
+    organizationType: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
+    practiceLabel: string;
+  }) => {
+    try {
+      console.log('📄 Generating PDF for note:', note.id, 'Patient:', patientName, 'Practice:', practiceInfo)
+      
+      // Use frontend PDF generation (no backend endpoint available)
+      generateFrontendPDF(patientName, practiceInfo)
+    } catch (error) {
+      console.error('📄 PDF export error:', error)
+      toast({
+        title: 'Export Error',
+        description: 'Failed to generate PDF. Please try again.',
+        variant: 'destructive'
+      })
+    } finally {
+      setShowPracticeSelector(null)
+    }
+  }
+
+  // Frontend PDF generation using professional PDF library
+  const generateFrontendPDF = (patientName: string, practiceInfo: {
+    organizationName: string;
+    organizationType: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
+    practiceLabel: string;
+  }) => {
+    try {
+      // Create note with doctor information
+      const noteWithDoctorInfo = {
+        ...note,
+        doctorName: editedNote.doctorName || user?.name || 
+                   (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
+                   "Dr. [Name]",
+        doctorRegistrationNo: editedNote.doctorRegistrationNo || user?.registrationNo || "",
+        doctorDepartment: editedNote.doctorDepartment || user?.specialization || "General Medicine"
+      };
+
+      // Use the professional PDF generator
+      MedicalNotePDFGenerator.generateAndDownload(noteWithDoctorInfo, practiceInfo, patientName);
+
+      toast({
+        title: 'PDF Downloaded',
+        description: `Medical note exported for ${practiceInfo.organizationName}`,
+      })
+    } catch (error) {
+      console.error('📄 PDF generation error:', error)
+      toast({
+        title: 'Export Error',
+        description: 'Failed to generate PDF. Please try again.',
+        variant: 'destructive'
+      })
+    }
   }
 
   // Generate consistent case number for notes without patient names
@@ -597,6 +658,109 @@ export default function NotePage() {
           </div>
         </div>
       </div>
+      
+      {/* Practice Selector Dialog for PDF Export */}
+      <Dialog open={showPracticeSelector?.open || false} onOpenChange={(open) => !open && setShowPracticeSelector(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Practice for PDF Export</DialogTitle>
+            <DialogDescription>
+              Choose which practice to label this PDF export (affects filename). The PDF content will use your profile settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {/* Current Organization (if available and not generic) */}
+            {user?.organization && user.organization.name !== "Independent Practice" && user.organization.name !== "General Hospital" && user.organization.name !== "Medical Clinic" && (
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+                onClick={() => showPracticeSelector && exportPDFWithPractice(
+                  showPracticeSelector.patientName,
+                  {
+                    organizationName: user.organization.name,
+                    organizationType: user.organization.type,
+                    practiceLabel: user.organization.type === 'HOSPITAL' ? 'HOSPITAL' : 
+                                  user.organization.type === 'CLINIC' ? 'CLINIC' : 'PRIVATE PRACTICE'
+                  }
+                )}
+              >
+                <div className="text-left">
+                  <div className="font-medium">{user.organization.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {user.organization.type === 'HOSPITAL' ? 'Hospital' : 
+                     user.organization.type === 'CLINIC' ? 'Clinic' : 'Private Practice'} (Your Organization)
+                  </div>
+                </div>
+              </Button>
+            )}
+
+            {/* Common Practice Options */}
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto p-4"
+              onClick={() => showPracticeSelector && exportPDFWithPractice(
+                showPracticeSelector.patientName,
+                {
+                  organizationName: "General Hospital",
+                  organizationType: "HOSPITAL",
+                  practiceLabel: "HOSPITAL"
+                }
+              )}
+            >
+              <div className="text-left">
+                <div className="font-medium">General Hospital</div>
+                <div className="text-sm text-muted-foreground">Hospital Setting</div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto p-4"
+              onClick={() => showPracticeSelector && exportPDFWithPractice(
+                showPracticeSelector.patientName,
+                {
+                  organizationName: "Medical Clinic",
+                  organizationType: "CLINIC",
+                  practiceLabel: "CLINIC"
+                }
+              )}
+            >
+              <div className="text-left">
+                <div className="font-medium">Medical Clinic</div>
+                <div className="text-sm text-muted-foreground">Clinic Setting</div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto p-4"
+              onClick={() => showPracticeSelector && exportPDFWithPractice(
+                showPracticeSelector.patientName,
+                {
+                  organizationName: "Private Practice",
+                  organizationType: "PRIVATE_PRACTICE",
+                  practiceLabel: "PRIVATE PRACTICE"
+                }
+              )}
+            >
+              <div className="text-left">
+                <div className="font-medium">Private Practice</div>
+                <div className="text-sm text-muted-foreground">Independent Practice</div>
+              </div>
+            </Button>
+          </div>
+          
+          <div className="text-center pt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPracticeSelector(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

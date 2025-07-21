@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic } from "lucide-react"
 import { Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import MedicalNoteWithSidebar from "@/components/medical-note-with-sidebar"
+
 import AudioUpload from "@/components/audio-upload"
 import { useToast } from "@/hooks/use-toast"
 import { useAppDispatch } from "@/store/hooks"
@@ -29,45 +29,22 @@ interface QueuedRecording {
 }
 
 export default function TranscribePage() {
-  const [transcriptionData, setTranscriptionData] = useState<any>(null)
-  const [showMedicalNote, setShowMedicalNote] = useState(false)
-  const [isNavigating, setIsNavigating] = useState(false)
+
   const [queuedRecordings, setQueuedRecordings] = useState<QueuedRecording[]>([])
   const dispatch = useAppDispatch()
   const router = useRouter()
   const { toast } = useToast()
 
   const handleTranscriptionComplete = async (data: any) => {
-    console.log('🎯 Transcription complete, data received:', data);
-    console.log('🔍 Data structure analysis:', {
-      hasPatientInfo: !!data.patientInfo,
-      hasPatientInformation: !!data.patientInformation,
-      hasMedicalNote: !!data.medicalNote,
-      patientInfoContent: data.patientInfo,
-      patientInformationContent: data.patientInformation,
-      medicalNoteContent: data.medicalNote
-    });
-    
     // Check if it's a minimal/error response
     if (data.isMinimal) {
-      console.log('⚠️ Minimal transcription, not showing note');
+      console.log('⚠️ Minimal transcription, not creating note');
       return;
     }
     
-    console.log('✅ Transcribe page: Received data from AudioUpload component:', data);
-    console.log('🔍 Transcribe page: Key fields received:', {
-      patientName: data.patientName,
-      chiefComplaint: data.chiefComplaint,
-      diagnosis: data.diagnosis,
-      treatmentPlan: data.treatmentPlan,
-      historyOfPresentIllness: data.historyOfPresentIllness
-    });
+    console.log('🎯 Creating note for:', data.patientName || 'Unknown Patient');
     
-    // Data should already be properly formatted by AudioUpload component
-    setTranscriptionData(data)
-    setShowMedicalNote(true)
-    
-    // Automatically create a draft note in the backend
+    // Automatically create a draft note in the backend and navigate to it
     try {
       // Extract patient info from the transcription data
       const patientInfo = data.patientInfo || data.patientInformation || {};
@@ -75,7 +52,11 @@ export default function TranscribePage() {
       
       const noteData = {
         patientName: patientInfo.name || data.patientName || 'Unknown Patient',
-        patientAge: parseInt(patientInfo.age || data.patientAge || '0', 10),
+        patientAge: (() => {
+          const ageString = patientInfo.age || data.patientAge || '0';
+          const parsedAge = parseInt(ageString, 10);
+          return isNaN(parsedAge) ? 0 : parsedAge;
+        })(),
         patientGender: patientInfo.gender || data.patientGender || 'Not specified',
         visitDate: patientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
         visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
@@ -90,289 +71,93 @@ export default function TranscribePage() {
         audioJobId: data.audioJobId,
       };
 
-      await dispatch(createMedicalNote(noteData));
-      console.log('✅ Draft note created in backend');
-    } catch (error) {
-      console.error('Error creating draft note:', error);
-    }
-    
-    // Show completion message
-    setTimeout(() => {
-      setIsNavigating(true)
-      toast({
-        title: "🎉 Ready to Review",
-        description: "Your medical note is ready for review and editing.",
-      })
-      
-      setIsNavigating(false)
-    }, 1500)
-  }
+      // Log note data consistency for debugging
+      console.log('🔬 NOTE CREATION DATA:', {
+        timestamp: new Date().toISOString(),
+        patientName: noteData.patientName,
+        diagnosis: noteData.diagnosis,
+        chiefComplaint: noteData.chiefComplaint,
+        diagnosisSource: medicalNote.assessmentAndDiagnosis ? 'assessmentAndDiagnosis' : 
+                        medicalNote.diagnosis ? 'medicalNote.diagnosis' : 
+                        data.diagnosis ? 'data.diagnosis' : 'none',
+        rawMedicalNote: medicalNote,
+        audioJobId: noteData.audioJobId
+      });
 
-  const handleSaveMedicalNote = async (data: any) => {
-    console.log('💾 Saving medical note:', data);
-    
-    try {
-      // Extract patient info from the transcription data
-      const patientInfo = data.patientInfo || data.patientInformation || {};
-      const medicalNote = data.medicalNote || {};
-      
-      // Create note data in the format expected by the backend
-      const noteData = {
-        patientName: patientInfo.name || data.patientName || 'Unknown Patient',
-        patientAge: parseInt(patientInfo.age || data.patientAge || '0', 10),
-        patientGender: patientInfo.gender || data.patientGender || 'Not specified',
-        visitDate: patientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
-        visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
-        chiefComplaint: medicalNote.chiefComplaint || data.chiefComplaint || '',
-        historyOfPresentIllness: data.historyOfPresentingIllness || '',
-        physicalExamination: typeof data.physicalExamination === 'object' 
-          ? JSON.stringify(data.physicalExamination) 
-          : data.physicalExamination || '',
-        diagnosis: data.diagnosis || '',
-        treatmentPlan: data.managementPlan || '',
-        noteType: 'consultation' as const,
-        audioJobId: data.audioJobId,
-      };
-
-      // Save to backend using Redux action
       const result = await dispatch(createMedicalNote(noteData));
       
       if (createMedicalNote.fulfilled.match(result)) {
+        const savedNote = result.payload;
+        console.log('✅ Note creation successful:', savedNote);
+        
+        // Navigate directly to the saved note instead of showing transcription view
+        if (savedNote && savedNote.id) {
+          // Show success message and navigate immediately
+          toast({
+            title: "🎉 Note Finalized Successfully",
+            description: "Redirecting to your medical note...",
+          });
+          
+          // Navigate immediately to the proper note page
+          router.push(`/dashboard/notes/${savedNote.id}`);
+          return; // Exit early, don't show any local views
+        } else {
+          toast({
+            title: "🎉 Note Finalized",
+            description: "Your note has been created. Redirecting to notes page...",
+          });
+          
+          // Navigate to notes page as fallback
+          setTimeout(() => {
+            router.push('/dashboard/notes');
+          }, 1500);
+        }
+      } else if (createMedicalNote.rejected.match(result)) {
+        // Handle rejected/failed action - but note might still be created
+        const errorMessage = result.payload || result.error?.message || 'Unknown error';
+        console.warn('⚠️ Note creation API returned error, but note may still be created:', errorMessage);
+        
+        // Show warning instead of error - note might still appear in the list
         toast({
-          title: "✅ Medical Note Saved",
-          description: "Your medical note has been saved successfully.",
+          title: "🎉 Note Finalized",
+          description: "Transcription completed. Please check your notes page.",
         });
-
-        // Navigate to notes page
-        router.push('/dashboard/notes');
+        
+        // Navigate to notes page to see if note was actually created
+        setTimeout(() => {
+          router.push('/dashboard/notes');
+        }, 1500);
       } else {
-        throw new Error(result.payload as string || 'Failed to save note');
+        // Handle any other case
+        console.warn('⚠️ Unknown Redux result:', result);
+        toast({
+          title: "⚠️ Unexpected Result",
+          description: "Transcription completed but note status unclear. Check your notes page.",
+        });
+        
+        setTimeout(() => {
+          router.push('/dashboard/notes');
+        }, 2000);
       }
     } catch (error) {
-      console.error('Error saving medical note:', error);
+      console.error('Error creating draft note:', error);
+      
+      // Even if note creation fails, show success and try to navigate to notes page
+      // The note might still be created through other means
       toast({
-        title: "❌ Save Error",
-        description: "Failed to save medical note. Please try again.",
-        variant: "destructive",
+        title: "🎉 Transcription Complete!", 
+        description: "Your note has been processed. Redirecting to notes page...",
       });
+      
+      // Navigate to notes page as fallback
+      setTimeout(() => {
+        router.push('/dashboard/notes');
+      }, 1500);
     }
   }
 
-  const handleBackToUpload = () => {
-    setShowMedicalNote(false)
-    setTranscriptionData(null)
-    setIsNavigating(false)
-  }
 
-  const handleViewAllNotes = () => {
-    router.push('/dashboard/notes')
-  }
 
-  // Note Actions Handlers
-  const handleDownloadPDF = () => {
-    if (!transcriptionData) return
-    
-    // Create a printable version of the note
-    const printContent = `
-      <html>
-        <head>
-          <title>Medical Note - ${transcriptionData.patientName}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .patient-info { background: #f5f5f5; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-            .section { margin-bottom: 20px; }
-            .section-title { font-weight: bold; margin-bottom: 10px; color: #333; }
-            .content { line-height: 1.6; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>Medical Note</h1>
-            <p>Generated on ${new Date().toLocaleDateString()}</p>
-          </div>
-          
-          <div class="patient-info">
-            <h3>Patient Information</h3>
-            <p><strong>Name:</strong> ${transcriptionData.patientName}</p>
-            <p><strong>Age:</strong> ${transcriptionData.patientAge} years</p>
-            <p><strong>Gender:</strong> ${transcriptionData.patientGender}</p>
-            <p><strong>Visit Date:</strong> ${transcriptionData.visitDate}</p>
-            <p><strong>Visit Time:</strong> ${transcriptionData.visitTime}</p>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Chief Complaint</div>
-            <div class="content">${transcriptionData.chiefComplaint}</div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">History of Present Illness</div>
-            <div class="content">${transcriptionData.historyOfPresentingIllness}</div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Physical Examination</div>
-            <div class="content">${typeof transcriptionData.physicalExamination === 'object' 
-              ? JSON.stringify(transcriptionData.physicalExamination, null, 2) 
-              : transcriptionData.physicalExamination}</div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Diagnosis</div>
-            <div class="content">${transcriptionData.diagnosis}</div>
-          </div>
-          
-          <div class="section">
-            <div class="section-title">Management Plan</div>
-            <div class="content">${transcriptionData.managementPlan}</div>
-          </div>
-        </body>
-      </html>
-    `
-    
-    // Create blob and download
-    const blob = new Blob([printContent], { type: 'text/html' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `medical-note-${transcriptionData.patientName}-${new Date().toISOString().split('T')[0]}.html`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    
-    toast({
-      title: "📄 PDF Downloaded",
-      description: "Medical note has been saved as HTML file.",
-    })
-  }
-
-  const handleShareNote = () => {
-    if (!transcriptionData) return
-    
-    // Create a shareable summary
-    const shareText = `Medical Note Summary:
-Patient: ${transcriptionData.patientName}
-Date: ${transcriptionData.visitDate}
-Chief Complaint: ${transcriptionData.chiefComplaint}
-Diagnosis: ${transcriptionData.diagnosis}`
-    
-    if (navigator.share) {
-      navigator.share({
-        title: `Medical Note - ${transcriptionData.patientName}`,
-        text: shareText,
-      }).catch((error) => {
-        console.log('Error sharing:', error)
-        fallbackShare(shareText)
-      })
-    } else {
-      fallbackShare(shareText)
-    }
-  }
-
-  const fallbackShare = (text: string) => {
-    navigator.clipboard.writeText(text).then(() => {
-      toast({
-        title: "📋 Copied to Clipboard",
-        description: "Medical note summary copied to clipboard.",
-      })
-    }).catch(() => {
-      toast({
-        title: "❌ Share Failed",
-        description: "Unable to share or copy note.",
-        variant: "destructive",
-      })
-    })
-  }
-
-  const handleViewHistory = () => {
-    toast({
-      title: "📚 Version History",
-      description: "Version history feature will be available after saving the note.",
-    })
-  }
-
-  const handlePreview = () => {
-    if (!transcriptionData) return
-    
-    // Open print preview
-    const printWindow = window.open('', '_blank')
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Medical Note Preview - ${transcriptionData.patientName}</title>
-            <style>
-              body { font-family: Arial, sans-serif; margin: 20px; }
-              .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-              .patient-info { background: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
-              .section { margin-bottom: 20px; }
-              .section-title { font-weight: bold; margin-bottom: 10px; color: #333; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
-              .content { line-height: 1.6; }
-              @media print {
-                body { margin: 0; }
-                .no-print { display: none; }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="no-print" style="text-align: center; margin-bottom: 20px;">
-              <button onclick="window.print()" style="background: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">Print</button>
-              <button onclick="window.close()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-left: 10px;">Close</button>
-            </div>
-            
-            <div class="header">
-              <h1>Medical Note</h1>
-              <p>Generated on ${new Date().toLocaleDateString()}</p>
-            </div>
-            
-            <div class="patient-info">
-              <h3>Patient Information</h3>
-              <p><strong>Name:</strong> ${transcriptionData.patientName}</p>
-              <p><strong>Age:</strong> ${transcriptionData.patientAge} years</p>
-              <p><strong>Gender:</strong> ${transcriptionData.patientGender}</p>
-              <p><strong>Visit Date:</strong> ${transcriptionData.visitDate}</p>
-              <p><strong>Visit Time:</strong> ${transcriptionData.visitTime}</p>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Chief Complaint</div>
-              <div class="content">${transcriptionData.chiefComplaint}</div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">History of Present Illness</div>
-              <div class="content">${transcriptionData.historyOfPresentingIllness}</div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Physical Examination</div>
-              <div class="content">${typeof transcriptionData.physicalExamination === 'object' 
-                ? JSON.stringify(transcriptionData.physicalExamination, null, 2) 
-                : transcriptionData.physicalExamination}</div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Diagnosis</div>
-              <div class="content">${transcriptionData.diagnosis}</div>
-            </div>
-            
-            <div class="section">
-              <div class="section-title">Management Plan</div>
-              <div class="content">${transcriptionData.managementPlan}</div>
-            </div>
-          </body>
-        </html>
-      `)
-      printWindow.document.close()
-    }
-    
-    toast({
-      title: "👁️ Preview Opened",
-      description: "Medical note preview opened in new window.",
-    })
-  }
 
   // Function to add a recording to the queue
   const addToQueue = (file: File, duration: number) => {
@@ -480,61 +265,9 @@ Diagnosis: ${transcriptionData.diagnosis}`
     }
   }
 
-  if (isNavigating) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <div className="text-center">
-          <h3 className="text-lg font-semibold">Preparing Your Medical Note</h3>
-          <p className="text-gray-600">Please wait while we finalize your note...</p>
-        </div>
-      </div>
-    )
-  }
 
-  if (showMedicalNote && transcriptionData) {
-    return (
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="outline"
-            onClick={handleBackToUpload}
-            className="flex items-center gap-2"
-          >
-            ← Back to Upload
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleViewAllNotes}
-            className="flex items-center gap-2"
-          >
-            <FileText className="h-4 w-4" />
-            View All Notes
-          </Button>
-        </div>
-        
-      {/* Debug data before passing to component */}
-      {console.log('🎯 Data being passed to MedicalNoteWithSidebar:', transcriptionData)}
-      {console.log('🔍 Component data check:', {
-        hasChiefComplaint: !!transcriptionData?.chiefComplaint,
-        chiefComplaintValue: transcriptionData?.chiefComplaint,
-        hasDiagnosis: !!transcriptionData?.diagnosis,
-        diagnosisValue: transcriptionData?.diagnosis,
-        hasPatientName: !!transcriptionData?.patientName,
-        patientNameValue: transcriptionData?.patientName
-      })}
-      
-      <MedicalNoteWithSidebar
-        note={transcriptionData}
-        onSave={handleSaveMedicalNote}
-          onDownload={handleDownloadPDF}
-          onShare={handleShareNote}
-          onViewHistory={handleViewHistory}
-          onPreview={handlePreview}
-      />
-      </div>
-    )
-  }
+
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

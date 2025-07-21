@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Settings, Save, User, Lock, Globe, Bell, Camera, Mail, CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
+import { useAppSelector, useAppDispatch } from "@/store/hooks"
+import { getUser } from "@/store/features/authSlice"
 import {
   Dialog,
   DialogContent,
@@ -25,27 +27,86 @@ import {
 } from "@/components/ui/dialog"
 
 export default function SettingsPage() {
+  const dispatch = useAppDispatch()
+  const { user, isLoading: authLoading } = useAppSelector((state) => state.auth)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
-  // Mock user data
-  const user = {
-    name: "Dr. Sarah Johnson",
-    avatar: "/doctor-profile-avatar.png",
-    email: "sarah.johnson@example.com",
-    specialization: "General Medicine",
-    bio: "Board-certified physician with over 10 years of experience in general medicine.",
-    verificationStatus: "Verified",
-    age: 34,
-    gender: "Female",
-    location: "Kuala Lumpur, Malaysia",
+  // Form state for editable fields
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    specialization: '',
+    bio: '',
+    preferredLanguage: 'en-US'
+  })
+
+  // Load user data when component mounts
+  useEffect(() => {
+    if (!user) {
+      dispatch(getUser())
+    } else {
+      // Populate form with user data
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        specialization: user.specialization || '',
+        bio: user.bio || '',
+        preferredLanguage: user.preferredLanguage || 'en-US'
+      })
+    }
+  }, [dispatch, user])
+
+  // Update form data when user data changes
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        specialization: user.specialization || '',
+        bio: user.bio || '',
+        preferredLanguage: user.preferredLanguage || 'en-US'
+      })
+    }
+  }, [user])
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  // Get display name for user
+  const getDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`
+    }
+    if (user?.name) {
+      return user.name
+    }
+    return user?.email || 'User'
+  }
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    const name = getDisplayName()
+    return name.split(' ').filter(n => n).map(n => n[0]).join('').toUpperCase()
   }
 
   const handleSaveSettings = async () => {
     setIsLoading(true)
     try {
-      // Simulate API call
+      // TODO: Add API call to update user profile
+      // For now, simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000))
+      
+      // Update the auth state with new user data
+      dispatch(getUser())
+      
       toast({
         title: "Settings Saved",
         description: "Your profile and settings have been updated successfully.",
@@ -59,6 +120,36 @@ export default function SettingsPage() {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // Show loading state while fetching user data
+  if (authLoading && !user) {
+    return (
+      <div className="container mx-auto py-6 max-w-5xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading your profile...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Show error state if no user data after loading
+  if (!authLoading && !user) {
+    return (
+      <div className="container mx-auto py-6 max-w-5xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <p className="text-muted-foreground mb-4">Unable to load your profile. Please try refreshing the page.</p>
+            <Button onClick={() => dispatch(getUser())}>
+              Retry
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -82,9 +173,9 @@ export default function SettingsPage() {
             <CardHeader className="text-center">
               <div className="relative mx-auto w-24 h-24 mb-4">
                 <Avatar className="w-24 h-24">
-                  <AvatarImage src={user.avatar} alt={user.name} />
+                  <AvatarImage src={user?.avatarUrl || "/doctor-profile-avatar.png"} alt={getDisplayName()} />
                   <AvatarFallback className="text-2xl">
-                    {user?.name ? user.name.split(' ').filter(n => n).map(n => n[0]).join('') : 'U'}
+                    {getUserInitials()}
                   </AvatarFallback>
                 </Avatar>
                 <Dialog>
@@ -116,12 +207,12 @@ export default function SettingsPage() {
                 </Dialog>
               </div>
               <div>
-                <h2 className="text-xl font-semibold">{user.name}</h2>
-                <p className="text-muted-foreground">{user.specialization}</p>
+                <h2 className="text-xl font-semibold">{getDisplayName()}</h2>
+                <p className="text-muted-foreground">{user?.specialization || 'No specialization set'}</p>
                 <div className="flex items-center justify-center gap-2 mt-2">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <CheckCircle2 className={`h-4 w-4 ${user?.isVerified ? 'text-green-500' : 'text-gray-400'}`} />
                   <Badge variant="secondary" className="text-xs">
-                    {user.verificationStatus}
+                    {user?.isVerified ? 'Verified' : 'Unverified'}
                   </Badge>
                 </div>
               </div>
@@ -129,12 +220,14 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm">{user.email}</span>
+                <span className="text-sm">{user?.email || 'No email'}</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                <p>Age: {user.age} years</p>
-                <p>Gender: {user.gender}</p>
-                <p>Location: {user.location}</p>
+                {user?.organization && (
+                  <p>Organization: {user.organization.name}</p>
+                )}
+                <p>Member since: {user?.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}</p>
+                <p>Role: {user?.role || 'User'}</p>
               </div>
             </CardContent>
           </Card>
@@ -154,28 +247,54 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input id="name" defaultValue={user.name} />
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input 
+                    id="firstName" 
+                    value={formData.firstName}
+                    onChange={(e) => handleInputChange('firstName', e.target.value)}
+                    placeholder="Enter your first name"
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" type="email" defaultValue={user.email} />
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input 
+                    id="lastName" 
+                    value={formData.lastName}
+                    onChange={(e) => handleInputChange('lastName', e.target.value)}
+                    placeholder="Enter your last name"
+                  />
                 </div>
               </div>
               <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  placeholder="Enter your email address"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label htmlFor="specialization">Specialization</Label>
-                <Select defaultValue="general-medicine">
+                <Select 
+                  value={formData.specialization} 
+                  onValueChange={(value) => handleInputChange('specialization', value)}
+                >
                   <SelectTrigger id="specialization">
                     <SelectValue placeholder="Select specialization" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="general-medicine">General Medicine</SelectItem>
-                    <SelectItem value="cardiology">Cardiology</SelectItem>
-                    <SelectItem value="neurology">Neurology</SelectItem>
-                    <SelectItem value="pediatrics">Pediatrics</SelectItem>
-                    <SelectItem value="orthopedics">Orthopedics</SelectItem>
-                    <SelectItem value="dermatology">Dermatology</SelectItem>
-                    <SelectItem value="psychiatry">Psychiatry</SelectItem>
+                    <SelectItem value="General Medicine">General Medicine</SelectItem>
+                    <SelectItem value="Cardiology">Cardiology</SelectItem>
+                    <SelectItem value="Neurology">Neurology</SelectItem>
+                    <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                    <SelectItem value="Orthopedics">Orthopedics</SelectItem>
+                    <SelectItem value="Dermatology">Dermatology</SelectItem>
+                    <SelectItem value="Psychiatry">Psychiatry</SelectItem>
+                    <SelectItem value="Internal Medicine">Internal Medicine</SelectItem>
+                    <SelectItem value="Emergency Medicine">Emergency Medicine</SelectItem>
+                    <SelectItem value="Family Medicine">Family Medicine</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -184,7 +303,8 @@ export default function SettingsPage() {
                 <Textarea
                   id="bio"
                   rows={3}
-                  defaultValue={user.bio}
+                  value={formData.bio}
+                  onChange={(e) => handleInputChange('bio', e.target.value)}
                   placeholder="Tell us about your professional background..."
                 />
               </div>
@@ -203,7 +323,10 @@ export default function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="language">Default Language</Label>
-                <Select defaultValue="en-US">
+                <Select 
+                  value={formData.preferredLanguage} 
+                  onValueChange={(value) => handleInputChange('preferredLanguage', value)}
+                >
                   <SelectTrigger id="language">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>

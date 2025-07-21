@@ -110,17 +110,17 @@ export default function MedicalNoteWithSidebar({
   const currentNote = {
     // Use actual note data first, only fallback to defaults if completely missing
     id: note?.id || defaultNote.id,
-    patientName: note?.patientName || defaultNote.patientName,
-    patientAge: note?.patientAge || defaultNote.patientAge,
-    patientGender: note?.patientGender || defaultNote.patientGender,
-    visitDate: note?.visitDate || defaultNote.visitDate,
-    visitTime: note?.visitTime || defaultNote.visitTime,
+    patientName: note?.patientName !== undefined ? note.patientName : "Unknown Patient",
+    patientAge: note?.patientAge !== undefined ? note.patientAge : 0,
+    patientGender: note?.patientGender !== undefined ? note.patientGender : "Not specified",
+    visitDate: note?.visitDate !== undefined ? note.visitDate : new Date().toISOString().split('T')[0],
+    visitTime: note?.visitTime !== undefined ? note.visitTime : new Date().toTimeString().slice(0, 5),
     
-    // Medical content - prefer extracted content, only use defaults if empty/missing
-    chiefComplaint: note?.chiefComplaint || "To be documented",
-    historyOfPresentingIllness: note?.historyOfPresentingIllness || "To be documented", 
-    pastMedicalHistory: note?.pastMedicalHistory || "To be documented",
-    systemReview: note?.systemReview || "To be documented",
+    // Medical content - prefer extracted content, show empty placeholders if missing
+    chiefComplaint: note?.chiefComplaint !== undefined ? note.chiefComplaint : "",
+    historyOfPresentingIllness: note?.historyOfPresentingIllness !== undefined ? note.historyOfPresentingIllness : "", 
+    pastMedicalHistory: note?.pastMedicalHistory !== undefined ? note.pastMedicalHistory : "",
+    systemReview: note?.systemReview !== undefined ? note.systemReview : "",
     
     // Physical examination - only use actual extracted data or empty placeholders
     physicalExamination: note?.physicalExamination ? (
@@ -144,16 +144,16 @@ export default function MedicalNoteWithSidebar({
     },
     
     // Diagnosis and treatment - prefer extracted content
-    diagnosis: note?.diagnosis || "To be determined",
-    managementPlan: note?.managementPlan || "To be determined",
-    medicationCertificate: note?.medicationCertificate || "To be completed if needed",
+    diagnosis: note?.diagnosis !== undefined ? note.diagnosis : "",
+    managementPlan: note?.managementPlan !== undefined ? note.managementPlan : "",
+    medicationCertificate: note?.medicationCertificate !== undefined ? note.medicationCertificate : "",
     
     // Metadata
-    doctorName: note?.doctorName || defaultNote.doctorName,
-    createdAt: note?.createdAt || defaultNote.createdAt,
-    updatedAt: note?.updatedAt || defaultNote.updatedAt,
-    status: note?.status || "draft",
-    version: note?.version || 1,
+    doctorName: note?.doctorName !== undefined ? note.doctorName : "",
+    createdAt: note?.createdAt !== undefined ? note.createdAt : new Date().toISOString(),
+    updatedAt: note?.updatedAt !== undefined ? note.updatedAt : new Date().toISOString(),
+    status: note?.status !== undefined ? note.status : "draft",
+    version: note?.version !== undefined ? note.version : 1,
   }
 
   // Use useEffect to set editedNote to avoid state update during render

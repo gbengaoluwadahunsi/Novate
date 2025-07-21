@@ -50,7 +50,13 @@ export default function Dashboard() {
         // Fetch recent notes (for the authenticated user) - limit to 5
         const notesRes = await apiClient.getMedicalNotes({ page: 1, limit: 5 });
         if (notesRes.success && notesRes.data && Array.isArray(notesRes.data.notes)) {
-          setRecentNotes(notesRes.data.notes || []);
+          // Sort notes by creation date - newest first
+          const sortedNotes = (notesRes.data.notes || []).sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.updatedAt || 0);
+            const dateB = new Date(b.createdAt || b.updatedAt || 0);
+            return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+          });
+          setRecentNotes(sortedNotes);
         } else {
           setRecentNotes([]);
         }

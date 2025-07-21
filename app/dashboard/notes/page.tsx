@@ -31,6 +31,7 @@ import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
 import { debounce } from '@/lib/performance'
 import { useAppSelector } from '@/store/hooks'
+import { MedicalNotePDFGenerator } from '@/lib/pdf-generator'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -93,7 +94,9 @@ export default function NotesPage() {
       // Search term filter
       if (searchTerm.trim()) {
         const searchLower = searchTerm.toLowerCase()
+        const displayName = generateCaseNumber(note, notes).toLowerCase()
         const matchesSearch = (
+          displayName.includes(searchLower) ||
           (note.patientInformation?.name || '').toLowerCase().includes(searchLower) ||
           (note.chiefComplaint || '').toLowerCase().includes(searchLower) ||
           (note.assessmentAndDiagnosis || '').toLowerCase().includes(searchLower) ||
@@ -222,24 +225,17 @@ export default function NotesPage() {
 
       // Quick backend connectivity test
       try {
-        const healthCheck = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://novatescribebackend.onrender.com'}/health`)
-        console.log('🔍 Backend Health Check:', {
-          status: healthCheck.status,
-          ok: healthCheck.ok,
-          statusText: healthCheck.statusText
-        })
+        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://novatescribebackend.onrender.com'}/health`)
       } catch (healthError) {
-        console.log('🔍 Backend Health Check Failed:', healthError)
+        console.warn('⚠️ Backend connection issue:', healthError.message)
       }
 
       const response = await apiClient.getMedicalNotes(params)
 
-      console.log('🔍 Full API Response:', response)
-      console.log('🔍 Response Success:', response.success)
-      console.log('🔍 Response Data:', response.data)
-      console.log('🔍 Response Data Type:', typeof response.data)
-      console.log('🔍 Response Data Keys:', response.data ? Object.keys(response.data) : 'No data')
-      console.log('🔍 Response Error:', response.error)
+      // Debug API response only if there's an error
+      if (!response.success) {
+        console.error('❌ Notes API failed:', response.error)
+      }
 
       if (response.success && response.data) {
         const data = response.data
@@ -252,13 +248,18 @@ export default function NotesPage() {
         })
         
         let filteredNotes = data.notes || []
-        console.log('🔍 Filtered Notes:', filteredNotes)
-        console.log('🔍 Filtered Notes Length:', filteredNotes.length)
 
         // Apply client-side note type filter since backend might not support it
         if (filter !== 'all') {
           filteredNotes = (data.notes || []).filter(note => note.noteType === filter)
         }
+
+        // Sort notes by creation date - newest first
+        filteredNotes.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.updatedAt || 0);
+          const dateB = new Date(b.createdAt || b.updatedAt || 0);
+          return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+        });
 
         setNotes(filteredNotes)
         // Add safe access to pagination data
@@ -266,16 +267,8 @@ export default function NotesPage() {
         setTotalPages(data.pagination?.pages || 1)
         setTotalNotes(data.pagination?.total || 0)
 
-        console.log('🔍 Final State:', {
-          notesCount: filteredNotes.length,
-          currentPage: data.pagination?.page || 1,
-          totalPages: data.pagination?.pages || 1,
-          totalNotes: data.pagination?.total || 0
-        })
-
         performanceMonitor.endTiming('load-notes')
       } else {
-        console.log('🔍 API Response Failed:', response.error)
         throw new Error(response.error || 'Failed to load notes')
       }
     } catch (error) {
@@ -359,40 +352,78 @@ export default function NotesPage() {
   }, [currentPage, totalFilteredPages])
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!confirm('Are you sure you want to delete this note? This action cannot be undone.')) {
-      return
-    }
+    // Show confirmation toast instead of browser alert
+    toast({
+      title: 'Delete Note',
+      description: 'Are you sure you want to delete this note? This action cannot be undone.',
+      action: (
+        <div className="flex gap-2 mt-2">
+          <Button
+            size="sm"
+            variant="destructive"
+            onClick={async () => {
+              setIsDeleting(noteId)
+              
+              try {
+                console.log('🗑️ Attempting to delete note:', noteId)
+                const response = await apiClient.deleteMedicalNote(noteId)
+                console.log('🗑️ Delete response:', response)
 
-    setIsDeleting(noteId)
+                if (response.success) {
+                  // Optimistically remove from UI first for smooth UX
+                  setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId))
+                  setTotalNotes(prev => Math.max(0, prev - 1))
+                  
+                  toast({
+                    title: 'Note Deleted',
+                    description: 'Medical note has been successfully deleted',
+                  })
 
-    try {
-      console.log('🗑️ Attempting to delete note:', noteId)
-      const response = await apiClient.deleteMedicalNote(noteId)
-      console.log('🗑️ Delete response:', response)
-
-      if (response.success) {
-        toast({
-          title: 'Note Deleted',
-          description: 'Medical note has been successfully deleted',
-        })
-
-        // Reload notes
-        await loadNotes()
-      } else {
-        console.error('🗑️ Delete failed:', response.error)
-        throw new Error(response.error || 'Failed to delete note')
-      }
-    } catch (error) {
-      console.error('🗑️ Delete error:', error)
-      logger.error('Error deleting note:', error)
-      toast({
-        title: 'Delete Error',
-        description: `Failed to delete note: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-        variant: 'destructive'
-      })
-    } finally {
-      setIsDeleting(null)
-    }
+                  // Reload notes to ensure consistency with backend
+                  await loadNotes()
+                } else {
+                  console.error('🗑️ Delete failed:', response.error)
+                  throw new Error(response.error || 'Failed to delete note')
+                }
+              } catch (error) {
+                console.error('🗑️ Delete error:', error)
+                logger.error('Error deleting note:', error)
+                
+                // Revert optimistic update on error
+                await loadNotes()
+                
+                toast({
+                  title: 'Delete Error',
+                  description: `Failed to delete note: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+                  variant: 'destructive'
+                })
+              } finally {
+                setIsDeleting(null)
+              }
+            }}
+          >
+            {isDeleting === noteId ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              'Delete'
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              // Dismiss the toast
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      ),
+      duration: 10000, // 10 seconds to give user time to decide
+    })
   }
 
   // Show practice selector dialog
@@ -400,53 +431,68 @@ export default function NotesPage() {
     setShowPracticeSelector({ open: true, noteId, patientName })
   }
 
-  // Actual PDF export with selected practice info
+  // PDF export with selected practice info
   const exportPDFWithPractice = async (noteId: string, patientName: string, practiceInfo: {
     organizationName: string;
     organizationType: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
     practiceLabel: string;
   }) => {
     try {
-      console.log('📄 Attempting to export PDF for note:', noteId, 'Patient:', patientName, 'Practice:', practiceInfo)
+      console.log('📄 Generating PDF for note:', noteId, 'Patient:', patientName, 'Practice:', practiceInfo)
       
-      // Use basic PDF export without custom organization parameters (backend doesn't support them yet)
-      const response = await apiClient.exportNotePDF(noteId, {
-        format: 'A4',
-        includeHeader: true,
-        includeFooter: true
-      })
-      console.log('📄 Export response:', response)
-
-      if (response.success && response.data) {
-        const blob = response.data as Blob
-        console.log('📄 PDF blob created:', blob.size, 'bytes')
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = `medical-note-${practiceInfo.organizationName.replace(/[^a-zA-Z0-9]/g, '_')}-${(patientName || 'patient').replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-
-        toast({
-          title: 'PDF Downloaded',
-          description: `Medical note exported for ${practiceInfo.organizationName}`,
-        })
-      } else {
-        console.error('📄 Export failed:', response.error)
-        throw new Error(response.error || 'Failed to export PDF')
-      }
+      // Use frontend PDF generation (no backend endpoint available)
+      generateFrontendPDF(noteId, patientName, practiceInfo)
     } catch (error) {
-      console.error('📄 Export error:', error)
-      logger.error('Error exporting PDF:', error)
+      console.error('📄 PDF export error:', error)
       toast({
         title: 'Export Error',
-        description: `Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
+        description: 'Failed to generate PDF. Please try again.',
         variant: 'destructive'
       })
     } finally {
       setShowPracticeSelector(null)
+    }
+  }
+
+  // Frontend PDF generation using professional PDF library
+  const generateFrontendPDF = async (noteId: string, patientName: string, practiceInfo: {
+    organizationName: string;
+    organizationType: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
+    practiceLabel: string;
+  }) => {
+    try {
+      // Fetch the note data for PDF generation
+      const noteResponse = await apiClient.getMedicalNote(noteId)
+      if (!noteResponse.success || !noteResponse.data) {
+        throw new Error('Could not fetch note data for PDF generation')
+      }
+      
+      const note = noteResponse.data
+
+      // Add doctor information to the note
+      const noteWithDoctorInfo = {
+        ...note,
+        doctorName: user?.name || 
+                   (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
+                   "Dr. [Name]",
+        doctorRegistrationNo: user?.registrationNo || "",
+        doctorDepartment: user?.specialization || "General Medicine"
+      };
+
+      // Use the professional PDF generator
+      MedicalNotePDFGenerator.generateAndDownload(noteWithDoctorInfo, practiceInfo, patientName);
+
+      toast({
+        title: 'PDF Downloaded',
+        description: `Medical note exported for ${practiceInfo.organizationName}`,
+      })
+    } catch (error) {
+      console.error('📄 PDF generation error:', error)
+      toast({
+        title: 'Export Error',
+        description: 'Failed to generate PDF. Please try again.',
+        variant: 'destructive'
+      })
     }
   }
 

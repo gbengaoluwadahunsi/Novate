@@ -107,29 +107,48 @@ export const createMedicalNote = createAsyncThunk(
       const currentUser = state.auth?.user
       
       // Add doctor information from current user
+      // Safely construct doctor name, handling undefined values
+      const getDoctorName = () => {
+        if (currentUser?.name) return currentUser.name;
+        if (currentUser?.firstName && currentUser?.lastName) {
+          return `${currentUser.firstName} ${currentUser.lastName}`;
+        }
+        if (currentUser?.firstName) return currentUser.firstName;
+        if (currentUser?.lastName) return currentUser.lastName;
+        return 'Doctor'; // Fallback name instead of empty string
+      };
+
       const noteDataWithDoctor = {
         ...noteData,
-        doctorName: currentUser?.name || currentUser?.firstName && currentUser?.lastName 
-          ? `${currentUser.firstName} ${currentUser.lastName}` 
-          : '',
+        doctorName: getDoctorName(),
         doctorRegistrationNumber: currentUser?.registrationNo || currentUser?.registrationNumber || ''
       }
       
-      console.log('👨‍⚕️ Creating medical note with doctor info:', {
-        doctorName: noteDataWithDoctor.doctorName,
-        doctorRegistrationNumber: noteDataWithDoctor.doctorRegistrationNumber,
-        currentUser: currentUser ? { 
-          name: currentUser.name, 
-          firstName: currentUser.firstName, 
-          lastName: currentUser.lastName,
-          registrationNo: currentUser.registrationNo 
-        } : 'null'
-      })
+      console.log('👨‍⚕️ Creating medical note:', {
+        patient: `${noteData.patientName} (${noteData.patientAge}y, ${noteData.patientGender})`,
+        doctor: noteDataWithDoctor.doctorName,
+        complaint: noteData.chiefComplaint?.slice(0, 40) + '...'
+      });
       
       const response = await apiClient.createMedicalNote(noteDataWithDoctor)
       if (response.success) {
+        console.log('✅ Redux: Medical note created successfully:', {
+          noteId: response.data?.id,
+          patientName: response.data?.patientName
+        });
+        
+        // Log diagnosis consistency in response
+        console.log('🔬 REDUX RESPONSE DIAGNOSIS:', {
+          timestamp: new Date().toISOString(),
+          responseHasDiagnosis: !!response.data?.diagnosis,
+          responseDiagnosis: response.data?.diagnosis,
+          responseAssessment: response.data?.assessmentAndDiagnosis,
+          fullResponseKeys: response.data ? Object.keys(response.data) : []
+        });
+        
         return response.data
       } else {
+        console.error('🔥 Redux: Note creation failed:', response.error);
         return rejectWithValue(response.error || 'Failed to create medical note')
       }
     } catch (error) {

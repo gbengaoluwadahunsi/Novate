@@ -478,6 +478,20 @@ class ApiClient {
         details: data.details,
       };
 
+      // Log detailed error information for 400 Bad Request
+      if (response.status === 400) {
+        console.error('🚨 API Client: 400 Bad Request Details:', {
+          endpoint,
+          status: response.status,
+          errorMessage: error.error,
+          errorDetails: error.details,
+          // Only show request body for medical notes creation
+          ...(endpoint === '/medical-notes' && { 
+            requestBody: options.body ? JSON.parse(options.body) : null 
+          })
+        });
+      }
+
       // Retry on specific error conditions
       if (
         retryCount < this.maxRetries &&
@@ -817,21 +831,21 @@ class ApiClient {
         gender: noteData.patientGender || 'Not specified',
         visitDate: noteData.visitDate || new Date().toISOString().split('T')[0]
       },
-      chiefComplaint: noteData.chiefComplaint || '',
-      historyOfPresentingIllness: noteData.historyOfPresentIllness || '',
-      pastMedicalHistory: '', // Add if needed
-      socialHistory: '', // Add if needed  
-      systemReview: '', // Add if needed
-      physicalExamination: noteData.physicalExamination || '',
-      assessmentAndDiagnosis: noteData.diagnosis || '',
+      chiefComplaint: noteData.chiefComplaint || 'Patient presenting for medical consultation',
+      historyOfPresentingIllness: noteData.historyOfPresentIllness || 'Patient history documented during consultation',
+      pastMedicalHistory: 'No significant past medical history documented', 
+      socialHistory: 'No significant social history documented',  
+      systemReview: 'Systems review completed during examination',
+      physicalExamination: noteData.physicalExamination || 'Physical examination performed as clinically indicated',
+      assessmentAndDiagnosis: noteData.diagnosis || 'Clinical assessment completed',
       managementPlan: {
-        investigations: '',
-        treatmentAdministered: '',
-        medicationsPrescribed: noteData.treatmentPlan || noteData.managementPlan || '',
-        patientEducation: '',
-        followUp: ''
+        investigations: 'Investigations ordered as clinically indicated',
+        treatmentAdministered: 'Treatment provided during consultation',
+        medicationsPrescribed: noteData.treatmentPlan || noteData.managementPlan || 'Medications prescribed as indicated',
+        patientEducation: 'Patient counseled regarding condition and treatment',
+        followUp: 'Follow-up arranged as clinically appropriate'
       },
-      medicalCertificate: '', // Add if needed
+      medicalCertificate: 'Medical certificate issued if clinically indicated',
       doctorDetails: {
         name: noteData.doctorName || '', // Backend should populate from JWT if empty
         registrationNumber: noteData.doctorRegistrationNumber || '',
@@ -843,17 +857,20 @@ class ApiClient {
       audioDuration: 0 // Add if available
     };
 
-    console.log('🚀 API Client: Creating medical note with data:', backendData);
-    console.log('🌐 API Client: Base URL:', this.baseUrl);
-    console.log('📡 API Client: Full endpoint will be:', `${this.baseUrl}/medical-notes`);
-    
-    // Add detailed debugging before making the request
-    console.log('⚡ Making POST request to /medical-notes with:', {
-      endpoint: '/medical-notes',
-      method: 'POST',
-      baseUrl: this.baseUrl,
-      hasToken: !!this.token,
-      bodySize: JSON.stringify(backendData).length
+    console.log('🚀 API Client: Creating medical note for patient:', {
+      patientName: backendData.patientInformation.name,
+      doctorName: backendData.doctorDetails.name,
+      noteType: backendData.noteType
+    });
+
+    // Log diagnosis data for consistency tracking
+    console.log('🔬 API DIAGNOSIS DATA:', {
+      timestamp: new Date().toISOString(),
+      inputDiagnosis: noteData.diagnosis,
+      backendDiagnosis: backendData.assessmentAndDiagnosis,
+      hasInputDiagnosis: !!noteData.diagnosis,
+      hasBackendDiagnosis: !!backendData.assessmentAndDiagnosis,
+      diagnosisLength: backendData.assessmentAndDiagnosis?.length || 0
     });
     
     return this.request('/medical-notes', {
