@@ -17,6 +17,31 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Generate consistent case number for notes without patient names
+  const generateCaseNumber = (note: any, allNotes?: any[]) => {
+    if (note.patientName && note.patientName.trim() && note.patientName !== 'N/A') {
+      return note.patientName
+    }
+    
+    // Use all available notes or fallback to current notes list
+    const notesList = allNotes || recentNotes
+    
+    // Get only notes WITHOUT patient names, sorted chronologically
+    const unnamedNotes = notesList
+      .filter(n => !n.patientName || n.patientName.trim() === '' || n.patientName === 'N/A')
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    
+    // Find position of current note among unnamed notes only
+    const position = unnamedNotes.findIndex(n => n.id === note.id) + 1
+    
+    // Fallback if note not found
+    if (position === 0) {
+      return 'Medical Case 001'
+    }
+    
+    return `Medical Case ${String(position).padStart(3, '0')}`
+  }
+
   useEffect(() => {
     async function fetchNotes() {
       setLoading(true)
@@ -145,7 +170,7 @@ export default function Dashboard() {
                     <div className="flex-1 min-w-0">
                       <Link href={`/dashboard/notes/${note?.id || ''}`} className="block">
                         <p className="font-medium text-cyan-600 hover:text-cyan-700 transition-colors text-sm md:text-base truncate">
-                          {note?.patientName || `Medical Case ${String(index + 1).padStart(3, '0')}`}
+                          {generateCaseNumber(note, recentNotes)}
                         </p>
                         <p className="text-xs md:text-sm text-muted-foreground mt-1">
                           {note?.createdAt ? (

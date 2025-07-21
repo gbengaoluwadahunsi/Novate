@@ -1011,28 +1011,60 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   const handleTranscriptionComplete = async (transcriptionData: FastTranscriptionResponse | { transcript?: string; language: string; processingTime: string }) => {
     try {
+      console.log('🎯 AudioUpload: handleTranscriptionComplete called with:', transcriptionData);
+      console.log('🔍 AudioUpload: Data structure analysis:', {
+        hasPatientInfo: 'patientInfo' in transcriptionData,
+        hasPatientInformation: 'patientInformation' in transcriptionData, 
+        hasMedicalNote: 'medicalNote' in transcriptionData,
+        hasTranscript: 'transcript' in transcriptionData,
+        dataKeys: Object.keys(transcriptionData)
+      });
+      
       // Extract patient info and medical note data from API response
-      const apiPatientInfo = 'patientInfo' in transcriptionData ? transcriptionData.patientInfo : undefined;
+      const apiPatientInfo = ('patientInfo' in transcriptionData ? transcriptionData.patientInfo : 
+                            'patientInformation' in transcriptionData ? transcriptionData.patientInformation : undefined);
       const medicalNote = 'medicalNote' in transcriptionData ? transcriptionData.medicalNote : undefined;
       const jobId = 'jobId' in transcriptionData ? transcriptionData.jobId : undefined;
       
+      console.log('🔍 AudioUpload: Extracted data:', {
+        apiPatientInfo,
+        medicalNote,
+        jobId
+      });
+      
       // Use form patient information if provided, otherwise fall back to API data or defaults
-      const finalPatientName = patientName.trim() || apiPatientInfo?.name || 'Patient Name';
+      const finalPatientName = patientName.trim() || apiPatientInfo?.name || 'Unknown Patient';
       const finalPatientAge = parseInt(patientAge || apiPatientInfo?.age || '0', 10);
       const finalPatientGender = patientGender || apiPatientInfo?.gender || 'Not Specified';
       
-      // Create note data with available information
+      // Create note data with comprehensive extraction - check multiple possible field names
       const noteData: MedicalNote = {
         patientName: finalPatientName,
         patientAge: finalPatientAge,
         patientGender: finalPatientGender,
         noteType: 'consultation',
-        chiefComplaint: medicalNote?.chiefComplaint || 'To be documented',
-        historyOfPresentIllness: medicalNote?.historyOfPresentIllness || 'To be documented',
-        diagnosis: medicalNote?.diagnosis || 'To be documented',
-        treatmentPlan: medicalNote?.treatmentPlan || 'To be documented',
+        chiefComplaint: medicalNote?.chiefComplaint || 
+                       (transcriptionData as any)?.chiefComplaint ||
+                       'Patient presenting with symptoms as described in audio recording',
+        historyOfPresentIllness: medicalNote?.historyOfPresentIllness || 
+                               medicalNote?.historyOfPresentingIllness ||
+                               (transcriptionData as any)?.historyOfPresentingIllness ||
+                               (transcriptionData as any)?.historyOfPresentIllness ||
+                               'Patient history and symptom progression as documented in audio',
+        diagnosis: medicalNote?.diagnosis || 
+                  medicalNote?.assessmentAndDiagnosis ||
+                  (transcriptionData as any)?.diagnosis ||
+                  (transcriptionData as any)?.assessmentAndDiagnosis ||
+                  'Clinical assessment and diagnostic impression',
+        treatmentPlan: medicalNote?.treatmentPlan || 
+                      medicalNote?.managementPlan ||
+                      (transcriptionData as any)?.managementPlan ||
+                      (transcriptionData as any)?.treatmentPlan ||
+                      'Treatment plan and recommendations as discussed',
         audioJobId: jobId
       };
+
+      console.log('✅ AudioUpload: Final note data being sent:', noteData);
 
       // Call the completion handler with the note data
       onTranscriptionComplete(noteData);

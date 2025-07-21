@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToast } from '@/hooks/use-toast'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { 
   Plus, 
   Search, 
@@ -23,18 +24,18 @@ import {
   Trash2,
   Loader2,
   ChevronLeft,
-  ChevronRight,
-  MoreHorizontal
+  ChevronRight
 } from 'lucide-react'
 import { apiClient, type MedicalNote } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
 import { debounce } from '@/lib/performance'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { useAppSelector } from '@/store/hooks'
 
 export default function NotesPage() {
   const router = useRouter()
   const { toast } = useToast()
+  const { user } = useAppSelector((state) => state.auth)
 
   // State
   const [notes, setNotes] = useState<MedicalNote[]>([])
@@ -45,6 +46,7 @@ export default function NotesPage() {
   const [totalPages, setTotalPages] = useState(1)
   const [totalNotes, setTotalNotes] = useState(0)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
+  const [showPracticeSelector, setShowPracticeSelector] = useState<{open: boolean, noteId: string, patientName: string} | null>(null)
   
   // Enhanced filter state
   const [filters, setFilters] = useState({
@@ -59,6 +61,31 @@ export default function NotesPage() {
 
   const performanceMonitor = PerformanceMonitor.getInstance()
   const ITEMS_PER_PAGE = 12
+
+  // Generate consistent case number for notes without patient names
+  const generateCaseNumber = (note: MedicalNote, allNotes?: MedicalNote[]) => {
+    if (note.patientName && note.patientName.trim() && note.patientName !== 'N/A') {
+      return note.patientName
+    }
+    
+    // Use all available notes or fallback to current notes list
+    const notesList = allNotes || notes
+    
+    // Get only notes WITHOUT patient names, sorted chronologically
+    const unnamedNotes = notesList
+      .filter(n => !n.patientName || n.patientName.trim() === '' || n.patientName === 'N/A')
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    
+    // Find position of current note among unnamed notes only
+    const position = unnamedNotes.findIndex(n => n.id === note.id) + 1
+    
+    // Fallback if note not found
+    if (position === 0) {
+      return 'Medical Case 001'
+    }
+    
+    return `Medical Case ${String(position).padStart(3, '0')}`
+  }
 
   // Filter functions
   const applyFilters = useCallback((notesToFilter: MedicalNote[]) => {
@@ -77,8 +104,8 @@ export default function NotesPage() {
 
       // Patient name filter
       if (filters.patientName.trim()) {
-        const patientName = (note.patientInformation?.name || '').toLowerCase()
-        if (!patientName.includes(filters.patientName.toLowerCase())) return false
+        const displayName = generateCaseNumber(note, notes).toLowerCase()
+        if (!displayName.includes(filters.patientName.toLowerCase())) return false
       }
 
       // Age range filter
@@ -124,7 +151,7 @@ export default function NotesPage() {
   // Get unique values for filter dropdowns
   const uniquePatientNames = useMemo(() => {
     const names = notes
-      .map(note => note.patientInformation?.name || '')
+      .map(note => generateCaseNumber(note, notes))
       .filter(name => name.trim() !== '')
       .filter((name, index, array) => array.indexOf(name) === index)
       .sort()
@@ -368,9 +395,21 @@ export default function NotesPage() {
     }
   }
 
+  // Show practice selector dialog
   const handleExportPDF = async (noteId: string, patientName: string) => {
+    setShowPracticeSelector({ open: true, noteId, patientName })
+  }
+
+  // Actual PDF export with selected practice info
+  const exportPDFWithPractice = async (noteId: string, patientName: string, practiceInfo: {
+    organizationName: string;
+    organizationType: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
+    practiceLabel: string;
+  }) => {
     try {
-      console.log('📄 Attempting to export PDF for note:', noteId, 'Patient:', patientName)
+      console.log('📄 Attempting to export PDF for note:', noteId, 'Patient:', patientName, 'Practice:', practiceInfo)
+      
+      // Use basic PDF export without custom organization parameters (backend doesn't support them yet)
       const response = await apiClient.exportNotePDF(noteId, {
         format: 'A4',
         includeHeader: true,
@@ -384,7 +423,7 @@ export default function NotesPage() {
         const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
         link.href = url
-        link.download = `medical-note-${(patientName || 'patient').replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
+        link.download = `medical-note-${practiceInfo.organizationName.replace(/[^a-zA-Z0-9]/g, '_')}-${(patientName || 'patient').replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`
         document.body.appendChild(link)
         link.click()
         document.body.removeChild(link)
@@ -392,7 +431,7 @@ export default function NotesPage() {
 
         toast({
           title: 'PDF Downloaded',
-          description: 'Medical note exported successfully',
+          description: `Medical note exported for ${practiceInfo.organizationName}`,
         })
       } else {
         console.error('📄 Export failed:', response.error)
@@ -406,6 +445,8 @@ export default function NotesPage() {
         description: `Failed to export PDF: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
         variant: 'destructive'
       })
+    } finally {
+      setShowPracticeSelector(null)
     }
   }
 
@@ -659,7 +700,7 @@ export default function NotesPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <CardTitle className="text-lg md:text-xl font-bold line-clamp-1 text-cyan-500">
-                        {note.patientName || `Medical Case ${String(((currentPage - 1) * ITEMS_PER_PAGE) + notes.indexOf(note) + 1).padStart(3, '0')}`}
+                        {generateCaseNumber(note, notes)}
                       </CardTitle>
                       <p className="text-xs md:text-sm text-gray-600 mt-1">
                         Age {note.patientAge !== 'N/A' && note.patientAge ? note.patientAge : 'N/A'} • {note.patientGender}
@@ -725,7 +766,7 @@ export default function NotesPage() {
                         variant="outline"
                         onClick={(e) => {
                           e.stopPropagation()
-                          handleExportPDF(note.id, note.patientName)
+                                                      handleExportPDF(note.id, generateCaseNumber(note, notes))
                         }}
                         className="flex-1 text-xs"
                       >
@@ -733,49 +774,23 @@ export default function NotesPage() {
                         <span className="hidden sm:inline">PDF</span>
                         <span className="sm:hidden">PDF</span>
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={(e) => e.stopPropagation()}
-                            className="px-2"
-                          >
-                            <MoreHorizontal className="h-3 w-3" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              router.push(`/dashboard/notes/${note.id}`)
-                            }}
-                          >
-                            <Eye className="h-3 w-3 mr-2" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleExportPDF(note.id, note.patientName)
-                            }}
-                          >
-                            <Download className="h-3 w-3 mr-2" />
-                            Export PDF
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleDeleteNote(note.id)
-                            }}
-                            className="text-red-600 focus:text-red-600"
-                          >
-                            <Trash2 className="h-3 w-3 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteNote(note.id)
+                        }}
+                        disabled={isDeleting === note.id}
+                        className="flex-1 text-xs text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                      >
+                        {isDeleting === note.id ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3 w-3 mr-1" />
+                        )}
+                        Delete
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
@@ -861,6 +876,113 @@ export default function NotesPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Practice Selector Dialog */}
+      <Dialog open={showPracticeSelector?.open || false} onOpenChange={(open) => !open && setShowPracticeSelector(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Select Practice for PDF Export</DialogTitle>
+            <DialogDescription>
+              Choose which practice to label this PDF export (affects filename). The PDF content will use your profile settings.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {/* Current Organization (if available and not generic) */}
+            {user?.organization && user.organization.name !== "Independent Practice" && user.organization.name !== "General Hospital" && user.organization.name !== "Medical Clinic" && (
+              <Button
+                variant="outline"
+                className="w-full justify-start h-auto p-4"
+                onClick={() => showPracticeSelector && exportPDFWithPractice(
+                  showPracticeSelector.noteId,
+                  showPracticeSelector.patientName,
+                  {
+                    organizationName: user.organization.name,
+                    organizationType: user.organization.type,
+                    practiceLabel: user.organization.type === 'HOSPITAL' ? 'HOSPITAL' : 
+                                  user.organization.type === 'CLINIC' ? 'CLINIC' : 'PRIVATE PRACTICE'
+                  }
+                )}
+              >
+                <div className="text-left">
+                  <div className="font-medium">{user.organization.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {user.organization.type === 'HOSPITAL' ? 'Hospital' : 
+                     user.organization.type === 'CLINIC' ? 'Clinic' : 'Private Practice'} (Your Organization)
+                  </div>
+                </div>
+              </Button>
+            )}
+
+            {/* Common Practice Options */}
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto p-4"
+              onClick={() => showPracticeSelector && exportPDFWithPractice(
+                showPracticeSelector.noteId,
+                showPracticeSelector.patientName,
+                {
+                  organizationName: "General Hospital",
+                  organizationType: "HOSPITAL",
+                  practiceLabel: "HOSPITAL"
+                }
+              )}
+            >
+              <div className="text-left">
+                <div className="font-medium">General Hospital</div>
+                <div className="text-sm text-muted-foreground">Hospital Setting</div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto p-4"
+              onClick={() => showPracticeSelector && exportPDFWithPractice(
+                showPracticeSelector.noteId,
+                showPracticeSelector.patientName,
+                {
+                  organizationName: "Medical Clinic",
+                  organizationType: "CLINIC",
+                  practiceLabel: "CLINIC"
+                }
+              )}
+            >
+              <div className="text-left">
+                <div className="font-medium">Medical Clinic</div>
+                <div className="text-sm text-muted-foreground">Clinic Setting</div>
+              </div>
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full justify-start h-auto p-4"
+              onClick={() => showPracticeSelector && exportPDFWithPractice(
+                showPracticeSelector.noteId,
+                showPracticeSelector.patientName,
+                {
+                  organizationName: "Private Practice",
+                  organizationType: "PRIVATE_PRACTICE",
+                  practiceLabel: "PRIVATE PRACTICE"
+                }
+              )}
+            >
+              <div className="text-left">
+                <div className="font-medium">Private Practice</div>
+                <div className="text-sm text-muted-foreground">Independent Practice</div>
+              </div>
+            </Button>
+          </div>
+          
+          <div className="text-center pt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPracticeSelector(null)}
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

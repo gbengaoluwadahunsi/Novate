@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, forwardRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Download, Printer, Share2, Trash2, Edit2, Save, Eye, History, X, Clock, User, FileDown, GitCompare, RotateCcw, Shield, Loader2 } from "lucide-react"
+import { ArrowLeft, Calendar, Download, Printer, Share2, Trash2, Edit2, Save, Eye, History, X, Clock, User, FileDown, GitCompare, RotateCcw, Shield, Loader2, Upload, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,8 +19,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { apiClient, type MedicalNote, type NoteVersion, type AuditTrailEntry, type VersionComparison } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
+import { useAppSelector } from '@/store/hooks'
+
+// Extended interface for editable medical note with doctor information
+interface EditableMedicalNote extends MedicalNote {
+  doctorName?: string;
+  doctorRegistrationNo?: string;
+  doctorDepartment?: string;
+  doctorSignature?: string | null;
+  dateOfIssue?: string;
+}
 
 export default function NotePage() {
+  const { user } = useAppSelector((state) => state.auth)
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -30,11 +41,14 @@ export default function NotePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
-  const [editedNote, setEditedNote] = useState<Partial<MedicalNote>>({})
+  const [editedNote, setEditedNote] = useState<Partial<EditableMedicalNote>>({})
   const [selectedVersions, setSelectedVersions] = useState<{ from: number; to: number }>({ from: 1, to: 1 })
   const [versionComparison, setVersionComparison] = useState<VersionComparison | null>(null)
   const [showRestoreDialog, setShowRestoreDialog] = useState<{ version: number; open: boolean }>({ version: 0, open: false })
   const [restoreReason, setRestoreReason] = useState('')
+  const [signatureFile, setSignatureFile] = useState<string | null>(null)
+  const [displayName, setDisplayName] = useState<string>('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const performanceMonitor = PerformanceMonitor.getInstance()
 
@@ -58,11 +72,32 @@ export default function NotePage() {
       
       if (noteResponse.success && noteResponse.data) {
         setNote(noteResponse.data)
-        setEditedNote(noteResponse.data)
+        setEditedNote({
+          ...noteResponse.data,
+          doctorName: (noteResponse.data as any).doctorName || user?.name || 
+                     (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
+                     "Dr. [Name]",
+          doctorRegistrationNo: (noteResponse.data as any).doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]",
+          doctorDepartment: (noteResponse.data as any).doctorDepartment || user?.specialization || "General Medicine",
+          dateOfIssue: (noteResponse.data as any).dateOfIssue || new Date().toISOString().split('T')[0],
+          doctorSignature: (noteResponse.data as any).doctorSignature || null
+        })
+        
+        if ((noteResponse.data as any).doctorSignature) {
+          setSignatureFile((noteResponse.data as any).doctorSignature)
+        }
+
+        // Set display name (patient name or case number)
+        const name = await generateCaseNumber(noteResponse.data)
+        setDisplayName(name)
       }
 
       if (versionsResponse.success && versionsResponse.data) {
-        setVersions(versionsResponse.data.versions)
+        // Handle both array and object response format
+        const versionData = Array.isArray(versionsResponse.data) 
+          ? versionsResponse.data 
+          : (versionsResponse.data as any).versions || []
+        setVersions(versionData)
       }
 
       performanceMonitor.endTiming('load-note-data')
@@ -83,40 +118,104 @@ export default function NotePage() {
   }
 
   const handleEdit = () => {
+    setEditedNote({
+      ...note,
+      doctorName: (note as any)?.doctorName || user?.name || 
+                 (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
+                 "Dr. [Name]",
+      doctorRegistrationNo: (note as any)?.doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]",
+      doctorDepartment: (note as any)?.doctorDepartment || user?.specialization || "General Medicine",
+      dateOfIssue: (note as any)?.dateOfIssue || new Date().toISOString().split('T')[0],
+      doctorSignature: (note as any)?.doctorSignature || null
+    })
+    
+    if ((note as any)?.doctorSignature) {
+      setSignatureFile((note as any).doctorSignature)
+    }
     setIsEditing(true)
   }
 
   const handleSave = async () => {
-    if (!note) return
+    if (!note || !editedNote || isSaving) return
 
     setIsSaving(true)
-    performanceMonitor.startTiming('save-note')
-
     try {
-      const response = await apiClient.updateMedicalNote(noteId, editedNote)
-      
-      if (response.success && response.data) {
-        setNote(response.data)
+      const response = await apiClient.updateMedicalNote(note.id, editedNote)
+      if (response.success) {
+        setNote({ ...note, ...editedNote })
         setIsEditing(false)
-        await loadNoteData()
         toast({
-          title: 'Note Updated',
-          description: 'Medical note has been successfully updated',
+          title: 'Success',
+          description: 'Medical note updated successfully',
         })
-        performanceMonitor.endTiming('save-note')
       } else {
         throw new Error(response.error || 'Failed to update note')
       }
     } catch (error) {
       logger.error('Error saving note:', error)
       toast({
-        title: 'Save Error',
-        description: `Failed to save note changes: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        title: 'Error',
+        description: 'Failed to save changes',
         variant: 'destructive'
       })
     } finally {
       setIsSaving(false)
     }
+  }
+
+  const handleFieldChange = (field: keyof EditableMedicalNote, value: any) => {
+    setEditedNote(prev => ({ ...prev, [field]: value }))
+  }
+
+  const handleSignatureUpload = () => {
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please upload an image file (PNG, JPG, GIF, etc.)',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please upload an image smaller than 5MB',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string
+        setSignatureFile(base64String)
+        handleFieldChange('doctorSignature', base64String)
+        toast({
+          title: 'Signature Uploaded',
+          description: 'Digital signature has been uploaded successfully',
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeSignature = () => {
+    setSignatureFile(null)
+    handleFieldChange('doctorSignature', null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+    toast({
+      title: 'Signature Removed',
+      description: 'Digital signature has been removed',
+    })
   }
 
   const handlePrint = () => {
@@ -128,161 +227,113 @@ export default function NotePage() {
 
     const doc = new Document({
       sections: [{
+        properties: {},
         children: [
-          new Paragraph({ children: [new TextRun({ text: `Medical Note: ${note.id}`, bold: true, size: 28 })] }),
-          new Paragraph(""),
-          new Paragraph(`Patient: ${note.patientName}`),
-          new Paragraph(`Age: ${note.patientAge} • Gender: ${note.patientGender}`),
-          new Paragraph(`Date: ${new Date(note.createdAt).toLocaleDateString()}`),
-          new Paragraph(`Type: ${note.noteType}`),
-          new Paragraph(""),
-          new Paragraph({ children: [new TextRun({ text: note.chiefComplaint || "No content available.", break: 1 })] }),
-        ],
-      }],
+          new Paragraph({
+            children: [new TextRun({ text: "Medical Note", bold: true, size: 28 })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: `Patient: ${note.patientName}`, size: 24 })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: `Date: ${new Date(note.createdAt).toLocaleDateString()}`, size: 24 })]
+          }),
+          new Paragraph({
+            children: [new TextRun({ text: `Chief Complaint: ${note.chiefComplaint || 'N/A'}`, size: 24 })]
+          })
+        ]
+      }]
     })
 
     const blob = await Packer.toBlob(doc)
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
-    a.href = url
-    a.download = `medical-note-${note.id}.docx`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `medical-note-${note.patientName}-${new Date().toISOString().split('T')[0]}.docx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
     URL.revokeObjectURL(url)
-
-    toast({
-      title: "Note Downloaded",
-      description: `Note has been downloaded as a Word document.`,
-    })
   }
 
   const handleExportPDF = () => {
-    if (!note) return;
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Medical Note</title>
-            <style>
-              body { font-family: 'Arial', sans-serif; font-size: 12px; line-height: 1.5; }
-              h1 { font-size: 24px; margin-bottom: 10px; }
-              h2 { font-size: 18px; margin-bottom: 8px; border-bottom: 1px solid #000; padding-bottom: 5px; }
-              p { margin-bottom: 5px; }
-              strong { font-weight: bold; }
-              .print-section { margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px dashed #000; }
-            </style>
-          </head>
-          <body>
-            <div class="print-section">
-              <h1>Medical Note</h1>
-              <p><strong>Patient Name:</strong> ${note?.patientName || 'N/A'}</p>
-              <p><strong>Age:</strong> ${note?.patientAge || 'N/A'}</p>
-              <p><strong>Gender:</strong> ${note?.patientGender || 'N/A'}</p>
-              <p><strong>Date:</strong> ${new Date(note?.createdAt || '').toLocaleDateString()}</p>
-              <p><strong>Note Type:</strong> ${note?.noteType || 'N/A'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Chief Complaint</h2>
-              <p>${note?.chiefComplaint || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>History of Presenting Illness</h2>
-              <p>${note?.historyOfPresentingIllness || note?.historyOfPresentIllness || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Past Medical History</h2>
-              <p>${note?.pastMedicalHistory || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>System Review</h2>
-              <p>${note?.systemReview || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Physical Examination</h2>
-              <p>${note?.physicalExamination || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Diagnosis</h2>
-              <p>${note?.diagnosis || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Treatment Plan</h2>
-              <p>${note?.treatmentPlan || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Follow-up Instructions</h2>
-              <p>${note?.followUpInstructions || 'No content available.'}</p>
-            </div>
-            <div class="print-section">
-              <h2>Additional Notes</h2>
-              <p>${note?.additionalNotes || 'No content available.'}</p>
-            </div>
-          </body>
-        </html>
-      `);
-      printWindow.document.close();
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }
+    window.print()
   }
 
-  const handleCompareVersions = async () => {
-    if (!note || !selectedVersions.from || !selectedVersions.to) return
-
+  // Generate consistent case number for notes without patient names
+  const generateCaseNumber = async (note: MedicalNote) => {
+    if (note.patientName && note.patientName.trim() && note.patientName !== 'N/A') {
+      return note.patientName
+    }
+    
     try {
-      const response = await apiClient.compareNoteVersions(noteId, selectedVersions.from, selectedVersions.to)
+      // Fetch all notes to ensure consistent numbering
+      const response = await apiClient.getMedicalNotes()
       if (response.success && response.data) {
-        setVersionComparison(response.data)
-      } else {
-        toast({ title: 'Comparison Failed', description: response.error, variant: 'destructive' })
+        const allNotes = response.data.data || response.data
+        
+        // Get only notes WITHOUT patient names, sorted chronologically
+        const unnamedNotes = allNotes
+          .filter((n: any) => !n.patientName || n.patientName.trim() === '' || n.patientName === 'N/A')
+          .sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+        
+        // Find position of current note among unnamed notes only
+        const position = unnamedNotes.findIndex((n: any) => n.id === note.id) + 1
+        
+        if (position > 0) {
+          return `Medical Case ${String(position).padStart(3, '0')}`
+        }
       }
     } catch (error) {
-      logger.error('Error comparing versions:', error)
-      toast({ title: 'Error', description: 'Failed to compare versions.', variant: 'destructive' })
+      console.error('Error fetching notes for case numbering:', error)
     }
+    
+    // Fallback
+    return 'Medical Case 001'
   }
 
-  const handleRestoreVersion = async () => {
-    if (!note || !showRestoreDialog.version) return
-
+  // Function to format management plan JSON data into readable text
+  const formatManagementPlan = (managementPlanData?: string | null): string => {
+    if (!managementPlanData) return ''
+    
     try {
-      const response = await apiClient.restoreNoteVersion(noteId, showRestoreDialog.version, restoreReason)
-      if (response.success && response.data) {
-        await loadNoteData()
-        toast({ title: 'Version Restored', description: `Version ${showRestoreDialog.version} has been restored.` })
-        setShowRestoreDialog({ version: 0, open: false })
-        setRestoreReason('')
-      } else {
-        toast({ title: 'Restore Failed', description: response.error, variant: 'destructive' })
+      // Try to parse if it's a JSON string
+      const parsed = typeof managementPlanData === 'string' 
+        ? JSON.parse(managementPlanData) 
+        : managementPlanData
+      
+      let formatted = ''
+      
+      // Format each section with proper labels
+      if (parsed.investigations) {
+        formatted += `**Investigations:**\n${parsed.investigations}\n\n`
       }
+      
+      if (parsed.treatmentAdministered && parsed.treatmentAdministered !== 'N/A') {
+        formatted += `**Treatment Administered:**\n${parsed.treatmentAdministered}\n\n`
+      }
+      
+      if (parsed.medicationsPrescribed && parsed.medicationsPrescribed !== 'N/A') {
+        formatted += `**Medications Prescribed:**\n${parsed.medicationsPrescribed}\n\n`
+      }
+      
+      if (parsed.patientEducation && parsed.patientEducation !== 'N/A') {
+        formatted += `**Patient Education:**\n${parsed.patientEducation}\n\n`
+      }
+      
+      if (parsed.followUp && parsed.followUp !== 'N/A') {
+        formatted += `**Follow-up:**\n${parsed.followUp}\n\n`
+      }
+      
+      return formatted.trim()
     } catch (error) {
-      logger.error('Error restoring version:', error)
-      toast({ title: 'Error', description: 'Failed to restore version.', variant: 'destructive' })
-    }
-  }
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString()
-  }
-
-  const getChangeTypeColor = (changeType: string) => {
-    switch (changeType) {
-      case 'added': return 'text-green-500'
-      case 'removed': return 'text-red-500'
-      case 'modified': return 'text-yellow-500'
-      default: return 'text-gray-500'
+      // If parsing fails, return the original string
+      return managementPlanData || ''
     }
   }
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-16 w-16 animate-spin text-blue-500" />
-      </div>
-    )
+    return <div className="container mx-auto p-4">Loading...</div>
   }
 
   if (!note) {
@@ -297,146 +348,254 @@ export default function NotePage() {
     )
   }
 
-  const handleFieldChange = (field: keyof MedicalNote, value: any) => {
-    setEditedNote(prev => ({ ...prev, [field]: value }))
-  }
-
   return (
     <div className="container mx-auto p-4 md:p-6 lg:p-8">
-      <header className="flex items-center justify-between mb-6">
+      <div className="flex items-center mb-6 no-print">
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-6 w-6" />
         </Button>
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Medical Note Details</h1>
-        <div />
-      </header>
+        <span className="ml-2 text-sm text-gray-600">Back to Notes</span>
+      </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Patient Information</CardTitle>
-              {isEditing ? (
-                <Button onClick={handleSave} disabled={isSaving}>
-                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                  Save
-                </Button>
-              ) : (
-                <Button variant="outline" onClick={handleEdit}><Edit2 className="mr-2 h-4 w-4" /> Edit</Button>
-              )}
-            </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-              <InfoItem label="Patient Name" value={note.patientName} isEditing={isEditing} onChange={e => handleFieldChange('patientName', e.target.value)} />
-              <InfoItem label="Patient Age" value={note.patientAge} isEditing={isEditing} onChange={e => handleFieldChange('patientAge', parseInt(e.target.value))} type="number" />
-              <InfoItem label="Patient Gender" value={note.patientGender} isEditing={isEditing} onChange={e => handleFieldChange('patientGender', e.target.value)} />
-              <InfoItem label="Date" value={new Date(note.createdAt).toLocaleDateString()} />
-              <InfoItem label="Note Type" value={note.noteType} isEditing={isEditing} onChange={e => handleFieldChange('noteType', e.target.value)} />
-              <InfoItem label="Note ID" value={note.id} />
-            </CardContent>
-          </Card>
+      {/* Document Header */}
+      <div className="text-center mb-8">
+        <h1 className="text-3xl font-bold mb-2">Medical Note</h1>
+        <div className="flex justify-between items-center text-sm text-gray-600">
+          <div>
+            <strong>Patient Name:</strong> {displayName || note.patientName || 'Medical Case 001'}
+          </div>
+          <div>
+            <strong>Date:</strong> {new Date(note.createdAt).toLocaleDateString()}
+          </div>
         </div>
+        <div className="flex justify-between items-center text-sm text-gray-600 mt-1">
+          <div>
+            <strong>Age:</strong> {note.patientAge || 'N/A'}
+          </div>
+          <div>
+            <strong>Gender:</strong> {note.patientGender}
+          </div>
+          <div>
+            <strong>Note Type:</strong> {note.noteType}
+          </div>
+        </div>
+      </div>
 
-        <Card className="lg:col-span-1 h-fit">
-          <CardHeader>
-            <CardTitle>Actions</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="mr-2 h-4 w-4" /> Print</Button>
-            <Button variant="outline" size="sm" onClick={handleDownloadWord}><FileDown className="mr-2 h-4 w-4" /> Download as Word</Button>
-            <Button variant="outline" size="sm" onClick={handleExportPDF}><Download className="mr-2 h-4 w-4" /> Download as PDF</Button>
-            <Button variant="outline" size="sm"><Share2 className="mr-2 h-4 w-4" /> Share</Button>
-            <Button variant="destructive" size="sm"><Trash2 className="mr-2 h-4 w-4" /> Delete</Button>
-          </CardContent>
-        </Card>
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-2 mb-6 no-print">
+        {isEditing ? (
+          <Button onClick={handleSave} disabled={isSaving} size="sm">
+            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Save
+          </Button>
+        ) : (
+          <>
+            <Button variant="outline" onClick={handleEdit} size="sm">
+              <Edit2 className="mr-2 h-4 w-4" /> Edit
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPDF}>
+              <Download className="mr-2 h-4 w-4" /> PDF
+            </Button>
+          </>
+        )}
+      </div>
 
-        <Tabs defaultValue="note" className="w-full lg:col-span-3">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="note"><Eye className="mr-2 h-4 w-4" /> Medical Note</TabsTrigger>
-            <TabsTrigger value="history"><History className="mr-2 h-4 w-4" /> Version History</TabsTrigger>
-            <TabsTrigger value="comparison"><GitCompare className="mr-2 h-4 w-4" /> Compare Versions</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="note" className="mt-4">
-            <Card>
-              <CardContent className="p-6 space-y-6">
-                <NoteSection title="Chief Complaint" content={note.chiefComplaint} isEditing={isEditing} onChange={e => handleFieldChange('chiefComplaint', e.target.value)} />
-                <NoteSection title="History of Presenting Illness" content={note.historyOfPresentingIllness || note.historyOfPresentIllness} isEditing={isEditing} onChange={e => handleFieldChange('historyOfPresentingIllness', e.target.value)} />
-                <NoteSection title="Past Medical History" content={note.pastMedicalHistory} isEditing={isEditing} onChange={e => handleFieldChange('pastMedicalHistory', e.target.value)} />
-                <NoteSection title="System Review" content={note.systemReview} isEditing={isEditing} onChange={e => handleFieldChange('systemReview', e.target.value)} />
-                <NoteSection title="Physical Examination" content={note.physicalExamination} isEditing={isEditing} onChange={e => handleFieldChange('physicalExamination', e.target.value)} />
-                <NoteSection title="Diagnosis" content={note.diagnosis} isEditing={isEditing} onChange={e => handleFieldChange('diagnosis', e.target.value)} />
-                <NoteSection title="Treatment Plan" content={note.treatmentPlan} isEditing={isEditing} onChange={e => handleFieldChange('treatmentPlan', e.target.value)} />
-                <NoteSection title="Follow-up Instructions" content={note.followUpInstructions} isEditing={isEditing} onChange={e => handleFieldChange('followUpInstructions', e.target.value)} />
-                <NoteSection title="Additional Notes" content={note.additionalNotes} isEditing={isEditing} onChange={e => handleFieldChange('additionalNotes', e.target.value)} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-4">
-            <Card>
-              <CardHeader><CardTitle>Version History</CardTitle></CardHeader>
-              <CardContent>
-                <ul className="space-y-4">
-                  {versions.map((v) => (
-                    <li key={v.version} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
-                      <div>
-                        <span className="font-semibold">Version {v.version}</span>
-                        <span className="text-sm text-gray-500 ml-4">({formatDate(v.changedAt)})</span>
-                        <p className="text-sm text-gray-600 mt-1">{v.changeDescription}</p>
-                      </div>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="sm" onClick={() => setShowRestoreDialog({ version: v.version, open: true })}>
-                            <RotateCcw className="mr-2 h-4 w-4" /> Restore
-                          </Button>
-                        </DialogTrigger>
-                        {showRestoreDialog.version === v.version && (
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Restore to Version {v.version}?</DialogTitle>
-                              <DialogDescription>Please provide a reason for restoring this version.</DialogDescription>
-                            </DialogHeader>
-                            <Input
-                              placeholder="e.g., Reverting accidental deletion"
-                              value={restoreReason}
-                              onChange={(e) => setRestoreReason(e.target.value)}
-                            />
-                            <Button onClick={handleRestoreVersion} disabled={!restoreReason}>Confirm Restore</Button>
-                          </DialogContent>
-                        )}
-                      </Dialog>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="comparison" className="mt-4">
-            <Card>
-              <CardHeader><CardTitle>Compare Note Versions</CardTitle></CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-4 mb-4">
-                  <Select onValueChange={(v) => setSelectedVersions(p => ({ ...p, from: Number(v) }))}>
-                    <SelectTrigger><SelectValue placeholder="From Version" /></SelectTrigger>
-                    <SelectContent>{versions.map(v => <SelectItem key={v.version} value={String(v.version)}>Version {v.version}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Select onValueChange={(v) => setSelectedVersions(p => ({ ...p, to: Number(v) }))}>
-                    <SelectTrigger><SelectValue placeholder="To Version" /></SelectTrigger>
-                    <SelectContent>{versions.map(v => <SelectItem key={v.version} value={String(v.version)}>Version {v.version}</SelectItem>)}</SelectContent>
-                  </Select>
-                  <Button onClick={handleCompareVersions}>Compare</Button>
-                </div>
-                {versionComparison && (
-                  <div className="p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold mb-2">Comparison Results</h3>
-                    <pre className="whitespace-pre-wrap font-mono text-sm">{JSON.stringify(versionComparison, null, 2)}</pre>
+      {/* Medical Note Content */}
+      <div className="max-w-4xl mx-auto bg-white p-8 shadow-sm border space-y-8">
+        <NoteSection title="Chief Complaint" content={note.chiefComplaint} isEditing={isEditing} onChange={e => handleFieldChange('chiefComplaint', e.target.value)} />
+        <NoteSection title="History of Presenting Illness" content={note.historyOfPresentingIllness || note.historyOfPresentIllness} isEditing={isEditing} onChange={e => handleFieldChange('historyOfPresentingIllness', e.target.value)} />
+        <NoteSection title="Past Medical History" content={note.pastMedicalHistory} isEditing={isEditing} onChange={e => handleFieldChange('pastMedicalHistory', e.target.value)} />
+        <NoteSection title="System Review" content={note.systemReview} isEditing={isEditing} onChange={e => handleFieldChange('systemReview', e.target.value)} />
+        <NoteSection title="Physical Examination" content={note.physicalExamination} isEditing={isEditing} onChange={e => handleFieldChange('physicalExamination', e.target.value)} />
+        <NoteSection title="Diagnosis" content={note.diagnosis} isEditing={isEditing} onChange={e => handleFieldChange('diagnosis', e.target.value)} />
+        <NoteSection title="Treatment Plan" content={note.treatmentPlan} isEditing={isEditing} onChange={e => handleFieldChange('treatmentPlan', e.target.value)} />
+        <NoteSection 
+          title="Management Plan" 
+          content={formatManagementPlan(note.managementPlan)} 
+          isEditing={isEditing} 
+          onChange={e => handleFieldChange('managementPlan', e.target.value)} 
+          rawContent={note.managementPlan}
+        />
+        <NoteSection title="Follow-up Instructions" content={note.followUpInstructions} isEditing={isEditing} onChange={e => handleFieldChange('followUpInstructions', e.target.value)} />
+        
+        <Separator className="my-6 no-print" />
+        
+        {/* Doctor Information and Signature Section */}
+        <div className="pt-6 space-y-4 doctor-info">
+          <h3 className="text-lg font-semibold mb-4 doctor-section">Medical Professional Information</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 doctor-section">
+            {/* Doctor Details */}
+            <div className="space-y-3 doctor-section">
+              <div>
+                <label className="text-sm font-medium text-gray-600">Doctor Name</label>
+                {isEditing ? (
+                  <Input
+                    value={editedNote.doctorName || user?.name || 
+                           (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
+                           "Dr. [Name]"}
+                    onChange={(e) => handleFieldChange('doctorName', e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter doctor name"
+                  />
+                ) : (
+                  <p className="text-base font-medium">
+                    {editedNote.doctorName || user?.name || 
+                     (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
+                     "Dr. [Name]"}
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-600">Registration Number</label>
+                {isEditing ? (
+                  <Input
+                    value={editedNote.doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]"}
+                    onChange={(e) => handleFieldChange('doctorRegistrationNo', e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter registration number"
+                  />
+                ) : (
+                  <p className="text-base">
+                    {editedNote.doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]"}
+                  </p>
+                )}
+              </div>
+              
+              <div>
+                <label className="text-sm font-medium text-gray-600">Department/Specialization</label>
+                {isEditing ? (
+                  <Input
+                    value={editedNote.doctorDepartment || user?.specialization || "General Medicine"}
+                    onChange={(e) => handleFieldChange('doctorDepartment', e.target.value)}
+                    className="mt-1"
+                    placeholder="Enter department"
+                  />
+                ) : (
+                  <p className="text-base">
+                    {editedNote.doctorDepartment || user?.specialization || "General Medicine"}
+                  </p>
+                )}
+              </div>
+            </div>
+            
+            {/* Signature Section */}
+            <div className="space-y-3 doctor-section">
+              <label className="text-sm font-medium text-gray-600">Doctor's Signature</label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[120px] flex flex-col items-center justify-center bg-gray-50 signature-space">
+                {signatureFile || editedNote.doctorSignature ? (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <img 
+                      src={signatureFile || editedNote.doctorSignature || ''} 
+                      alt="Doctor's Signature" 
+                      className="max-w-full max-h-full object-contain signature-image"
+                      style={{ maxHeight: '100px' }}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center space-y-2">
+                    <div className="text-4xl text-gray-400">✍️</div>
+                    <p className="text-sm text-gray-500">Digital signature space</p>
+                    <p className="text-xs text-gray-400">
+                      Print to sign manually or upload e-signature
+                    </p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+              </div>
+              
+              {/* Hidden File Input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              
+              {/* Signature Options */}
+              <div className="flex gap-2 no-print">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={handlePrint}
+                  className="flex-1"
+                >
+                  <FileText className="h-4 w-4 mr-1" />
+                  Print & Sign
+                </Button>
+                {signatureFile || editedNote.doctorSignature ? (
+                  <>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="flex-1"
+                      onClick={handleSignatureUpload}
+                    >
+                      <Upload className="h-4 w-4 mr-1" />
+                      Change Signature
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={removeSignature}
+                      className="text-red-600 hover:text-red-700"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Remove
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={handleSignatureUpload}
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    Upload Signature
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          {/* Date and Stamp Section */}
+          <div className="flex justify-between items-end pt-4 border-t border-gray-200 doctor-section">
+            <div>
+              <label className="text-sm font-medium text-gray-600">Date of Issue</label>
+              {isEditing ? (
+                <Input
+                  type="date"
+                  value={editedNote.dateOfIssue || new Date().toISOString().split('T')[0]}
+                  onChange={(e) => handleFieldChange('dateOfIssue', e.target.value)}
+                  className="mt-1 w-48"
+                />
+              ) : (
+                <p className="text-base font-medium">
+                  {editedNote.dateOfIssue ? 
+                    new Date(editedNote.dateOfIssue).toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    }) :
+                    new Date().toLocaleDateString('en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })
+                  }
+                </p>
+              )}
+            </div>
+            
+            <div className="text-right doctor-section">
+              <div className="border-2 border-gray-300 rounded p-3 w-24 h-16 flex items-center justify-center bg-gray-50 stamp-area">
+                <span className="text-xs text-gray-500 text-center">Official<br/>Stamp</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -453,16 +612,43 @@ const InfoItem = ({ label, value, isEditing, onChange, type = 'text' }: { label:
   </div>
 )
 
-const NoteSection = ({ title, content, isEditing, onChange }: { title: string; content?: string | null, isEditing?: boolean, onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void }) => {
+const NoteSection = ({ title, content, isEditing, onChange, rawContent }: { 
+  title: string; 
+  content?: string | null, 
+  isEditing?: boolean, 
+  onChange?: (e: React.ChangeEvent<HTMLTextAreaElement>) => void,
+  rawContent?: string | null
+}) => {
   if (!content && !isEditing) return null
 
   return (
-    <div className="space-y-2">
-      <h3 className="font-semibold text-lg text-gray-800">{title}</h3>
+    <div className="border-b border-gray-300 pb-4 mb-6">
+      <h3 className="font-bold text-lg text-black mb-3 border-b border-gray-400 pb-1">{title}</h3>
       {isEditing ? (
-        <Textarea value={content || ''} onChange={onChange} rows={4} className="bg-blue-50" />
+        <Textarea 
+          value={rawContent || content || ''} 
+          onChange={onChange} 
+          rows={6} 
+          className="bg-blue-50 border-2" 
+          placeholder={title === "Management Plan" ? "Enter management plan as JSON or plain text" : `Enter ${title.toLowerCase()}`}
+        />
       ) : (
-        <p className="text-gray-600 whitespace-pre-wrap">{content || <span className="text-gray-400">N/A</span>}</p>
+        <div className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+          {content ? (
+            // For Management Plan, render formatted text with bold headers
+            title === "Management Plan" ? (
+              <div dangerouslySetInnerHTML={{
+                __html: content
+                  .replace(/\*\*(.*?):\*\*/g, '<strong>$1:</strong>')
+                  .replace(/\n/g, '<br/>')
+              }} />
+            ) : (
+              content
+            )
+          ) : (
+            <span className="text-gray-500 italic">N/A</span>
+          )}
+        </div>
       )}
     </div>
   )
