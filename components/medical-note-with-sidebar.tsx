@@ -300,10 +300,10 @@ export default function MedicalNoteWithSidebar({
         .print-only { display: none; }
       `}</style>
       
-      <div className="flex h-screen bg-gray-50">
-        {/* Main Content */}
-        <div className="flex-1 overflow-auto">
-          <div className="max-w-4xl mx-auto p-6">
+    <div className="flex h-screen bg-gray-50">
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-4xl mx-auto p-6">
             <Card className="card">
             <CardHeader>
               <div className="flex items-center justify-between">

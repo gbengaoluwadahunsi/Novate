@@ -122,10 +122,10 @@ export default function TranscribePage() {
           title: "🎉 Note Finalized",
           description: "Transcription completed. Please check your notes page.",
         });
-        
+
         // Navigate to notes page to see if note was actually created
         setTimeout(() => {
-          router.push('/dashboard/notes');
+        router.push('/dashboard/notes');
         }, 1500);
       } else {
         // Handle any other case

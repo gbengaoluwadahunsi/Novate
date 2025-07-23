@@ -480,13 +480,23 @@ class ApiClient {
 
       // Log detailed error information for 400 Bad Request
       if (response.status === 400) {
+        // Get response text safely
+        let responseText = 'Unable to read response';
+        try {
+          const responseClone = response.clone();
+          responseText = await responseClone.text();
+        } catch (cloneError) {
+          console.warn('Could not clone response for logging:', cloneError.message);
+        }
+
         console.error('🚨 API Client: 400 Bad Request Details:', {
           endpoint,
           status: response.status,
           errorMessage: error.error,
           errorDetails: error.details,
-          // Only show request body for medical notes creation
-          ...(endpoint === '/medical-notes' && { 
+          responseText,
+          // Show request body for medical notes operations
+          ...(endpoint.includes('medical-notes') && { 
             requestBody: options.body ? JSON.parse(options.body) : null 
           })
         });
@@ -1076,10 +1086,41 @@ class ApiClient {
   }
 
   async deleteMedicalNote(noteId: string): Promise<ApiResponse> {
-    return this.request(`/medical-notes/${noteId}`, {
+    console.log('🗑️ Delete Debug:', {
+      noteId,
+      hasToken: !!this.token,
+      tokenLength: this.token?.length
+    });
+    
+    // Debug: Let's see what's in the token
+    let userId = null;
+    if (this.token) {
+      try {
+        const payload = JSON.parse(atob(this.token.split('.')[1]));
+        console.log('🗑️ Token payload for delete:', payload);
+        console.log('🗑️ Available fields:', Object.keys(payload));
+        console.log('🗑️ UserId from token:', payload.userId);
+        userId = payload.userId;
+      } catch (error) {
+        console.warn('🗑️ Could not decode token for debugging:', error);
+      }
+    }
+    
+    // Backend has JWT parsing issues, so send userId as query parameter as fallback
+    const endpoint = userId 
+      ? `/medical-notes/${noteId}?userId=${userId}`
+      : `/medical-notes/${noteId}`;
+    
+    if (userId) {
+      console.log('🗑️ Adding userId to query parameter as fallback:', userId);
+    }
+    
+    return this.request(endpoint, {
       method: 'DELETE',
     });
   }
+
+
 
   // ==========================================
   // PDF EXPORT METHODS
@@ -1431,9 +1472,9 @@ class ApiClient {
     try {
       console.log('📊 Fetching user dashboard stats...');
       const response = await this.request('/user-stats/dashboard', { 
-        method: 'GET', 
-        credentials: 'include' 
-      });
+      method: 'GET', 
+      credentials: 'include' 
+    });
       
       console.log('📊 Raw user dashboard stats response:', response);
       

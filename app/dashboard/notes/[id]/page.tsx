@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, forwardRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Calendar, Download, Printer, Share2, Trash2, Edit2, Save, Eye, History, X, Clock, User, FileDown, GitCompare, RotateCcw, Shield, Loader2, Upload, FileText } from "lucide-react"
+import { ArrowLeft, Calendar, Download, Printer, Share2, Trash2, Edit2, Save, Eye, History, X, Clock, User, FileDown, GitCompare, RotateCcw, Shield, Loader2, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,8 @@ interface EditableMedicalNote extends MedicalNote {
   doctorDepartment?: string;
   doctorSignature?: string | null;
   dateOfIssue?: string;
+  patientAge?: string;
+  patientGender?: string;
 }
 
 export default function NotePage() {
@@ -42,6 +44,7 @@ export default function NotePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [lastSaveTime, setLastSaveTime] = useState(0)
   const [editedNote, setEditedNote] = useState<Partial<EditableMedicalNote>>({})
   const [selectedVersions, setSelectedVersions] = useState<{ from: number; to: number }>({ from: 1, to: 1 })
   const [versionComparison, setVersionComparison] = useState<VersionComparison | null>(null)
@@ -137,26 +140,181 @@ export default function NotePage() {
   }
 
   const handleSave = async () => {
-    if (!note || !editedNote || isSaving) return
+    const now = Date.now()
+    if (!note || !editedNote || isSaving || (now - lastSaveTime < 2000)) {
+      console.log('🚫 Save blocked:', { 
+        hasNote: !!note, 
+        hasEditedNote: !!editedNote, 
+        isSaving, 
+        timeSinceLastSave: now - lastSaveTime 
+      })
+      return
+    }
+    
+    setLastSaveTime(now)
 
+        // Prepare data in the exact format the backend expects
+    const saveData: any = {
+      // Patient information - nested structure as expected by backend
+      patientInformation: {
+        name: editedNote.patientName || note.patientName || '',
+        age: String(editedNote.patientAge || note.patientAge || 'N/A'),
+        gender: editedNote.patientGender || note.patientGender || 'Male'
+      }
+    }
+
+    // Medical content - use original data if edited data is missing or corrupted
+    if (editedNote.chiefComplaint !== undefined && editedNote.chiefComplaint.trim()) {
+      saveData.chiefComplaint = editedNote.chiefComplaint
+    } else if (note.chiefComplaint) {
+      saveData.chiefComplaint = note.chiefComplaint
+    }
+    
+    if (editedNote.historyOfPresentingIllness !== undefined && editedNote.historyOfPresentingIllness.trim()) {
+      saveData.historyOfPresentingIllness = editedNote.historyOfPresentingIllness
+    } else if (note.historyOfPresentingIllness || note.historyOfPresentIllness) {
+      saveData.historyOfPresentingIllness = note.historyOfPresentingIllness || note.historyOfPresentIllness
+    }
+    
+    if (editedNote.pastMedicalHistory !== undefined && editedNote.pastMedicalHistory.trim()) {
+      saveData.pastMedicalHistory = editedNote.pastMedicalHistory
+    } else if (note.pastMedicalHistory) {
+      saveData.pastMedicalHistory = note.pastMedicalHistory
+    }
+    
+    if (editedNote.systemReview !== undefined && editedNote.systemReview.trim()) {
+      saveData.systemReview = editedNote.systemReview
+    } else if (note.systemReview) {
+      saveData.systemReview = note.systemReview
+    }
+    
+    if (editedNote.physicalExamination !== undefined && editedNote.physicalExamination.trim()) {
+      saveData.physicalExamination = editedNote.physicalExamination
+    } else if (note.physicalExamination) {
+      saveData.physicalExamination = note.physicalExamination
+    }
+    
+    // Map diagnosis to assessmentAndDiagnosis as expected by backend
+    if (editedNote.diagnosis !== undefined && editedNote.diagnosis.trim()) {
+      saveData.assessmentAndDiagnosis = editedNote.diagnosis
+    } else if (note.diagnosis) {
+      saveData.assessmentAndDiagnosis = note.diagnosis
+    }
+    
+    if (editedNote.treatmentPlan !== undefined && editedNote.treatmentPlan.trim()) {
+      saveData.treatmentPlan = editedNote.treatmentPlan
+    } else if (note.treatmentPlan) {
+      saveData.treatmentPlan = note.treatmentPlan
+    }
+    
+    // Management plan - ensure it's in the correct format
+    if (editedNote.managementPlan !== undefined) {
+      // If it's already an object, use it as is
+      if (typeof editedNote.managementPlan === 'object') {
+        saveData.managementPlan = editedNote.managementPlan
+      } else {
+        // If it's a string, try to parse it or create default structure
+        try {
+          saveData.managementPlan = JSON.parse(editedNote.managementPlan)
+        } catch {
+          saveData.managementPlan = {
+            investigations: editedNote.managementPlan || 'N/A',
+            treatmentAdministered: 'N/A',
+            medicationsPrescribed: 'N/A',
+            patientEducation: 'N/A',
+            followUp: 'N/A'
+          }
+        }
+      }
+    } else if (note.managementPlan) {
+      // Handle original note management plan
+      if (typeof note.managementPlan === 'object') {
+        saveData.managementPlan = note.managementPlan
+      } else {
+        saveData.managementPlan = {
+          investigations: 'N/A',
+          treatmentAdministered: 'N/A',
+          medicationsPrescribed: 'N/A',
+          patientEducation: 'N/A',
+          followUp: 'N/A'
+        }
+      }
+    }
+    
+    if (editedNote.followUpInstructions !== undefined && editedNote.followUpInstructions.trim()) {
+      saveData.followUpInstructions = editedNote.followUpInstructions
+    } else if (note.followUpInstructions) {
+      saveData.followUpInstructions = note.followUpInstructions
+    }
+
+    // Doctor information - only if they exist and are not empty
+    if (editedNote.doctorName && editedNote.doctorName.trim()) {
+      saveData.doctorName = editedNote.doctorName
+    } else if (note.doctorName) {
+      saveData.doctorName = note.doctorName
+    }
+    
+    if (editedNote.doctorRegistrationNo && editedNote.doctorRegistrationNo.trim()) {
+      saveData.doctorRegistrationNo = editedNote.doctorRegistrationNo
+    } else if (note.doctorRegistrationNo) {
+      saveData.doctorRegistrationNo = note.doctorRegistrationNo
+    }
+    
+    if (editedNote.doctorDepartment && editedNote.doctorDepartment.trim()) {
+      saveData.doctorDepartment = editedNote.doctorDepartment
+    } else if (note.doctorDepartment) {
+      saveData.doctorDepartment = note.doctorDepartment
+    }
+    
+    // NOTE: doctorSignature is NOT included in backend schema - removing from save data
+    // Signatures are handled separately or stored locally for PDF generation only
+    
+    if (editedNote.dateOfIssue) {
+      saveData.dateOfIssue = editedNote.dateOfIssue
+    } else if (note.dateOfIssue) {
+      saveData.dateOfIssue = note.dateOfIssue
+    }
+
+    console.log('💾 Saving note with BACKEND-COMPATIBLE data:', saveData)
+    console.log('📋 Data structure check:', {
+      hasPatientInfo: !!saveData.patientInformation,
+      patientName: saveData.patientInformation?.name,
+      patientAge: saveData.patientInformation?.age,
+      patientGender: saveData.patientInformation?.gender,
+      hasDiagnosis: !!saveData.assessmentAndDiagnosis,
+      hasManagementPlan: !!saveData.managementPlan,
+      managementPlanType: typeof saveData.managementPlan,
+      excludedFields: ['doctorSignature'] // These are kept locally only
+    })
     setIsSaving(true)
     try {
-      const response = await apiClient.updateMedicalNote(note.id, editedNote)
+      const response = await apiClient.updateMedicalNote(note.id, saveData)
+      console.log('📡 API Response:', response)
+      
       if (response.success) {
+        console.log('✅ Save successful:', response)
         setNote({ ...note, ...editedNote })
         setIsEditing(false)
+        
+        // Show success message with signature info if applicable
+        const hasSignature = editedNote.doctorSignature || signatureFile
         toast({
           title: 'Success',
-          description: 'Medical note updated successfully',
+          description: hasSignature 
+            ? 'Medical note updated successfully with signature' 
+            : 'Medical note updated successfully',
         })
       } else {
-        throw new Error(response.error || 'Failed to update note')
+        console.error('❌ Save failed:', response)
+        console.error('❌ Error details:', response.details)
+        throw new Error(response.error || response.details || 'Failed to update note')
       }
     } catch (error) {
+      console.error('💥 Save error:', error)
       logger.error('Error saving note:', error)
       toast({
         title: 'Error',
-        description: 'Failed to save changes',
+        description: `Failed to save changes: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive'
       })
     } finally {
@@ -165,6 +323,7 @@ export default function NotePage() {
   }
 
   const handleFieldChange = (field: keyof EditableMedicalNote, value: any) => {
+    console.log('📝 Field change:', field, '=', value)
     setEditedNote(prev => ({ ...prev, [field]: value }))
   }
 
@@ -219,9 +378,7 @@ export default function NotePage() {
     })
   }
 
-  const handlePrint = () => {
-    window.print()
-  }
+
 
   const handleDownloadWord = async () => {
     if (!note) return
@@ -294,15 +451,40 @@ export default function NotePage() {
     practiceLabel: string;
   }) => {
     try {
-      // Create note with doctor information
+      // Create note with doctor information, signature from local state, and any edited content
       const noteWithDoctorInfo = {
         ...note,
+        // Include any edited medical content
+        ...(editedNote.patientName && { patientName: editedNote.patientName }),
+        ...(editedNote.patientAge && { patientAge: editedNote.patientAge }),
+        ...(editedNote.patientGender && { patientGender: editedNote.patientGender }),
+        ...(editedNote.chiefComplaint && { chiefComplaint: editedNote.chiefComplaint }),
+        ...(editedNote.historyOfPresentingIllness && { historyOfPresentingIllness: editedNote.historyOfPresentingIllness }),
+        ...(editedNote.pastMedicalHistory && { pastMedicalHistory: editedNote.pastMedicalHistory }),
+        ...(editedNote.systemReview && { systemReview: editedNote.systemReview }),
+        ...(editedNote.physicalExamination && { physicalExamination: editedNote.physicalExamination }),
+        ...(editedNote.diagnosis && { diagnosis: editedNote.diagnosis }),
+        ...(editedNote.treatmentPlan && { treatmentPlan: editedNote.treatmentPlan }),
+        ...(editedNote.managementPlan && { managementPlan: editedNote.managementPlan }),
+        ...(editedNote.followUpInstructions && { followUpInstructions: editedNote.followUpInstructions }),
+        // Doctor information
         doctorName: editedNote.doctorName || user?.name || 
                    (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
                    "Dr. [Name]",
         doctorRegistrationNo: editedNote.doctorRegistrationNo || user?.registrationNo || "",
-        doctorDepartment: editedNote.doctorDepartment || user?.specialization || "General Medicine"
+        doctorDepartment: editedNote.doctorDepartment || user?.specialization || "General Medicine",
+        dateOfIssue: editedNote.dateOfIssue || (note as any)?.dateOfIssue || new Date().toISOString().split('T')[0],
+        // Include signature from local state (uploaded but not yet saved to backend)
+        doctorSignature: signatureFile || editedNote.doctorSignature || (note as any)?.doctorSignature || null
       };
+      
+      console.log('📄 PDF generation - Including signature:', {
+        hasSignatureFile: !!signatureFile,
+        hasEditedSignature: !!editedNote.doctorSignature,
+        hasNoteSignature: !!(note as any)?.doctorSignature,
+        finalSignature: !!noteWithDoctorInfo.doctorSignature,
+        signatureLength: noteWithDoctorInfo.doctorSignature?.length || 0
+      });
 
       // Use the professional PDF generator
       MedicalNotePDFGenerator.generateAndDownload(noteWithDoctorInfo, practiceInfo, patientName);
@@ -354,19 +536,41 @@ export default function NotePage() {
   }
 
   // Function to format management plan JSON data into readable text
-  const formatManagementPlan = (managementPlanData?: string | null): string => {
-    if (!managementPlanData) return ''
+  const formatManagementPlan = (managementPlanData?: string | object | null): string => {
+    console.log('🔧 formatManagementPlan input:', { managementPlanData, type: typeof managementPlanData })
+    
+    if (!managementPlanData) return 'N/A'
     
     try {
-      // Try to parse if it's a JSON string
-      const parsed = typeof managementPlanData === 'string' 
-        ? JSON.parse(managementPlanData) 
-        : managementPlanData
+      // Handle different data types
+      let parsed
+      if (typeof managementPlanData === 'string') {
+        // Try to parse JSON string
+        try {
+          parsed = JSON.parse(managementPlanData)
+        } catch {
+          // If it's not JSON, return as is
+          return managementPlanData
+        }
+      } else if (typeof managementPlanData === 'object') {
+        parsed = managementPlanData
+      } else {
+        // If it's already a string or other type, return as is
+        return String(managementPlanData)
+      }
+      
+      // If parsed is not an object, return as string
+      if (typeof parsed !== 'object' || parsed === null) {
+        console.log('🔧 Parsed is not an object, returning as string:', String(managementPlanData))
+        return String(managementPlanData)
+      }
+      
+      console.log('🔧 Parsed object:', parsed)
       
       let formatted = ''
       
       // Format each section with proper labels
-      if (parsed.investigations) {
+      if (parsed.investigations && parsed.investigations !== 'N/A') {
         formatted += `**Investigations:**\n${parsed.investigations}\n\n`
       }
       
@@ -386,10 +590,20 @@ export default function NotePage() {
         formatted += `**Follow-up:**\n${parsed.followUp}\n\n`
       }
       
+      // If no sections were formatted, return appropriate message
+      if (!formatted.trim()) {
+        console.log('🔧 FIXED: No sections formatted, returning default message')
+        return 'No management plan details available'
+      }
+      
+      console.log('🔧 Formatted management plan:', formatted.trim())
       return formatted.trim()
     } catch (error) {
-      // If parsing fails, return the original string
-      return managementPlanData || ''
+      console.error('Error formatting management plan:', error)
+      // If all parsing fails, return the original data as string
+      const fallback = String(managementPlanData || 'N/A')
+      console.log('🔧 Error fallback:', fallback)
+      return fallback
     }
   }
 
@@ -420,7 +634,8 @@ export default function NotePage() {
 
       {/* Document Header */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold mb-2">Medical Note</h1>
+        <h2 className="text-lg font-medium mb-2">Medical Clinic</h2>
+        <h1 className="text-3xl font-bold text-blue-600 mb-2">MEDICAL CONSULTATION NOTE</h1>
         <div className="flex justify-between items-center text-sm text-gray-600">
           <div>
             <strong>Patient Name:</strong> {displayName || note.patientName || 'Medical Case 001'}
@@ -429,26 +644,63 @@ export default function NotePage() {
             <strong>Date:</strong> {new Date(note.createdAt).toLocaleDateString()}
           </div>
         </div>
-        <div className="flex justify-between items-center text-sm text-gray-600 mt-1">
-          <div>
-            <strong>Age:</strong> {note.patientAge || 'N/A'}
+        <div className="flex flex-wrap justify-between items-center text-sm text-gray-600 mt-2 gap-4">
+          <div className="flex items-center">
+            <strong className="text-gray-700">Age:</strong> 
+            {isEditing ? (
+              <Input
+                type="text"
+                key={`age-${note.id}`}
+                defaultValue={String(note.patientAge || 'N/A')}
+                onChange={(e) => handleFieldChange('patientAge', e.target.value)}
+                className="inline-block w-20 ml-2 text-sm h-8 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white rounded-md shadow-sm"
+                placeholder="Age"
+              />
+            ) : (
+              <span className="ml-2 px-3 py-1 bg-gray-100 rounded-md text-gray-700 font-medium">{note.patientAge || 'N/A'}</span>
+            )}
           </div>
-          <div>
-            <strong>Gender:</strong> {note.patientGender}
+          <div className="flex items-center">
+            <strong className="text-gray-700">Gender:</strong> 
+            {isEditing ? (
+              <Select 
+                value={editedNote.patientGender || note.patientGender || ''} 
+                onValueChange={(value) => handleFieldChange('patientGender', value)}
+              >
+                <SelectTrigger className="inline-flex items-center justify-between w-32 ml-2 text-sm h-8 px-3 py-1 border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white rounded-md shadow-sm">
+                  <SelectValue placeholder="Select gender" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border border-gray-200 shadow-lg rounded-md z-50">
+                  <SelectItem value="Male" className="hover:bg-blue-50">Male</SelectItem>
+                  <SelectItem value="Female" className="hover:bg-blue-50">Female</SelectItem>
+                  <SelectItem value="Other" className="hover:bg-blue-50">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            ) : (
+              <span className="ml-2 px-3 py-1 bg-gray-100 rounded-md text-gray-700 font-medium">{note.patientGender}</span>
+            )}
           </div>
-          <div>
-            <strong>Note Type:</strong> {note.noteType}
+          <div className="flex items-center">
+            <strong className="text-gray-700">Note Type:</strong> 
+            <span className="ml-2 px-2 py-1 bg-blue-100 rounded text-blue-700">{note.noteType}</span>
           </div>
         </div>
       </div>
 
+
+
       {/* Action Buttons */}
       <div className="flex justify-end gap-2 mb-6 no-print">
-        {isEditing ? (
-          <Button onClick={handleSave} disabled={isSaving} size="sm">
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Save
-          </Button>
+              {isEditing ? (
+          <>
+            <Button onClick={handleSave} disabled={isSaving} size="sm">
+                  {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                  Save
+                </Button>
+            <Button variant="outline" onClick={() => setIsEditing(false)} size="sm">
+              <X className="mr-2 h-4 w-4" /> Cancel
+            </Button>
+          </>
         ) : (
           <>
             <Button variant="outline" onClick={handleEdit} size="sm">
@@ -459,25 +711,70 @@ export default function NotePage() {
             </Button>
           </>
         )}
-      </div>
+        </div>
 
       {/* Medical Note Content */}
       <div className="max-w-4xl mx-auto bg-white p-8 shadow-sm border space-y-8">
-        <NoteSection title="Chief Complaint" content={note.chiefComplaint} isEditing={isEditing} onChange={e => handleFieldChange('chiefComplaint', e.target.value)} />
-        <NoteSection title="History of Presenting Illness" content={note.historyOfPresentingIllness || note.historyOfPresentIllness} isEditing={isEditing} onChange={e => handleFieldChange('historyOfPresentingIllness', e.target.value)} />
-        <NoteSection title="Past Medical History" content={note.pastMedicalHistory} isEditing={isEditing} onChange={e => handleFieldChange('pastMedicalHistory', e.target.value)} />
-        <NoteSection title="System Review" content={note.systemReview} isEditing={isEditing} onChange={e => handleFieldChange('systemReview', e.target.value)} />
-        <NoteSection title="Physical Examination" content={note.physicalExamination} isEditing={isEditing} onChange={e => handleFieldChange('physicalExamination', e.target.value)} />
-        <NoteSection title="Diagnosis" content={note.diagnosis} isEditing={isEditing} onChange={e => handleFieldChange('diagnosis', e.target.value)} />
-        <NoteSection title="Treatment Plan" content={note.treatmentPlan} isEditing={isEditing} onChange={e => handleFieldChange('treatmentPlan', e.target.value)} />
+                <NoteSection title="Chief Complaint" content={note.chiefComplaint} isEditing={isEditing} onChange={e => handleFieldChange('chiefComplaint', e.target.value)} />
+                <NoteSection title="History of Presenting Illness" content={note.historyOfPresentingIllness || note.historyOfPresentIllness} isEditing={isEditing} onChange={e => handleFieldChange('historyOfPresentingIllness', e.target.value)} />
+                <NoteSection title="Past Medical History" content={note.pastMedicalHistory} isEditing={isEditing} onChange={e => handleFieldChange('pastMedicalHistory', e.target.value)} />
+                <NoteSection title="System Review" content={note.systemReview} isEditing={isEditing} onChange={e => handleFieldChange('systemReview', e.target.value)} />
+                <NoteSection title="Physical Examination" content={note.physicalExamination} isEditing={isEditing} onChange={e => handleFieldChange('physicalExamination', e.target.value)} />
+                <NoteSection title="Diagnosis" content={note.diagnosis} isEditing={isEditing} onChange={e => handleFieldChange('diagnosis', e.target.value)} />
+                <NoteSection title="Treatment Plan" content={note.treatmentPlan} isEditing={isEditing} onChange={e => handleFieldChange('treatmentPlan', e.target.value)} />
         <NoteSection 
           title="Management Plan" 
-          content={formatManagementPlan(note.managementPlan)} 
+          content={(() => {
+            console.log('🔧 Raw note.managementPlan:', note.managementPlan);
+            console.log('🔧 Type:', typeof note.managementPlan);
+            console.log('🔧 Is Array:', Array.isArray(note.managementPlan));
+            console.log('🔧 JSON stringify test:', JSON.stringify(note.managementPlan));
+            
+            // Force string conversion as fallback
+            if (typeof note.managementPlan === 'object' && note.managementPlan !== null) {
+              console.log('🔧 Object detected, keys:', Object.keys(note.managementPlan));
+              const formatted = formatManagementPlan(note.managementPlan);
+              console.log('🔧 Formatted result:', formatted);
+              
+              // If formatting failed, create manual format
+              if (formatted === '[object Object]' || !formatted || formatted.trim() === '') {
+                console.log('🔧 Formatting failed, creating manual format');
+                const obj = note.managementPlan as any;
+                let manual = '';
+                
+                if (obj.investigations && obj.investigations !== 'N/A') {
+                  manual += `**Investigations:**\n${obj.investigations}\n\n`;
+                }
+                if (obj.treatmentAdministered && obj.treatmentAdministered !== 'N/A') {
+                  manual += `**Treatment Administered:**\n${obj.treatmentAdministered}\n\n`;
+                }
+                if (obj.medicationsPrescribed && obj.medicationsPrescribed !== 'N/A') {
+                  manual += `**Medications Prescribed:**\n${obj.medicationsPrescribed}\n\n`;
+                }
+                if (obj.patientEducation && obj.patientEducation !== 'N/A') {
+                  manual += `**Patient Education:**\n${obj.patientEducation}\n\n`;
+                }
+                if (obj.followUp && obj.followUp !== 'N/A') {
+                  manual += `**Follow-up:**\n${obj.followUp}\n\n`;
+                }
+                
+                const result = manual.trim() || 'No management plan details available';
+                console.log('🔧 Manual format result:', result);
+                return result;
+              }
+              
+              return formatted;
+            } else {
+              const formatted = formatManagementPlan(note.managementPlan);
+              console.log('🔧 Non-object formatted result:', formatted);
+              return formatted;
+            }
+          })()} 
           isEditing={isEditing} 
           onChange={e => handleFieldChange('managementPlan', e.target.value)} 
-          rawContent={note.managementPlan}
+          rawContent={typeof note.managementPlan === 'object' ? JSON.stringify(note.managementPlan, null, 2) : note.managementPlan}
         />
-        <NoteSection title="Follow-up Instructions" content={note.followUpInstructions} isEditing={isEditing} onChange={e => handleFieldChange('followUpInstructions', e.target.value)} />
+                <NoteSection title="Follow-up Instructions" content={note.followUpInstructions} isEditing={isEditing} onChange={e => handleFieldChange('followUpInstructions', e.target.value)} />
         
         <Separator className="my-6 no-print" />
         
@@ -508,7 +805,7 @@ export default function NotePage() {
                 )}
               </div>
               
-              <div>
+                      <div>
                 <label className="text-sm font-medium text-gray-600">Registration Number</label>
                 {isEditing ? (
                   <Input
@@ -522,12 +819,12 @@ export default function NotePage() {
                     {editedNote.doctorRegistrationNo || user?.registrationNo || "MMC-[Registration]"}
                   </p>
                 )}
-              </div>
+                      </div>
               
               <div>
                 <label className="text-sm font-medium text-gray-600">Department/Specialization</label>
                 {isEditing ? (
-                  <Input
+                            <Input
                     value={editedNote.doctorDepartment || user?.specialization || "General Medicine"}
                     onChange={(e) => handleFieldChange('doctorDepartment', e.target.value)}
                     className="mt-1"
@@ -553,7 +850,7 @@ export default function NotePage() {
                       className="max-w-full max-h-full object-contain signature-image"
                       style={{ maxHeight: '100px' }}
                     />
-                  </div>
+                </div>
                 ) : (
                   <div className="text-center space-y-2">
                     <div className="text-4xl text-gray-400">✍️</div>
@@ -576,15 +873,6 @@ export default function NotePage() {
               
               {/* Signature Options */}
               <div className="flex gap-2 no-print">
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={handlePrint}
-                  className="flex-1"
-                >
-                  <FileText className="h-4 w-4 mr-1" />
-                  Print & Sign
-                </Button>
                 {signatureFile || editedNote.doctorSignature ? (
                   <>
                     <Button 
@@ -787,13 +1075,18 @@ const NoteSection = ({ title, content, isEditing, onChange, rawContent }: {
 
   return (
     <div className="border-b border-gray-300 pb-4 mb-6">
-      <h3 className="font-bold text-lg text-black mb-3 border-b border-gray-400 pb-1">{title}</h3>
+      <h3 className="font-bold text-lg text-black mb-3 border-b border-gray-400 pb-1">
+        {title}
+        {isEditing && (
+          <span className="ml-2 text-sm text-blue-600 font-normal">(Editing)</span>
+        )}
+      </h3>
       {isEditing ? (
         <Textarea 
-          value={rawContent || content || ''} 
+          defaultValue={rawContent || content || ''} 
           onChange={onChange} 
           rows={6} 
-          className="bg-blue-50 border-2" 
+          className="bg-blue-50 border-2 border-blue-300 focus:border-blue-500 focus:ring-blue-500" 
           placeholder={title === "Management Plan" ? "Enter management plan as JSON or plain text" : `Enter ${title.toLowerCase()}`}
         />
       ) : (

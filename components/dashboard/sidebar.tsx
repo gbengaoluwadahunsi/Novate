@@ -68,7 +68,7 @@ export function Sidebar({ className }: SidebarProps) {
   }))
 
   return (
-    <div className={cn("flex flex-col h-screen border-r bg-white dark:bg-gray-950", className)}>
+    <div className={cn("flex flex-col min-h-screen border-r bg-white dark:bg-gray-950 sticky top-0", className)}>
       <div className="p-6 border-b">
         <Link href="/">
           <div className="flex items-center gap-1">
@@ -76,7 +76,7 @@ export function Sidebar({ className }: SidebarProps) {
           </div>
         </Link>
       </div>
-      <ScrollArea className="flex-1 p-3">
+      <div className="flex-1 p-3 overflow-y-auto">
         {routes.map((route) => (
           <div key={route.href} className="mb-1">
             <Link
@@ -93,8 +93,8 @@ export function Sidebar({ className }: SidebarProps) {
             </Link>
           </div>
         ))}
-      </ScrollArea>
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800">
+      </div>
+      <div className="p-4 border-t border-gray-200 dark:border-gray-800 mt-auto">
         <div className="flex items-center gap-3 mb-3">
           <Link href="/dashboard/settings">
             <Avatar className="h-8 w-8">

@@ -537,7 +537,7 @@ export default function NotesPage() {
               filteredNotes.length === notes.length 
                 ? `${totalNotes} notes found` 
                 : `${filteredNotes.length} of ${totalNotes} notes found`
-            ) : 'No notes match your filters'}
+            ) : hasActiveFilters ? 'No notes match your filters' : 'No medical notes yet'}
           </p>
         </div>
         <Button 
@@ -906,7 +906,7 @@ export default function NotesPage() {
             <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
               {hasActiveFilters 
                 ? 'Try adjusting your search criteria or clearing the filters to see more results.'
-                : 'Create your first medical note by uploading an audio file or using the voice recorder.'
+                : 'Create your first medical note by uploading an audio file or using the voice recorder. Your notes will appear here once created.'
               }
             </p>
             {hasActiveFilters ? (

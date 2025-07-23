@@ -21,6 +21,7 @@ export interface MedicalNote {
   doctorName?: string;
   doctorRegistrationNo?: string;
   doctorDepartment?: string;
+  doctorSignature?: string; // Base64 encoded signature image
   createdAt: string;
   updatedAt: string;
 }
@@ -64,7 +65,7 @@ export class MedicalNotePDFGenerator {
     // Main title
     this.doc.setFontSize(16);
     this.doc.setFont(undefined, 'bold');
-    this.doc.setTextColor(0, 0, 0);
+    this.doc.setTextColor(0, 0, 255); // Blue color for the main title
     this.doc.text('MEDICAL CONSULTATION NOTE', this.pageWidth / 2, this.currentY, { align: 'center' });
     this.currentY += 8;
 
@@ -219,17 +220,58 @@ export class MedicalNotePDFGenerator {
     this.doc.text('Doctor\'s Signature', leftX, signatureY);
     this.doc.setFont(undefined, 'normal');
     
-    // Show doctor name with "Dr." prefix
+    // Add signature image if available
+    if (note.doctorSignature) {
+      try {
+        console.log('📄 Adding signature to PDF:', !!note.doctorSignature);
+        
+        // Add signature image
+        const signatureWidth = 40; // Width in mm
+        const signatureHeight = 20; // Height in mm
+        const signatureX = leftX;
+        const signatureImageY = signatureY + 8;
+        
+        this.doc.addImage(
+          note.doctorSignature, 
+          'JPEG', 
+          signatureX, 
+          signatureImageY, 
+          signatureWidth, 
+          signatureHeight
+        );
+        
+        // Adjust currentY to account for signature image
+        this.currentY = signatureImageY + signatureHeight + 5;
+      } catch (error) {
+        console.error('📄 Error adding signature to PDF:', error);
+        // Fallback to text if image fails
+        this.doc.text('Digital signature uploaded', leftX, signatureY + 8);
+        this.currentY = signatureY + 15;
+      }
+    } else {
+      // No signature - show placeholder
+      this.doc.setDrawColor(200, 200, 200);
+      this.doc.setLineWidth(0.5);
+      this.doc.rect(leftX, signatureY + 8, 40, 20); // Signature box
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(150, 150, 150);
+      this.doc.text('Signature space', leftX + 2, signatureY + 20);
+      this.currentY = signatureY + 30;
+    }
+    
+    // Show doctor name with "Dr." prefix below signature
+    this.doc.setFontSize(10);
+    this.doc.setTextColor(0, 0, 0);
     const doctorName = note.doctorName ? 
       (note.doctorName.startsWith('Dr.') ? note.doctorName : `Dr. ${note.doctorName}`) : 
       'Dr. [Name]';
-    this.doc.text(doctorName, leftX, signatureY + 5);
+    this.doc.text(doctorName, leftX, this.currentY);
     
     // Always show "Reg. No." with or without number
     const regNumber = note.doctorRegistrationNo ? 
       `Reg. No: ${note.doctorRegistrationNo}` : 
       'Reg. No:';
-    this.doc.text(regNumber, leftX, signatureY + 10);
+    this.doc.text(regNumber, leftX, this.currentY + 5);
 
     // Right side - Date
     this.doc.setFont(undefined, 'bold');
@@ -237,7 +279,7 @@ export class MedicalNotePDFGenerator {
     this.doc.setFont(undefined, 'normal');
     this.doc.text(new Date().toLocaleDateString(), rightX, signatureY + 5);
 
-    this.currentY += 20;
+    this.currentY += 15;
   }
 
   // Static method for easy usage
