@@ -140,14 +140,6 @@ export default function RegisterPage() {
       newErrors.specialization = "Please select your medical specialization"
     }
     
-    if (!formData.registrationNo.trim()) {
-      newErrors.registrationNo = "Medical registration number is required"
-    }
-    
-    if (!formData.licenseNumber.trim()) {
-      newErrors.licenseNumber = "Medical license number is required"
-    }
-    
     if (!formData.preferredLanguage) {
       newErrors.preferredLanguage = "Please select the common language of your patients for transcription services"
     }
@@ -199,12 +191,18 @@ export default function RegisterPage() {
         lastName: formData.lastName.trim(),
         userType: formData.userType,
         specialization: formData.specialization,
-        registrationNo: formData.registrationNo.trim(),
-        licenseNumber: formData.licenseNumber.trim(),
         preferredLanguage: formData.preferredLanguage,
       }
       
       // Add optional fields if provided
+      if (formData.registrationNo.trim()) {
+        registrationData.registrationNo = formData.registrationNo.trim()
+      }
+      
+      if (formData.licenseNumber.trim()) {
+        registrationData.licenseNumber = formData.licenseNumber.trim()
+      }
+      
       if (formData.hospital.trim()) {
         registrationData.hospital = formData.hospital.trim()
       }
@@ -417,14 +415,12 @@ export default function RegisterPage() {
                     {errors.specialization && <p className="text-sm text-red-500">{errors.specialization}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="registrationNo">Medical Registration Number *</Label>
-                    <Input id="registrationNo" name="registrationNo" placeholder="REG-12345" value={formData.registrationNo} onChange={handleChange} className={errors.registrationNo ? "border-red-500" : ""} />
-                    {errors.registrationNo && <p className="text-sm text-red-500">{errors.registrationNo}</p>}
+                    <Label htmlFor="registrationNo">Medical Registration Number (Optional)</Label>
+                    <Input id="registrationNo" name="registrationNo" placeholder="REG-12345" value={formData.registrationNo} onChange={handleChange} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="licenseNumber">Medical License Number *</Label>
-                    <Input id="licenseNumber" name="licenseNumber" placeholder="LIC-67890" value={formData.licenseNumber} onChange={handleChange} className={errors.licenseNumber ? "border-red-500" : ""} />
-                    {errors.licenseNumber && <p className="text-sm text-red-500">{errors.licenseNumber}</p>}
+                    <Label htmlFor="licenseNumber">Medical License Number (Optional)</Label>
+                    <Input id="licenseNumber" name="licenseNumber" placeholder="LIC-67890" value={formData.licenseNumber} onChange={handleChange} />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="hospital">Primary Hospital/Clinic (Optional)</Label>
@@ -464,12 +460,12 @@ export default function RegisterPage() {
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Specialization:</span><span className="break-words">{formData.specialization.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
                       </div>
-                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                      {formData.registrationNo && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Registration No:</span><span className="break-words">{formData.registrationNo}</span>
-                      </div>
-                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                      </div>}
+                      {formData.licenseNumber && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">License Number:</span><span className="break-words">{formData.licenseNumber}</span>
-                      </div>
+                      </div>}
                       {formData.hospital && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Hospital/Clinic:</span><span className="break-words">{formData.hospital}</span></div>}
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Language:</span><span className="break-words">{availableLanguages.find(lang => lang.code === formData.preferredLanguage)?.name || "Not selected"}</span>
