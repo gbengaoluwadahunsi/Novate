@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
+import NextImage from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import { FileText, Home, Mic, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -45,6 +45,13 @@ export function Sidebar({ className }: SidebarProps) {
       color: "text-sky-500",
     },
     {
+      label: "NovateGPT",
+      icon: null,
+      href: "/dashboard/novategpt",
+      color: "text-sky-500",
+      isLogo: true,
+    },
+    {
       label: "Transcribe",
       icon: Mic,
       href: "/dashboard/transcribe",
@@ -72,7 +79,7 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="p-6 border-b">
         <Link href="/">
           <div className="flex items-center gap-1">
-            <Image src={logo} alt="Novate AI Logo" className=" rounded-full" width={160} height={160} />
+            <NextImage src={logo} alt="Novate AI Logo" className=" rounded-full" width={160} height={160} />
           </div>
         </Link>
       </div>
@@ -88,7 +95,15 @@ export function Sidebar({ className }: SidebarProps) {
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800",
               )}
             >
-              {route.icon && <route.icon className={cn("h-4 w-4", route.color)} />}
+              {route.isLogo ? (
+              <NextImage 
+                src="/NovateGPT.png" 
+                alt="NovateGPT" 
+                width={20} 
+                height={20} 
+                className="rounded-sm"
+              />
+            ) : route.icon && <route.icon className={cn("h-4 w-4", route.color)} />}
               <span>{route.label}</span>
             </Link>
           </div>

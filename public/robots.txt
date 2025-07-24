@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://www.novatescribe.com/sitemap.xml
+
+# Disallow admin and private areas
+Disallow: /api/
+Disallow: /dashboard/settings
+Disallow: /_next/
+Disallow: /static/
+
+# Allow important pages
+Allow: /
+Allow: /login
+Allow: /register
+Allow: /dashboard
+Allow: /dashboard/transcribe
+Allow: /dashboard/notes
+Allow: /dashboard/novategpt
+Allow: /dashboard/ai-assistant
+
+# Crawl delay (optional)
+Crawl-delay: 1 

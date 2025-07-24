@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
-import { Settings, Save, User, Lock, Globe, Bell, Camera, Mail, CheckCircle2 } from "lucide-react"
+import { Settings, Save, User, Lock, Globe, Bell, Camera, Mail, CheckCircle2, Upload, FileImage, X, Eye } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -25,12 +25,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import Image from "next/image"
 
 export default function SettingsPage() {
   const dispatch = useAppDispatch()
   const { user, isLoading: authLoading } = useAppSelector((state) => state.auth)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+
+  // File upload refs
+  const signatureInputRef = useRef<HTMLInputElement>(null)
+  const stampInputRef = useRef<HTMLInputElement>(null)
 
   // Form state for editable fields
   const [formData, setFormData] = useState({
@@ -41,6 +46,12 @@ export default function SettingsPage() {
     bio: '',
     preferredLanguage: 'en-US'
   })
+
+  // Signature and stamp state
+  const [signatureFile, setSignatureFile] = useState<string | null>(null)
+  const [stampFile, setStampFile] = useState<string | null>(null)
+  const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
+  const [stampPreview, setStampPreview] = useState<string | null>(null)
 
   // Load user data when component mounts
   useEffect(() => {
@@ -56,6 +67,12 @@ export default function SettingsPage() {
         bio: user.bio || '',
         preferredLanguage: user.preferredLanguage || 'en-US'
       })
+      
+      // Load existing signature and stamp if available
+      setSignatureFile((user as any)?.doctorSignature || null)
+      setStampFile((user as any)?.doctorStamp || null)
+      setSignaturePreview((user as any)?.doctorSignature || null)
+      setStampPreview((user as any)?.doctorStamp || null)
     }
   }, [dispatch, user])
 
@@ -70,6 +87,12 @@ export default function SettingsPage() {
         bio: user.bio || '',
         preferredLanguage: user.preferredLanguage || 'en-US'
       })
+      
+      // Load existing signature and stamp if available
+      setSignatureFile((user as any)?.doctorSignature || null)
+      setStampFile((user as any)?.doctorStamp || null)
+      setSignaturePreview((user as any)?.doctorSignature || null)
+      setStampPreview((user as any)?.doctorStamp || null)
     }
   }, [user])
 
@@ -78,6 +101,88 @@ export default function SettingsPage() {
       ...prev,
       [field]: value
     }))
+  }
+
+  // Handle signature file upload
+  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 5MB.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setSignaturePreview(result)
+        setSignatureFile(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Handle stamp file upload
+  const handleStampUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 5MB.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setStampPreview(result)
+        setStampFile(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Remove signature
+  const removeSignature = () => {
+    setSignatureFile(null)
+    setSignaturePreview(null)
+    if (signatureInputRef.current) {
+      signatureInputRef.current.value = ''
+    }
+  }
+
+  // Remove stamp
+  const removeStamp = () => {
+    setStampFile(null)
+    setStampPreview(null)
+    if (stampInputRef.current) {
+      stampInputRef.current.value = ''
+    }
   }
 
   // Get display name for user
@@ -100,18 +205,37 @@ export default function SettingsPage() {
   const handleSaveSettings = async () => {
     setIsLoading(true)
     try {
-      // TODO: Add API call to update user profile
-      // For now, simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Import apiClient dynamically to avoid SSR issues
+      const { apiClient } = await import('@/lib/api-client')
       
-      // Update the auth state with new user data
-      dispatch(getUser())
+      // Prepare profile data including signature and stamp
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        specialization: formData.specialization,
+        bio: formData.bio,
+        preferredLanguage: formData.preferredLanguage,
+        doctorSignature: signatureFile || undefined,
+        doctorStamp: stampFile || undefined,
+      }
       
-      toast({
-        title: "Settings Saved",
-        description: "Your profile and settings have been updated successfully.",
-      })
+      // Call API to update profile
+      const response = await apiClient.updateProfile(profileData)
+      
+      if (response.success) {
+        // Update the auth state with new user data
+        dispatch(getUser())
+        
+        toast({
+          title: "Settings Saved",
+          description: "Your profile, signature, and stamp have been updated successfully.",
+        })
+      } else {
+        throw new Error(response.error || 'Failed to save settings')
+      }
     } catch (error) {
+      console.error('Error saving settings:', error)
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
@@ -307,6 +431,99 @@ export default function SettingsPage() {
                   onChange={(e) => handleInputChange('bio', e.target.value)}
                   placeholder="Tell us about your professional background..."
                 />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Signature and Stamp Upload */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5" />
+                Signature & Stamp
+              </CardTitle>
+              <CardDescription>Upload your digital signature and doctor's stamp</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signature-upload">Digital Signature</Label>
+                  <div className="flex items-center gap-2">
+                    {signaturePreview ? (
+                      <div className="relative w-24 h-12">
+                        <Image
+                          src={signaturePreview}
+                          alt="Digital Signature"
+                          layout="fill"
+                          objectFit="contain"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={removeSignature}
+                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => signatureInputRef.current?.click()}
+                        className="flex-1"
+                      >
+                        <FileImage className="h-5 w-5 mr-2" />
+                        Upload Signature
+                      </Button>
+                    )}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      ref={signatureInputRef}
+                      onChange={handleSignatureUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="stamp-upload">Doctor's Stamp</Label>
+                  <div className="flex items-center gap-2">
+                    {stampPreview ? (
+                      <div className="relative w-24 h-12">
+                        <Image
+                          src={stampPreview}
+                          alt="Doctor's Stamp"
+                          layout="fill"
+                          objectFit="contain"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={removeStamp}
+                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => stampInputRef.current?.click()}
+                        className="flex-1"
+                      >
+                        <FileImage className="h-5 w-5 mr-2" />
+                        Upload Stamp
+                      </Button>
+                    )}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      ref={stampInputRef}
+                      onChange={handleStampUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>

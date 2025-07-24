@@ -1,5 +1,7 @@
 "use client"
 
+import { logger } from './logger'
+
 // API Client for NovateScribe Backend Integration
 // Updated to match comprehensive backend API documentation
 
@@ -17,7 +19,7 @@ const getBackendUrl = () => {
   // Use environment variable override if provided, otherwise use environment-based URL
   const finalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || environmentUrl;
   
-  console.log('🔧 Backend URL Selection:', {
+  logger.debug('Backend URL Selection', {
     nodeEnv: process.env.NODE_ENV,
     isDevelopment,
     environmentUrl,
@@ -33,7 +35,7 @@ const getBackendUrl = () => {
 const API_BASE_URL = getBackendUrl();
 
 // Log the backend URL and environment info
-console.log('🔌 API Client initialization:', {
+logger.info('API Client initialization', {
   backendUrl: API_BASE_URL,
   nodeEnv: process.env.NODE_ENV,
   envBackendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
@@ -92,7 +94,7 @@ interface User {
 interface MedicalNote {
   id: string;
   patientName: string;
-  patientAge: number | null;
+  patientAge: number | null | string;
   patientGender: string;
   visitDate?: string;
   visitTime?: string;
@@ -103,8 +105,9 @@ interface MedicalNote {
   systemReview?: string;
   physicalExamination?: string;
   diagnosis?: string;
+  assessmentAndDiagnosis?: string; // Backend field name before transform
   treatmentPlan?: string;
-  managementPlan?: string;
+  managementPlan?: any;
   followUpInstructions?: string;
   additionalNotes?: string;
   prescriptions?: Prescription[];
@@ -113,6 +116,13 @@ interface MedicalNote {
   timeSaved?: number | null;
   createdAt: string;
   updatedAt: string;
+  // Doctor information fields
+  doctorName?: string;
+  doctorRegistrationNo?: string;
+  doctorDepartment?: string;
+  doctorSignature?: string;
+  doctorStamp?: string;
+  dateOfIssue?: string;
 }
 
 interface Prescription {
@@ -329,7 +339,7 @@ class ApiClient {
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
-    console.log('🏗️ ApiClient constructor:', {
+    logger.debug('ApiClient constructor', {
       baseUrl: this.baseUrl,
       inputBaseUrl: baseUrl,
       API_BASE_URL: API_BASE_URL
@@ -400,7 +410,7 @@ class ApiClient {
       // Critical debugging: Check if URL is absolute
       const isAbsolute = fullUrl.startsWith('http://') || fullUrl.startsWith('https://');
       
-      console.log('🌐 Request Details:', {
+      logger.debug('Request Details', {
         originalBaseUrl: this.baseUrl,
         cleanBaseUrl,
         originalEndpoint: endpoint,
@@ -411,21 +421,21 @@ class ApiClient {
       });
       
       if (!isAbsolute) {
-        console.error('❌ CRITICAL ERROR: URL is not absolute!', fullUrl);
-        console.error('This will be treated as relative by the browser and hit Next.js API routes!');
-        console.error('Expected: https://api.novatescribe.com/medical-notes');
-        console.error('Actual:', fullUrl);
+        logger.error('CRITICAL ERROR: URL is not absolute!', fullUrl);
+        logger.error('This will be treated as relative by the browser and hit Next.js API routes!');
+        logger.error('Expected: https://api.novatescribe.com/medical-notes');
+        logger.error('Actual:', fullUrl);
         
         // Force absolute URL as a fallback
         const fallbackUrl = fullUrl.startsWith('/') 
           ? `https://api.novatescribe.com${fullUrl}`
           : fullUrl;
-        console.log('🔧 Using fallback URL:', fallbackUrl);
+        logger.debug('Using fallback URL:', fallbackUrl);
         // Use the fallback URL instead
         fullUrl = fallbackUrl;
       }
 
-      console.log('🚀 About to make fetch request:', {
+      logger.debug('About to make fetch request', {
         url: fullUrl,
         method: options.method || 'GET',
         hasAuth: headers.has('Authorization'),
@@ -438,7 +448,7 @@ class ApiClient {
         signal: controller.signal,
       });
       
-      console.log('📥 Fetch response received:', {
+      logger.debug('Fetch response received', {
         url: response.url, // This shows the actual URL that was hit
         status: response.status,
         statusText: response.statusText,
@@ -461,6 +471,19 @@ class ApiClient {
       }
 
       const data = await response.json();
+
+      // Special logging for DELETE operations
+      if (options.method === 'DELETE') {
+        logger.debug('DELETE response details', {
+          status: response.status,
+          ok: response.ok,
+          statusText: response.statusText,
+          responseData: data,
+          hasError: !!data.error,
+          hasMessage: !!data.message,
+          hasSuccess: !!data.success
+        });
+      }
 
       // Handle successful response
       if (response.ok) {
@@ -486,10 +509,10 @@ class ApiClient {
           const responseClone = response.clone();
           responseText = await responseClone.text();
         } catch (cloneError) {
-          console.warn('Could not clone response for logging:', cloneError.message);
+          logger.warn('Could not clone response for logging:', cloneError instanceof Error ? cloneError.message : 'Unknown error');
         }
 
-        console.error('🚨 API Client: 400 Bad Request Details:', {
+        logger.error('API Client: 400 Bad Request Details', {
           endpoint,
           status: response.status,
           errorMessage: error.error,
@@ -497,7 +520,7 @@ class ApiClient {
           responseText,
           // Show request body for medical notes operations
           ...(endpoint.includes('medical-notes') && { 
-            requestBody: options.body ? JSON.parse(options.body) : null 
+            requestBody: options.body && typeof options.body === 'string' ? JSON.parse(options.body) : 'Non-JSON body'
           })
         });
       }
@@ -644,12 +667,18 @@ class ApiClient {
     const response = await this.request<any>('/auth/me');
     
     if (response.success && response.data) {
+      // Get signature and stamp from localStorage
+      const doctorSignature = typeof window !== 'undefined' ? localStorage.getItem('doctorSignature') : null;
+      const doctorStamp = typeof window !== 'undefined' ? localStorage.getItem('doctorStamp') : null;
+      
       // Transform user data to match frontend interface
       const transformedUser: User = {
         id: response.data.id,
         userId: response.data.id, // Backward compatibility
         email: response.data.email,
         name: response.data.name,
+        firstName: response.data.firstName,
+        lastName: response.data.lastName,
         specialization: response.data.specialization || '',
         registrationNo: response.data.registrationNo || '',
         licenseNumber: response.data.licenseNumber || '',
@@ -666,8 +695,11 @@ class ApiClient {
           type: response.data.organization.type
         } : undefined,
         createdAt: response.data.createdAt,
-        updatedAt: response.data.updatedAt
-      };
+        updatedAt: response.data.updatedAt,
+        // Add signature and stamp data
+        ...(doctorSignature && { doctorSignature }),
+        ...(doctorStamp && { doctorStamp }),
+      } as User & { doctorSignature?: string; doctorStamp?: string };
       
       return {
         success: true,
@@ -867,14 +899,14 @@ class ApiClient {
       audioDuration: 0 // Add if available
     };
 
-    console.log('🚀 API Client: Creating medical note for patient:', {
+    logger.debug('Creating medical note for patient', {
       patientName: backendData.patientInformation.name,
       doctorName: backendData.doctorDetails.name,
       noteType: backendData.noteType
     });
 
     // Log diagnosis data for consistency tracking
-    console.log('🔬 API DIAGNOSIS DATA:', {
+    logger.debug('API DIAGNOSIS DATA', {
       timestamp: new Date().toISOString(),
       inputDiagnosis: noteData.diagnosis,
       backendDiagnosis: backendData.assessmentAndDiagnosis,
@@ -926,7 +958,7 @@ class ApiClient {
 
       // Transform nested backend structure to flat frontend structure for each note
       if (transformedResponse.success && transformedResponse.data?.notes) {
-        console.log('🔄 Transforming notes data structure...');
+        logger.debug('Transforming notes data structure...');
         
         transformedResponse.data.notes = transformedResponse.data.notes.map((backendNote: any) => {
           const transformedNote: MedicalNote = {
@@ -972,8 +1004,11 @@ class ApiClient {
           return transformedNote;
         });
         
-        console.log('✅ Transformed notes:', transformedResponse.data.notes.length, 'notes processed');
-        console.log('📝 Sample transformed note:', {
+        logger.debug('Transformed notes', { 
+          count: transformedResponse.data.notes.length,
+          message: 'notes processed'
+        });
+        logger.debug('Sample transformed note', {
           patientName: transformedResponse.data.notes[0]?.patientName,
           patientAge: transformedResponse.data.notes[0]?.patientAge,
           chiefComplaint: transformedResponse.data.notes[0]?.chiefComplaint
@@ -1000,20 +1035,20 @@ class ApiClient {
 
   async getMedicalNote(noteId: string): Promise<ApiResponse<MedicalNote>> {
     try {
-      console.log('🚀 API Client: Calling getMedicalNote with noteId:', noteId);
-      console.log('🚀 API Client: Base URL:', this.baseUrl);
-      console.log('🚀 API Client: Full endpoint:', `${this.baseUrl}/medical-notes/${noteId}`);
+      logger.debug('Calling getMedicalNote with noteId', noteId);
+      logger.debug('Base URL', this.baseUrl);
+      logger.debug('Full endpoint', `${this.baseUrl}/medical-notes/${noteId}`);
       
       // Use the new medical-notes endpoint as per backend API documentation
       const response = await this.request<MedicalNote>(`/medical-notes/${noteId}`);
       
-      console.log('✅ API Client: getMedicalNote response:', response);
+      logger.debug('getMedicalNote response', response);
       
       if (response.success && response.data) {
         // Transform nested backend structure to flat frontend structure
         const backendData = response.data as any;
         
-        console.log('🔄 Raw backend data:', backendData);
+        logger.debug('Raw backend data', backendData);
         
         const transformedData: MedicalNote = {
           ...backendData,
@@ -1055,7 +1090,7 @@ class ApiClient {
           doctorRegistrationNumber: backendData.doctorDetails?.registrationNumber || backendData.doctorRegistrationNumber || ''
         };
         
-        console.log('✅ Transformed data:', {
+        logger.debug('Transformed data', {
           patientName: transformedData.patientName,
           patientAge: transformedData.patientAge,
           patientGender: transformedData.patientGender,
@@ -1069,7 +1104,7 @@ class ApiClient {
       
       return response;
     } catch (error) {
-      console.error('❌ API Client: getMedicalNote error:', error);
+      logger.error('getMedicalNote error', error);
       return {
         success: false,
         error: 'Failed to fetch medical note',
@@ -1086,7 +1121,7 @@ class ApiClient {
   }
 
   async deleteMedicalNote(noteId: string): Promise<ApiResponse> {
-    console.log('🗑️ Delete Debug:', {
+    logger.debug('Delete Debug', {
       noteId,
       hasToken: !!this.token,
       tokenLength: this.token?.length
@@ -1097,12 +1132,12 @@ class ApiClient {
     if (this.token) {
       try {
         const payload = JSON.parse(atob(this.token.split('.')[1]));
-        console.log('🗑️ Token payload for delete:', payload);
-        console.log('🗑️ Available fields:', Object.keys(payload));
-        console.log('🗑️ UserId from token:', payload.userId);
+        logger.debug('Token payload for delete', payload);
+        logger.debug('Available fields', Object.keys(payload));
+        logger.debug('UserId from token', payload.userId);
         userId = payload.userId;
       } catch (error) {
-        console.warn('🗑️ Could not decode token for debugging:', error);
+        logger.warn('Could not decode token for debugging', error);
       }
     }
     
@@ -1112,12 +1147,23 @@ class ApiClient {
       : `/medical-notes/${noteId}`;
     
     if (userId) {
-      console.log('🗑️ Adding userId to query parameter as fallback:', userId);
+      logger.debug('Adding userId to query parameter as fallback', userId);
     }
     
-    return this.request(endpoint, {
+    logger.debug('About to make delete request to', endpoint);
+    const result = await this.request(endpoint, {
       method: 'DELETE',
     });
+    
+    logger.debug('Raw delete API response', {
+      success: result.success,
+      error: result.error,
+      data: result.data,
+      message: result.message,
+      details: result.details
+    });
+    
+    return result;
   }
 
 
@@ -1243,7 +1289,7 @@ class ApiClient {
 
   async getNoteAuditTrail(noteId: string): Promise<ApiResponse<{ noteId: string; auditTrail: AuditTrailEntry[]; totalEntries: number }>> {
     const endpoint = `/medical-notes/${noteId}/audit-trail`;
-    console.log('🔍 Audit Trail API Call:', {
+    logger.debug('Audit Trail API Call', {
       endpoint,
       fullUrl: `${this.baseUrl}${endpoint}`,
       noteId,
@@ -1316,17 +1362,58 @@ class ApiClient {
   // This method is kept for compatibility but may need backend implementation
   async updateProfile(profileData: {
     name?: string;
+    firstName?: string;
+    lastName?: string;
     specialization?: string;
     bio?: string;
     preferredLanguage?: string;
     preferredLanguages?: string[];
+    doctorSignature?: string;
+    doctorStamp?: string;
   }): Promise<ApiResponse<User>> {
-    // TODO: Backend needs to implement user profile update endpoint
-    // For now, return an error indicating this feature is not available
-    return {
-      success: false,
-      error: 'Profile update not yet implemented on backend'
-    };
+    try {
+      // For now, store signature and stamp in localStorage until backend is implemented
+      if (profileData.doctorSignature !== undefined) {
+        if (profileData.doctorSignature) {
+          localStorage.setItem('doctorSignature', profileData.doctorSignature);
+        } else {
+          localStorage.removeItem('doctorSignature');
+        }
+      }
+      
+      if (profileData.doctorStamp !== undefined) {
+        if (profileData.doctorStamp) {
+          localStorage.setItem('doctorStamp', profileData.doctorStamp);
+        } else {
+          localStorage.removeItem('doctorStamp');
+        }
+      }
+
+      // TODO: Backend needs to implement user profile update endpoint
+      // For now, simulate success and return updated user data
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const updatedUser = {
+        ...currentUser,
+        ...profileData,
+        doctorSignature: profileData.doctorSignature || localStorage.getItem('doctorSignature'),
+        doctorStamp: profileData.doctorStamp || localStorage.getItem('doctorStamp'),
+      };
+      
+      // Update localStorage user data
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      
+      return {
+        success: true,
+        data: updatedUser,
+        message: 'Profile updated successfully'
+      };
+    } catch (error) {
+      logger.error('Error updating profile', error);
+      return {
+        success: false,
+        error: 'Failed to update profile'
+      };
+    }
   }
 
   // ==========================================
@@ -1470,17 +1557,17 @@ class ApiClient {
     timeSavedSeconds: number;
   }>> {
     try {
-      console.log('📊 Fetching user dashboard stats...');
+      logger.debug('Fetching user dashboard stats...');
       const response = await this.request('/user-stats/dashboard', { 
       method: 'GET', 
       credentials: 'include' 
     });
       
-      console.log('📊 Raw user dashboard stats response:', response);
+      logger.debug('Raw user dashboard stats response', response);
       
       if (response.success && response.data) {
         const backendData = response.data as any;
-        console.log('📊 Backend data structure:', backendData);
+        logger.debug('Backend data structure', backendData);
         
         // Transform nested backend structure to flat frontend structure
         const transformedData = {
@@ -1490,7 +1577,7 @@ class ApiClient {
                            backendData.timeSavedSeconds || 0
         };
         
-        console.log('✅ Transformed user stats:', transformedData);
+        logger.debug('Transformed user stats', transformedData);
         
         return {
           success: true,
@@ -1499,9 +1586,9 @@ class ApiClient {
         };
       }
       
-      return response;
+      return response as ApiResponse<{ notesCreated: number; timeSavedSeconds: number }>;
     } catch (error) {
-      console.error('❌ Error fetching user dashboard stats:', error);
+      logger.error('Error fetching user dashboard stats', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to fetch user stats',

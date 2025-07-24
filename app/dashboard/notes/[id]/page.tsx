@@ -23,13 +23,14 @@ import { useAppSelector } from '@/store/hooks'
 import { MedicalNotePDFGenerator } from '@/lib/pdf-generator'
 
 // Extended interface for editable medical note with doctor information
-interface EditableMedicalNote extends MedicalNote {
+interface EditableMedicalNote extends Omit<MedicalNote, 'patientAge' | 'patientGender'> {
   doctorName?: string;
   doctorRegistrationNo?: string;
   doctorDepartment?: string;
-  doctorSignature?: string | null;
+  doctorSignature?: string;
+  doctorStamp?: string;
   dateOfIssue?: string;
-  patientAge?: string;
+  patientAge?: string | number | null;
   patientGender?: string;
 }
 
@@ -51,8 +52,10 @@ export default function NotePage() {
   const [showRestoreDialog, setShowRestoreDialog] = useState<{ version: number; open: boolean }>({ version: 0, open: false })
   const [restoreReason, setRestoreReason] = useState('')
   const [signatureFile, setSignatureFile] = useState<string | null>(null)
+  const [stampFile, setStampFile] = useState<string | null>(null)
   const [displayName, setDisplayName] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const stampInputRef = useRef<HTMLInputElement>(null)
 
   const performanceMonitor = PerformanceMonitor.getInstance()
 
@@ -84,11 +87,16 @@ export default function NotePage() {
           doctorRegistrationNo: (noteResponse.data as any).doctorRegistrationNo || user?.registrationNo || "",
           doctorDepartment: (noteResponse.data as any).doctorDepartment || user?.specialization || "General Medicine",
           dateOfIssue: (noteResponse.data as any).dateOfIssue || new Date().toISOString().split('T')[0],
-          doctorSignature: (noteResponse.data as any).doctorSignature || null
+          doctorSignature: (noteResponse.data as any).doctorSignature || null,
+          doctorStamp: (noteResponse.data as any).doctorStamp || null
         })
         
         if ((noteResponse.data as any).doctorSignature) {
           setSignatureFile((noteResponse.data as any).doctorSignature)
+        }
+        
+        if ((noteResponse.data as any).doctorStamp) {
+          setStampFile((noteResponse.data as any).doctorStamp)
         }
 
         // Set display name (patient name or case number)
@@ -250,20 +258,20 @@ export default function NotePage() {
     // Doctor information - only if they exist and are not empty
     if (editedNote.doctorName && editedNote.doctorName.trim()) {
       saveData.doctorName = editedNote.doctorName
-    } else if (note.doctorName) {
-      saveData.doctorName = note.doctorName
+    } else if ((note as any).doctorName) {
+      saveData.doctorName = (note as any).doctorName
     }
     
     if (editedNote.doctorRegistrationNo && editedNote.doctorRegistrationNo.trim()) {
       saveData.doctorRegistrationNo = editedNote.doctorRegistrationNo
-    } else if (note.doctorRegistrationNo) {
-      saveData.doctorRegistrationNo = note.doctorRegistrationNo
+    } else if ((note as any).doctorRegistrationNo) {
+      saveData.doctorRegistrationNo = (note as any).doctorRegistrationNo
     }
     
     if (editedNote.doctorDepartment && editedNote.doctorDepartment.trim()) {
       saveData.doctorDepartment = editedNote.doctorDepartment
-    } else if (note.doctorDepartment) {
-      saveData.doctorDepartment = note.doctorDepartment
+    } else if ((note as any).doctorDepartment) {
+      saveData.doctorDepartment = (note as any).doctorDepartment
     }
     
     // NOTE: doctorSignature is NOT included in backend schema - removing from save data
@@ -271,8 +279,8 @@ export default function NotePage() {
     
     if (editedNote.dateOfIssue) {
       saveData.dateOfIssue = editedNote.dateOfIssue
-    } else if (note.dateOfIssue) {
-      saveData.dateOfIssue = note.dateOfIssue
+    } else if ((note as any).dateOfIssue) {
+      saveData.dateOfIssue = (note as any).dateOfIssue
     }
 
     console.log('💾 Saving note with BACKEND-COMPATIBLE data:', saveData)
@@ -284,7 +292,7 @@ export default function NotePage() {
       hasDiagnosis: !!saveData.assessmentAndDiagnosis,
       hasManagementPlan: !!saveData.managementPlan,
       managementPlanType: typeof saveData.managementPlan,
-      excludedFields: ['doctorSignature'] // These are kept locally only
+      excludedFields: ['doctorSignature', 'doctorStamp'] // These are kept locally only
     })
     setIsSaving(true)
     try {
@@ -293,15 +301,29 @@ export default function NotePage() {
       
       if (response.success) {
         console.log('✅ Save successful:', response)
-        setNote({ ...note, ...editedNote })
+        // Convert editedNote to be compatible with MedicalNote type
+        const updatedNote = {
+          ...note,
+          ...editedNote,
+          patientAge: typeof editedNote.patientAge === 'string' 
+            ? (editedNote.patientAge === '' ? null : parseInt(editedNote.patientAge) || null)
+            : editedNote.patientAge,
+          patientGender: editedNote.patientGender || note?.patientGender || ''
+        } as MedicalNote
+        setNote(updatedNote)
         setIsEditing(false)
         
-        // Show success message with signature info if applicable
+        // Show success message with signature/stamp info if applicable
         const hasSignature = editedNote.doctorSignature || signatureFile
+        const hasStamp = editedNote.doctorStamp || stampFile
+        const attachments = []
+        if (hasSignature) attachments.push('signature')
+        if (hasStamp) attachments.push('stamp')
+        
         toast({
           title: 'Success',
-          description: hasSignature 
-            ? 'Medical note updated successfully with signature' 
+          description: attachments.length > 0 
+            ? `Medical note updated successfully with ${attachments.join(' and ')}` 
             : 'Medical note updated successfully',
         })
       } else {
@@ -378,6 +400,57 @@ export default function NotePage() {
     })
   }
 
+  const handleStampUpload = () => {
+    stampInputRef.current?.click()
+  }
+
+  const handleStampFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please upload an image file (PNG, JPG, GIF, etc.)',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please upload an image smaller than 5MB',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string
+        setStampFile(base64String)
+        handleFieldChange('doctorStamp', base64String)
+        toast({
+          title: 'Stamp Uploaded',
+          description: 'Official stamp has been uploaded successfully',
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeStamp = () => {
+    setStampFile(null)
+    handleFieldChange('doctorStamp', null)
+    if (stampInputRef.current) {
+      stampInputRef.current.value = ''
+    }
+    toast({
+      title: 'Stamp Removed',
+      description: 'Official stamp has been removed',
+    })
+  }
+
 
 
   const handleDownloadWord = async () => {
@@ -418,7 +491,7 @@ export default function NotePage() {
   const [showPracticeSelector, setShowPracticeSelector] = useState<{open: boolean, patientName: string} | null>(null)
 
   const handleExportPDF = () => {
-    setShowPracticeSelector({ open: true, patientName: note.patientName || 'Patient' })
+    setShowPracticeSelector({ open: true, patientName: note?.patientName || 'Patient' })
   }
 
   // PDF export with selected practice info
@@ -428,7 +501,7 @@ export default function NotePage() {
     practiceLabel: string;
   }) => {
     try {
-      console.log('📄 Generating PDF for note:', note.id, 'Patient:', patientName, 'Practice:', practiceInfo)
+      console.log('📄 Generating PDF for note:', note?.id, 'Patient:', patientName, 'Practice:', practiceInfo)
       
       // Use frontend PDF generation (no backend endpoint available)
       generateFrontendPDF(patientName, practiceInfo)
@@ -452,21 +525,33 @@ export default function NotePage() {
   }) => {
     try {
       // Create note with doctor information, signature from local state, and any edited content
-      const noteWithDoctorInfo = {
-        ...note,
-        // Include any edited medical content
-        ...(editedNote.patientName && { patientName: editedNote.patientName }),
-        ...(editedNote.patientAge && { patientAge: editedNote.patientAge }),
-        ...(editedNote.patientGender && { patientGender: editedNote.patientGender }),
-        ...(editedNote.chiefComplaint && { chiefComplaint: editedNote.chiefComplaint }),
-        ...(editedNote.historyOfPresentingIllness && { historyOfPresentingIllness: editedNote.historyOfPresentingIllness }),
-        ...(editedNote.pastMedicalHistory && { pastMedicalHistory: editedNote.pastMedicalHistory }),
-        ...(editedNote.systemReview && { systemReview: editedNote.systemReview }),
-        ...(editedNote.physicalExamination && { physicalExamination: editedNote.physicalExamination }),
-        ...(editedNote.diagnosis && { diagnosis: editedNote.diagnosis }),
-        ...(editedNote.treatmentPlan && { treatmentPlan: editedNote.treatmentPlan }),
-        ...(editedNote.managementPlan && { managementPlan: editedNote.managementPlan }),
-        ...(editedNote.followUpInstructions && { followUpInstructions: editedNote.followUpInstructions }),
+      const noteWithDoctorInfo: any = {
+        // Base note properties (ensuring no null values)
+        id: note?.id || '',
+        patientName: editedNote.patientName || note?.patientName || 'Unknown Patient',
+        patientAge: typeof editedNote.patientAge === 'string' 
+          ? (editedNote.patientAge === '' ? null : parseInt(editedNote.patientAge) || null)
+          : (editedNote.patientAge || note?.patientAge || null),
+        patientGender: editedNote.patientGender || note?.patientGender || 'Not specified',
+        noteType: (note?.noteType || 'consultation') as string,
+        visitDate: note?.visitDate || '',
+        visitTime: note?.visitTime || '',
+        chiefComplaint: editedNote.chiefComplaint || note?.chiefComplaint || '',
+        historyOfPresentIllness: note?.historyOfPresentIllness || '',
+        historyOfPresentingIllness: editedNote.historyOfPresentingIllness || note?.historyOfPresentingIllness || '',
+        pastMedicalHistory: editedNote.pastMedicalHistory || note?.pastMedicalHistory || '',
+        systemReview: editedNote.systemReview || note?.systemReview || '',
+        physicalExamination: editedNote.physicalExamination || note?.physicalExamination || '',
+        diagnosis: editedNote.diagnosis || note?.diagnosis || '',
+        treatmentPlan: editedNote.treatmentPlan || note?.treatmentPlan || '',
+        managementPlan: editedNote.managementPlan || note?.managementPlan || '',
+        followUpInstructions: editedNote.followUpInstructions || note?.followUpInstructions || '',
+        additionalNotes: note?.additionalNotes || '',
+        prescriptions: note?.prescriptions || [],
+        audioJobId: note?.audioJobId || '',
+        timeSaved: note?.timeSaved || null,
+        createdAt: note?.createdAt || new Date().toISOString(),
+        updatedAt: note?.updatedAt || new Date().toISOString(),
         // Doctor information
         doctorName: editedNote.doctorName || user?.name || 
                    (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
@@ -474,16 +559,22 @@ export default function NotePage() {
         doctorRegistrationNo: editedNote.doctorRegistrationNo || user?.registrationNo || "",
         doctorDepartment: editedNote.doctorDepartment || user?.specialization || "General Medicine",
         dateOfIssue: editedNote.dateOfIssue || (note as any)?.dateOfIssue || new Date().toISOString().split('T')[0],
-        // Include signature from local state (uploaded but not yet saved to backend)
-        doctorSignature: signatureFile || editedNote.doctorSignature || (note as any)?.doctorSignature || null
+        // Always string for PDF generator
+        doctorSignature: (user as any)?.doctorSignature || signatureFile || editedNote.doctorSignature || (note as any)?.doctorSignature || '',
+        doctorStamp: (user as any)?.doctorStamp || stampFile || editedNote.doctorStamp || (note as any)?.doctorStamp || ''
       };
       
-      console.log('📄 PDF generation - Including signature:', {
+      console.log('📄 PDF generation - Including signature and stamp:', {
         hasSignatureFile: !!signatureFile,
         hasEditedSignature: !!editedNote.doctorSignature,
         hasNoteSignature: !!(note as any)?.doctorSignature,
-        finalSignature: !!noteWithDoctorInfo.doctorSignature,
-        signatureLength: noteWithDoctorInfo.doctorSignature?.length || 0
+        finalSignature: !!(noteWithDoctorInfo as any).doctorSignature,
+        signatureLength: (noteWithDoctorInfo as any).doctorSignature?.length || 0,
+        hasStampFile: !!stampFile,
+        hasEditedStamp: !!editedNote.doctorStamp,
+        hasNoteStamp: !!(note as any)?.doctorStamp,
+        finalStamp: !!(noteWithDoctorInfo as any).doctorStamp,
+        stampLength: (noteWithDoctorInfo as any).doctorStamp?.length || 0
       });
 
       // Use the professional PDF generator
@@ -513,7 +604,7 @@ export default function NotePage() {
       // Fetch all notes to ensure consistent numbering
       const response = await apiClient.getMedicalNotes()
       if (response.success && response.data) {
-        const allNotes = response.data.data || response.data
+        const allNotes = response.data.notes || response.data
         
         // Get only notes WITHOUT patient names, sorted chronologically
         const unnamedNotes = allNotes
@@ -862,12 +953,19 @@ export default function NotePage() {
                 )}
               </div>
               
-              {/* Hidden File Input */}
+              {/* Hidden File Inputs */}
               <input
                 ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
+                className="hidden"
+              />
+              <input
+                ref={stampInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleStampFileChange}
                 className="hidden"
               />
               
@@ -939,8 +1037,52 @@ export default function NotePage() {
             </div>
             
             <div className="text-right doctor-section">
-              <div className="border-2 border-gray-300 rounded p-3 w-24 h-16 flex items-center justify-center bg-gray-50 stamp-area">
-                <span className="text-xs text-gray-500 text-center">Official<br/>Stamp</span>
+              <div className="border-2 border-gray-300 rounded p-3 w-24 h-16 flex items-center justify-center bg-gray-50 stamp-area relative">
+                {stampFile || editedNote.doctorStamp ? (
+                  <img 
+                    src={stampFile || editedNote.doctorStamp || ''} 
+                    alt="Official Stamp"
+                    className="max-w-full max-h-full object-contain"
+                  />
+                ) : (
+                  <span className="text-xs text-gray-500 text-center">Official<br/>Stamp</span>
+                )}
+              </div>
+              
+              {/* Stamp Upload Options */}
+              <div className="flex gap-1 mt-2 no-print">
+                {stampFile || editedNote.doctorStamp ? (
+                  <>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={handleStampUpload}
+                      className="text-xs px-2 py-1"
+                    >
+                      <Upload className="h-3 w-3 mr-1" />
+                      Change
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={removeStamp}
+                      className="text-red-600 hover:text-red-700 text-xs px-2 py-1"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Remove
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={handleStampUpload}
+                    className="text-xs px-2 py-1 w-full"
+                  >
+                    <Upload className="h-3 w-3 mr-1" />
+                    Upload Stamp
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -965,18 +1107,18 @@ export default function NotePage() {
                 onClick={() => showPracticeSelector && exportPDFWithPractice(
                   showPracticeSelector.patientName,
                   {
-                    organizationName: user.organization.name,
-                    organizationType: user.organization.type,
-                    practiceLabel: user.organization.type === 'HOSPITAL' ? 'HOSPITAL' : 
-                                  user.organization.type === 'CLINIC' ? 'CLINIC' : 'PRIVATE PRACTICE'
+                    organizationName: user?.organization?.name || 'Medical Practice',
+                    organizationType: (user?.organization?.type as 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE') || 'PRIVATE_PRACTICE',
+                    practiceLabel: user?.organization?.type === 'HOSPITAL' ? 'HOSPITAL' : 
+                                  user?.organization?.type === 'CLINIC' ? 'CLINIC' : 'PRIVATE PRACTICE'
                   }
                 )}
               >
                 <div className="text-left">
-                  <div className="font-medium">{user.organization.name}</div>
+                  <div className="font-medium">{user?.organization?.name || 'Medical Practice'}</div>
                   <div className="text-sm text-muted-foreground">
-                    {user.organization.type === 'HOSPITAL' ? 'Hospital' : 
-                     user.organization.type === 'CLINIC' ? 'Clinic' : 'Private Practice'} (Your Organization)
+                    {user?.organization?.type === 'HOSPITAL' ? 'Hospital' : 
+                     user?.organization?.type === 'CLINIC' ? 'Clinic' : 'Private Practice'} (Your Organization)
                   </div>
                 </div>
               </Button>

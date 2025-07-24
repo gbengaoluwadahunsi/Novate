@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import Image from "next/image"
+import NextImage from "next/image"
 import { FileText, Home, Mic, Settings, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -24,6 +24,13 @@ const routes = [
     icon: Home,
     href: "/dashboard",
     color: "text-sky-500",
+  },
+  {
+    label: "NovateGPT",
+    icon: null,
+    href: "/dashboard/novategpt",
+    color: "text-sky-500",
+    isLogo: true,
   },
   {
     label: "Transcribe",
@@ -73,7 +80,7 @@ export default function MobileSidebar() {
         <div className="flex h-full flex-col bg-white dark:bg-gray-950">
           <div className="p-4 flex items-center justify-center border-b border-gray-200 dark:border-gray-800">
             <Link href="/" onClick={() => setOpen(false)} className="flex items-center">
-              <Image 
+              <NextImage 
                 src={logo} 
                 alt="Novate AI Logo" 
                 width={100} 
@@ -97,7 +104,17 @@ export default function MobileSidebar() {
                       : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100",
                   )}
                 >
-                  {route.icon && (
+                  {route.isLogo ? (
+                    <div className="flex-shrink-0">
+                      <NextImage 
+                        src="/NovateGPT.png" 
+                        alt="NovateGPT" 
+                        width={24} 
+                        height={24} 
+                        className="rounded-sm"
+                      />
+                    </div>
+                  ) : route.icon && (
                     <div className="flex-shrink-0">
                       <route.icon className={cn("h-5 w-5", 
                         pathname === route.href ? "text-sky-600 dark:text-sky-400" : route.color

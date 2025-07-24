@@ -70,6 +70,11 @@ export default function MedicalNoteWithSidebar({
     managementPlan: "",
     medicationCertificate: "",
     doctorName: "",
+    doctorRegistrationNo: "",
+    doctorDepartment: "",
+    doctorSignature: "",
+    doctorStamp: "",
+    dateOfIssue: "",
     createdAt: "",
     updatedAt: "",
     status: "draft",
@@ -160,18 +165,19 @@ export default function MedicalNoteWithSidebar({
   useEffect(() => {
     setEditedNote({
       ...currentNote,
-      doctorName: currentNote.doctorName || user?.name || 
+      doctorName: (currentNote as any).doctorName || user?.name || 
                  (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
                  "Dr. [Name]",
-      doctorRegistrationNo: currentNote.doctorRegistrationNo || user?.registrationNo || user?.registrationNumber || "MMC-[Registration]",
-      doctorDepartment: currentNote.doctorDepartment || user?.department || user?.specialization || "General Medicine",
-      dateOfIssue: currentNote.dateOfIssue || new Date().toISOString().split('T')[0],
-      doctorSignature: currentNote.doctorSignature || null
+      doctorRegistrationNo: (currentNote as any).doctorRegistrationNo || user?.registrationNo || (user as any)?.registrationNumber || "MMC-[Registration]",
+      doctorDepartment: (currentNote as any).doctorDepartment || (user as any)?.department || user?.specialization || "General Medicine",
+      dateOfIssue: (currentNote as any).dateOfIssue || new Date().toISOString().split('T')[0],
+      doctorSignature: (currentNote as any).doctorSignature || "",
+      doctorStamp: (currentNote as any).doctorStamp || ""
     })
     
     // Set signature file state
-    if (currentNote.doctorSignature) {
-      setSignatureFile(currentNote.doctorSignature)
+    if ((currentNote as any).doctorSignature) {
+      setSignatureFile((currentNote as any).doctorSignature)
     }
   }, [note, user])
 
@@ -266,7 +272,7 @@ export default function MedicalNoteWithSidebar({
 
   const removeSignature = () => {
     setSignatureFile(null)
-    handleInputChange('doctorSignature', null)
+    handleInputChange('doctorSignature', '')
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -584,14 +590,14 @@ export default function MedicalNoteWithSidebar({
                       <label className="text-sm font-medium text-gray-600">Medical Registration No.</label>
                       {isEditing ? (
                         <Input
-                          value={editedNote.doctorRegistrationNo || user?.registrationNo || user?.registrationNumber || "MMC-[Registration]"}
+                          value={editedNote.doctorRegistrationNo || user?.registrationNo || (user as any)?.registrationNumber || "MMC-[Registration]"}
                           onChange={(e) => handleInputChange('doctorRegistrationNo', e.target.value)}
                           className="mt-1"
                           placeholder="Enter registration number"
                         />
                       ) : (
                         <p className="text-base">
-                          {editedNote.doctorRegistrationNo || user?.registrationNo || user?.registrationNumber || "MMC-[Registration]"}
+                          {editedNote.doctorRegistrationNo || user?.registrationNo || (user as any)?.registrationNumber || "MMC-[Registration]"}
                         </p>
                       )}
                     </div>
@@ -599,14 +605,14 @@ export default function MedicalNoteWithSidebar({
                       <label className="text-sm font-medium text-gray-600">Department</label>
                       {isEditing ? (
                         <Input
-                          value={editedNote.doctorDepartment || user?.department || user?.specialization || "General Medicine"}
+                          value={editedNote.doctorDepartment || (user as any)?.department || user?.specialization || "General Medicine"}
                           onChange={(e) => handleInputChange('doctorDepartment', e.target.value)}
                           className="mt-1"
                           placeholder="Enter department/specialization"
                         />
                       ) : (
                         <p className="text-base">
-                          {editedNote.doctorDepartment || user?.department || user?.specialization || "General Medicine"}
+                          {editedNote.doctorDepartment || (user as any)?.department || user?.specialization || "General Medicine"}
                         </p>
                       )}
                     </div>
