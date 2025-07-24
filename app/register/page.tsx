@@ -25,6 +25,7 @@ interface FormData {
   email: string
   password: string
   confirmPassword: string
+  userType: string
   specialization: string
   registrationNo: string
   licenseNumber: string
@@ -47,6 +48,7 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
+    userType: "DOCTOR", // Use uppercase as expected by backend
     specialization: "",
     registrationNo: "",
     licenseNumber: "",
@@ -129,9 +131,27 @@ export default function RegisterPage() {
 
   const validateStep2 = (): boolean => {
     const newErrors: FormErrors = {}
+    
+    if (!formData.userType) {
+      newErrors.userType = "Please select your account type"
+    }
+    
+    if (!formData.specialization) {
+      newErrors.specialization = "Please select your medical specialization"
+    }
+    
+    if (!formData.registrationNo.trim()) {
+      newErrors.registrationNo = "Medical registration number is required"
+    }
+    
+    if (!formData.licenseNumber.trim()) {
+      newErrors.licenseNumber = "Medical license number is required"
+    }
+    
     if (!formData.preferredLanguage) {
       newErrors.preferredLanguage = "Please select the common language of your patients for transcription services"
     }
+    
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
@@ -177,11 +197,17 @@ export default function RegisterPage() {
         password: formData.password,
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
+        userType: formData.userType,
+        specialization: formData.specialization,
+        registrationNo: formData.registrationNo.trim(),
+        licenseNumber: formData.licenseNumber.trim(),
         preferredLanguage: formData.preferredLanguage,
       }
-      if (formData.specialization) registrationData.specialization = formData.specialization
-      if (formData.registrationNo) registrationData.registrationNo = formData.registrationNo.trim()
-      if (formData.licenseNumber) registrationData.licenseNumber = formData.licenseNumber.trim()
+      
+      // Add optional fields if provided
+      if (formData.hospital.trim()) {
+        registrationData.hospital = formData.hospital.trim()
+      }
       
       const result = await dispatch(register(registrationData))
       if (result.type === 'auth/register/fulfilled') {
@@ -352,24 +378,53 @@ export default function RegisterPage() {
               {step === 2 && (
                 <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="specialization">Medical Specialization (Optional)</Label>
-                    <Select value={formData.specialization} onValueChange={(value) => handleSelectChange("specialization", value)}>
-                      <SelectTrigger id="specialization"><SelectValue placeholder="Select specialization" /></SelectTrigger>
+                    <Label htmlFor="userType">Account Type *</Label>
+                    <Select value={formData.userType} onValueChange={(value) => handleSelectChange("userType", value)}>
+                      <SelectTrigger id="userType" className={errors.userType ? "border-red-500" : ""}>
+                        <SelectValue placeholder="Select account type" />
+                      </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="General Medicine">General Medicine</SelectItem>
-                        <SelectItem value="Cardiology">Cardiology</SelectItem>
-                        <SelectItem value="Neurology">Neurology</SelectItem>
-                        <SelectItem value="Pediatrics">Pediatrics</SelectItem>
+                        <SelectItem value="DOCTOR">Doctor</SelectItem>
+                        <SelectItem value="STUDENT">Medical Student</SelectItem>
                       </SelectContent>
                     </Select>
+                    {errors.userType && <p className="text-sm text-red-500">{errors.userType}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="registrationNo">Medical Registration Number (Optional)</Label>
-                    <Input id="registrationNo" name="registrationNo" placeholder="REG-12345" value={formData.registrationNo} onChange={handleChange} />
+                    <Label htmlFor="specialization">Medical Specialization *</Label>
+                    <Select value={formData.specialization} onValueChange={(value) => handleSelectChange("specialization", value)}>
+                      <SelectTrigger id="specialization" className={errors.specialization ? "border-red-500" : ""}>
+                        <SelectValue placeholder="Select specialization" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PRIMARY_CARE">Primary Care</SelectItem>
+                        <SelectItem value="INTERNAL_MEDICINE">Internal Medicine</SelectItem>
+                        <SelectItem value="SURGERY">Surgery</SelectItem>
+                        <SelectItem value="ORTHOPEDIC">Orthopedic</SelectItem>
+                        <SelectItem value="CARDIOLOGY">Cardiology</SelectItem>
+                        <SelectItem value="NEUROLOGY">Neurology</SelectItem>
+                        <SelectItem value="PEDIATRICS">Pediatrics</SelectItem>
+                        <SelectItem value="GYNECOLOGY">Gynecology</SelectItem>
+                        <SelectItem value="DERMATOLOGY">Dermatology</SelectItem>
+                        <SelectItem value="PSYCHIATRY">Psychiatry</SelectItem>
+                        <SelectItem value="RADIOLOGY">Radiology</SelectItem>
+                        <SelectItem value="ANESTHESIA">Anesthesia</SelectItem>
+                        <SelectItem value="EMERGENCY_MEDICINE">Emergency Medicine</SelectItem>
+                        <SelectItem value="FAMILY_MEDICINE">Family Medicine</SelectItem>
+                        <SelectItem value="OTHER">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {errors.specialization && <p className="text-sm text-red-500">{errors.specialization}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="licenseNumber">Medical License Number (Optional)</Label>
-                    <Input id="licenseNumber" name="licenseNumber" placeholder="LIC-67890" value={formData.licenseNumber} onChange={handleChange} />
+                    <Label htmlFor="registrationNo">Medical Registration Number *</Label>
+                    <Input id="registrationNo" name="registrationNo" placeholder="REG-12345" value={formData.registrationNo} onChange={handleChange} className={errors.registrationNo ? "border-red-500" : ""} />
+                    {errors.registrationNo && <p className="text-sm text-red-500">{errors.registrationNo}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="licenseNumber">Medical License Number *</Label>
+                    <Input id="licenseNumber" name="licenseNumber" placeholder="LIC-67890" value={formData.licenseNumber} onChange={handleChange} className={errors.licenseNumber ? "border-red-500" : ""} />
+                    {errors.licenseNumber && <p className="text-sm text-red-500">{errors.licenseNumber}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="hospital">Primary Hospital/Clinic (Optional)</Label>
@@ -403,9 +458,18 @@ export default function RegisterPage() {
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Email:</span><span className="break-all text-xs sm:text-sm">{formData.email}</span>
                       </div>
-                      {formData.specialization && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Specialization:</span><span className="break-words">{formData.specialization}</span></div>}
-                      {formData.registrationNo && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Registration No:</span><span className="break-words">{formData.registrationNo}</span></div>}
-                      {formData.licenseNumber && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">License Number:</span><span className="break-words">{formData.licenseNumber}</span></div>}
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">Account Type:</span><span className="break-words">{formData.userType === 'DOCTOR' ? 'Doctor' : 'Medical Student'}</span>
+                      </div>
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">Specialization:</span><span className="break-words">{formData.specialization.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
+                      </div>
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">Registration No:</span><span className="break-words">{formData.registrationNo}</span>
+                      </div>
+                      <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
+                        <span className="text-gray-500 dark:text-gray-400">License Number:</span><span className="break-words">{formData.licenseNumber}</span>
+                      </div>
                       {formData.hospital && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Hospital/Clinic:</span><span className="break-words">{formData.hospital}</span></div>}
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Language:</span><span className="break-words">{availableLanguages.find(lang => lang.code === formData.preferredLanguage)?.name || "Not selected"}</span>
