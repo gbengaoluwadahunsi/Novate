@@ -121,7 +121,7 @@ export const createMedicalNote = createAsyncThunk(
       const noteDataWithDoctor = {
         ...noteData,
         doctorName: getDoctorName(),
-        doctorRegistrationNumber: currentUser?.registrationNo || currentUser?.registrationNumber || ''
+        doctorRegistrationNo: currentUser?.registrationNo || currentUser?.registrationNumber || ''
       }
       
       console.log('👨‍⚕️ Creating medical note:', {

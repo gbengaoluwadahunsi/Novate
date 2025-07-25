@@ -863,7 +863,7 @@ class ApiClient {
     audioJobId?: string;
     // Optional doctor information (will be fetched from backend if not provided)
     doctorName?: string;
-    doctorRegistrationNumber?: string;
+    doctorRegistrationNo?: string;
   }): Promise<ApiResponse<MedicalNote>> {
     // Transform data to match backend's expected format
     const backendData = {
@@ -890,7 +890,7 @@ class ApiClient {
       medicalCertificate: 'Medical certificate issued if clinically indicated',
       doctorDetails: {
         name: noteData.doctorName || '', // Backend should populate from JWT if empty
-        registrationNumber: noteData.doctorRegistrationNumber || '',
+        registrationNo: noteData.doctorRegistrationNo || '',
         signature: '',
         timestamp: new Date().toISOString()
       },
@@ -998,7 +998,7 @@ class ApiClient {
             
             // Handle doctorDetails
             doctorName: backendNote.doctorDetails?.name || backendNote.doctorName || '',
-            doctorRegistrationNumber: backendNote.doctorDetails?.registrationNumber || backendNote.doctorRegistrationNumber || ''
+            doctorRegistrationNo: backendNote.doctorDetails?.registrationNo || backendNote.doctorRegistrationNo || ''
           };
           
           return transformedNote;
@@ -1087,7 +1087,7 @@ class ApiClient {
           
           // Handle doctorDetails
           doctorName: backendData.doctorDetails?.name || backendData.doctorName || '',
-          doctorRegistrationNumber: backendData.doctorDetails?.registrationNumber || backendData.doctorRegistrationNumber || ''
+          doctorRegistrationNo: backendData.doctorDetails?.registrationNo || backendData.doctorRegistrationNo || ''
         };
         
         logger.debug('Transformed data', {
