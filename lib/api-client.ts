@@ -920,6 +920,17 @@ class ApiClient {
       noteType: backendData.noteType
     });
 
+    // Log the complete request body for debugging validation issues
+    logger.info('🚀 MEDICAL NOTE REQUEST BODY:', {
+      timestamp: new Date().toISOString(),
+      patientInformation: backendData.patientInformation,
+      chiefComplaint: backendData.chiefComplaint,
+      assessmentAndDiagnosis: backendData.assessmentAndDiagnosis,
+      managementPlan: backendData.managementPlan,
+      doctorDetails: backendData.doctorDetails,
+      noteType: backendData.noteType
+    });
+
     // Log diagnosis data for consistency tracking
     logger.debug('API DIAGNOSIS DATA', {
       timestamp: new Date().toISOString(),
