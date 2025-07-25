@@ -868,9 +868,24 @@ class ApiClient {
     // Transform data to match backend's expected format
     const backendData = {
       patientInformation: {
-        name: noteData.patientName || 'Unknown Patient',
-        age: (noteData.patientAge && noteData.patientAge > 0) ? noteData.patientAge.toString() : '25',
-        gender: noteData.patientGender || 'Not specified',
+        name: noteData.patientName && noteData.patientName !== 'N/A' && noteData.patientName !== 'Unknown Patient'
+              ? noteData.patientName 
+              : 'Anonymous Patient',
+        age: (() => {
+          if (typeof noteData.patientAge === 'number' && noteData.patientAge > 0) {
+            return noteData.patientAge.toString();
+          }
+          if (typeof noteData.patientAge === 'string' && noteData.patientAge !== 'N/A' && noteData.patientAge !== '0') {
+            const parsedAge = parseInt(noteData.patientAge, 10);
+            if (!isNaN(parsedAge) && parsedAge > 0) {
+              return parsedAge.toString();
+            }
+          }
+          return '25'; // Default age
+        })(),
+        gender: noteData.patientGender && noteData.patientGender !== 'N/A' && noteData.patientGender !== 'Not specified' 
+                ? noteData.patientGender 
+                : 'Other',
         visitDate: noteData.visitDate || new Date().toISOString().split('T')[0]
       },
       chiefComplaint: noteData.chiefComplaint || 'Patient presenting for medical consultation',
