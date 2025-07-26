@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User } from "lucide-react"
 import { Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -28,12 +31,41 @@ interface QueuedRecording {
   }
 }
 
+interface PatientInfo {
+  firstName: string
+  lastName: string
+  age: string
+  gender: string
+}
+
 export default function TranscribePage() {
 
   const [queuedRecordings, setQueuedRecordings] = useState<QueuedRecording[]>([])
+  const [patientInfo, setPatientInfo] = useState<PatientInfo>({
+    firstName: '',
+    lastName: '',
+    age: '',
+    gender: ''
+  })
   const dispatch = useAppDispatch()
   const router = useRouter()
   const { toast } = useToast()
+
+  const clearPatientForm = () => {
+    setPatientInfo({
+      firstName: '',
+      lastName: '',
+      age: '',
+      gender: ''
+    })
+  }
+
+  const isPatientInfoValid = () => {
+    return patientInfo.firstName.trim() !== '' && 
+           patientInfo.lastName.trim() !== '' && 
+           patientInfo.age.trim() !== '' && 
+           patientInfo.gender !== ''
+  }
 
   const handleTranscriptionComplete = async (data: any) => {
     // Check if it's a minimal/error response
@@ -42,23 +74,33 @@ export default function TranscribePage() {
       return;
     }
     
-    console.log('🎯 Creating note for:', data.patientName || 'Unknown Patient');
+    console.log('🎯 Creating note for:', `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() || data.patientName || 'Unknown Patient');
     
     // Automatically create a draft note in the backend and navigate to it
     try {
-      // Extract patient info from the transcription data
-      const patientInfo = data.patientInfo || data.patientInformation || {};
+      // Extract patient info from the transcription data, but prioritize manual input
+      const transcribedPatientInfo = data.patientInfo || data.patientInformation || {};
       const medicalNote = data.medicalNote || {};
       
       const noteData = {
-        patientName: patientInfo.name || data.patientName || 'Unknown Patient',
+        // Prioritize manual patient information over transcribed data
+        patientName: (() => {
+          const manualName = `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim();
+          return manualName || transcribedPatientInfo.name || data.patientName || 'Unknown Patient';
+        })(),
         patientAge: (() => {
-          const ageString = patientInfo.age || data.patientAge || '0';
-          const parsedAge = parseInt(ageString, 10);
+          // Try manual age first, then transcribed age
+          const manualAge = patientInfo.age.trim();
+          if (manualAge && !isNaN(parseInt(manualAge))) {
+            return parseInt(manualAge);
+          }
+          
+          const transcribedAge = transcribedPatientInfo.age || data.patientAge || '0';
+          const parsedAge = parseInt(transcribedAge, 10);
           return isNaN(parsedAge) ? 0 : parsedAge;
         })(),
-        patientGender: patientInfo.gender || data.patientGender || 'Not specified',
-        visitDate: patientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
+        patientGender: patientInfo.gender || transcribedPatientInfo.gender || data.patientGender || 'Other',
+        visitDate: transcribedPatientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
         visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
         chiefComplaint: medicalNote.chiefComplaint || data.chiefComplaint || '',
         historyOfPresentIllness: medicalNote.historyOfPresentingIllness || data.historyOfPresentingIllness || '',
@@ -92,11 +134,13 @@ export default function TranscribePage() {
         
         // Navigate directly to the saved note instead of showing transcription view
         if (savedNote && savedNote.id) {
-          // Show success message and navigate immediately
           toast({
-            title: "🎉 Note Finalized Successfully",
-            description: "Redirecting to your medical note...",
+            title: "🎉 Note Created Successfully",
+            description: `Medical note for ${noteData.patientName} has been created.`,
           });
+          
+          // Clear the patient form for next recording
+          clearPatientForm();
           
           // Navigate immediately to the proper note page
           router.push(`/dashboard/notes/${savedNote.id}`);
@@ -106,6 +150,9 @@ export default function TranscribePage() {
             title: "🎉 Note Finalized",
             description: "Your note has been created. Redirecting to notes page...",
           });
+          
+          // Clear the patient form for next recording
+          clearPatientForm();
           
           // Navigate to notes page as fallback
           setTimeout(() => {
@@ -300,10 +347,85 @@ export default function TranscribePage() {
 
           {/* Audio Upload Component - Takes 2/3 Width */}
           <div className="lg:col-span-2">
-      <AudioUpload
-        onTranscriptionComplete={handleTranscriptionComplete}
-              onRecordingComplete={addToQueue}
-      />
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Patient Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="patientFirstName" className="text-right">
+                      First Name
+                    </Label>
+                    <Input
+                      id="patientFirstName"
+                      value={patientInfo.firstName}
+                      onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="patientLastName" className="text-right">
+                      Last Name
+                    </Label>
+                    <Input
+                      id="patientLastName"
+                      value={patientInfo.lastName}
+                      onChange={(e) => setPatientInfo({ ...patientInfo, lastName: e.target.value })}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="patientAge" className="text-right">
+                      Age
+                    </Label>
+                    <Input
+                      id="patientAge"
+                      type="number"
+                      value={patientInfo.age}
+                      onChange={(e) => setPatientInfo({ ...patientInfo, age: e.target.value })}
+                      className="col-span-3"
+                    />
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="patientGender" className="text-right">
+                      Gender
+                    </Label>
+                    <Select onValueChange={(value) => setPatientInfo({ ...patientInfo, gender: value })} defaultValue={patientInfo.gender}>
+                      <SelectTrigger className="col-span-3">
+                        <SelectValue placeholder="Select a gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Male">Male</SelectItem>
+                        <SelectItem value="Female">Female</SelectItem>
+                        <SelectItem value="Not specified">Not specified</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Validation Alert */}
+            {!isPatientInfoValid() && (
+              <Alert className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Patient Information Required</AlertTitle>
+                <AlertDescription>
+                  Please fill in the patient's first name, last name, age, and gender before recording. This ensures accurate medical documentation.
+                </AlertDescription>
+              </Alert>
+            )}
+
+        <AudioUpload
+          onTranscriptionComplete={handleTranscriptionComplete}
+          onRecordingComplete={addToQueue}
+          disabled={!isPatientInfoValid()}
+          patientInfo={patientInfo}
+        />
           </div>
 
           {/* Recording Queue - Takes 1/3 Width */}

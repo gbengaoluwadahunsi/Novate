@@ -275,7 +275,19 @@ const notesSlice = createSlice({
       .addCase(createMedicalNote.fulfilled, (state, action) => {
         state.status = 'succeeded'
         if (action.payload) {
-          state.medicalNotes.unshift(action.payload)
+          // 🚨 PREVENT DUPLICATES: Check if note already exists before adding
+          const existingNoteIndex = state.medicalNotes.findIndex(note => note.id === action.payload!.id);
+          
+          if (existingNoteIndex === -1) {
+            // Note doesn't exist, add it to the beginning
+            state.medicalNotes.unshift(action.payload)
+            console.log('✅ New note added to Redux state:', action.payload.id);
+          } else {
+            // Note already exists, update it instead
+            state.medicalNotes[existingNoteIndex] = action.payload
+            console.log('⚠️ Note already existed in Redux state, updated instead:', action.payload.id);
+          }
+          
           state.currentNote = action.payload
         }
       })

@@ -108,11 +108,29 @@ export function usePublicDashboardStats(): UseDashboardStatsReturn {
       const response = await apiClient.getPublicDashboardStats()
 
       if (response.success && response.data) {
-        setStats(response.data)
+        // Validate and sanitize the data to prevent negative or unreasonable values
+        const sanitizedData: DashboardStats = {
+          ...response.data,
+          timeSavedPercentage: Math.max(0, Math.min(100, response.data.timeSavedPercentage || FALLBACK_STATS.timeSavedPercentage)),
+          accuracy: Math.max(0, Math.min(100, response.data.accuracy || FALLBACK_STATS.accuracy)),
+          doctorsUsing: Math.max(0, response.data.doctorsUsing || FALLBACK_STATS.doctorsUsing),
+          notesProcessed: Math.max(0, response.data.notesProcessed || FALLBACK_STATS.notesProcessed),
+        }
+
+        // Log warning if we had to sanitize negative values
+        if (response.data.timeSavedPercentage < 0) {
+          console.warn('⚠️ API returned negative timeSavedPercentage:', response.data.timeSavedPercentage, 'Using fallback:', sanitizedData.timeSavedPercentage)
+        }
+        if (response.data.accuracy < 0) {
+          console.warn('⚠️ API returned negative accuracy:', response.data.accuracy, 'Using fallback:', sanitizedData.accuracy)
+        }
+
+        setStats(sanitizedData)
       } else {
         throw new Error('Invalid response format from public dashboard stats API')
       }
     } catch (err) {
+      console.error('❌ Failed to fetch public dashboard stats:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch public dashboard statistics')
       setStats(FALLBACK_STATS)
     } finally {

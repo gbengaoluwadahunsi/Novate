@@ -162,8 +162,8 @@ export default function ClinicalSupportPage() {
         </div>
       </motion.div>
 
-      <Alert className="mb-6 bg-blue-50 border-blue-200">
-        <AlertCircle className="h-4 w-4 text-blue-500" />
+      <Alert className="mb-6 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+        <AlertCircle className="h-4 w-4 text-blue-500 dark:text-blue-400" />
         <AlertTitle>Beta Feature</AlertTitle>
         <AlertDescription>
           Clinical Support is currently in beta. Information provided should be verified with official sources.

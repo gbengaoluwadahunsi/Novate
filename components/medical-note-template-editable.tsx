@@ -1034,11 +1034,11 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
                     </div>
 
                     <div className="mt-4 flex justify-between items-end">
-                      <div className="border-t border-dashed border-gray-400 pt-2 w-1/3 text-center">
-                        <p className="text-sm text-gray-500">Doctor's Signature</p>
+                      <div className="border-t border-dashed border-gray-400 dark:border-gray-500 pt-2 w-1/3 text-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Doctor's Signature</p>
                       </div>
-                      <div className="border-2 border-gray-300 rounded-md p-4 w-1/3 h-24 flex items-center justify-center">
-                        <p className="text-sm text-gray-500 text-center">Official Stamp</p>
+                      <div className="border-2 border-gray-300 dark:border-gray-600 rounded-md p-4 w-1/3 h-24 flex items-center justify-center">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 text-center">Official Stamp</p>
                       </div>
                     </div>
                   </div>
@@ -1075,10 +1075,10 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
                 <Download size={16} /> Export
               </Button>
               {showExportOptions && (
-                <div className="absolute z-10 mt-1 w-40 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5">
+                <div className="absolute z-10 mt-1 w-40 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black dark:ring-gray-600 ring-opacity-5">
                   <div className="py-1" role="menu" aria-orientation="vertical">
                     <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                       onClick={() => {
                         handleDownloadPDF()
                         setShowExportOptions(false)
@@ -1090,7 +1090,7 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
                       </div>
                     </button>
                     <button
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700"
                       onClick={() => {
                         handleDownloadWord()
                         setShowExportOptions(false)

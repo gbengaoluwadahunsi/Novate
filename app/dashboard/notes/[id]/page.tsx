@@ -72,36 +72,60 @@ export default function NotePage() {
     setIsLoading(true)
 
     try {
+      // 🚨 CRITICAL SECURITY CHECK: Verify user is authenticated
+      const token = localStorage.getItem('token')
+      if (!user || !token) {
+        logger.error('🚨 SECURITY: User not authenticated, redirecting to login')
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to view this note',
+          variant: 'destructive'
+        })
+        router.push('/login')
+        return
+      }
+
       const [noteResponse, versionsResponse] = await Promise.all([
         apiClient.getMedicalNote(noteId),
         apiClient.getNoteVersions(noteId)
       ])
       
       if (noteResponse.success && noteResponse.data) {
-        setNote(noteResponse.data)
+        const noteData = noteResponse.data
+
+        setNote(noteData)
         setEditedNote({
-          ...noteResponse.data,
-          doctorName: (noteResponse.data as any).doctorName || user?.name || 
+          ...noteData,
+          doctorName: (noteData as any).doctorName || user?.name || 
                      (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
                      "Dr. [Name]",
-          doctorRegistrationNo: (noteResponse.data as any).doctorRegistrationNo || user?.registrationNo || "",
-          doctorDepartment: (noteResponse.data as any).doctorDepartment || user?.specialization || "General Medicine",
-          dateOfIssue: (noteResponse.data as any).dateOfIssue || new Date().toISOString().split('T')[0],
-          doctorSignature: (noteResponse.data as any).doctorSignature || null,
-          doctorStamp: (noteResponse.data as any).doctorStamp || null
+          doctorRegistrationNo: (noteData as any).doctorRegistrationNo || user?.registrationNo || "",
+          doctorDepartment: (noteData as any).doctorDepartment || user?.specialization || "General Medicine",
+          dateOfIssue: (noteData as any).dateOfIssue || new Date().toISOString().split('T')[0],
+          doctorSignature: (noteData as any).doctorSignature || null,
+          doctorStamp: (noteData as any).doctorStamp || null
         })
         
-        if ((noteResponse.data as any).doctorSignature) {
-          setSignatureFile((noteResponse.data as any).doctorSignature)
+        if ((noteData as any).doctorSignature) {
+          setSignatureFile((noteData as any).doctorSignature)
         }
         
-        if ((noteResponse.data as any).doctorStamp) {
-          setStampFile((noteResponse.data as any).doctorStamp)
+        if ((noteData as any).doctorStamp) {
+          setStampFile((noteData as any).doctorStamp)
         }
 
         // Set display name (patient name or case number)
-        const name = await generateCaseNumber(noteResponse.data)
+        const name = await generateCaseNumber(noteData)
         setDisplayName(name)
+      } else {
+        logger.error('Failed to load note:', noteResponse.error)
+        toast({
+          title: 'Error',
+          description: 'Failed to load note. You may not have permission to view this note.',
+          variant: 'destructive'
+        })
+        router.push('/dashboard/notes')
+        return
       }
 
       if (versionsResponse.success && versionsResponse.data) {
@@ -120,6 +144,7 @@ export default function NotePage() {
         description: 'Failed to load note data',
         variant: 'destructive'
       })
+      router.push('/dashboard/notes')
     } finally {
       setIsLoading(false)
     }
@@ -720,14 +745,14 @@ export default function NotePage() {
         <Button variant="ghost" size="icon" onClick={handleBack}>
           <ArrowLeft className="h-6 w-6" />
         </Button>
-        <span className="ml-2 text-sm text-gray-600">Back to Notes</span>
+        <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">Back to Notes</span>
       </div>
 
       {/* Document Header */}
       <div className="text-center mb-8">
-        <h2 className="text-lg font-medium mb-2">Medical Clinic</h2>
-        <h1 className="text-3xl font-bold text-blue-600 mb-2">MEDICAL CONSULTATION NOTE</h1>
-        <div className="flex justify-between items-center text-sm text-gray-600">
+        <h2 className="text-lg font-medium mb-2 dark:text-white">Medical Clinic</h2>
+        <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-2">MEDICAL CONSULTATION NOTE</h1>
+        <div className="flex justify-between items-center text-sm text-gray-600 dark:text-gray-300">
           <div>
             <strong>Patient Name:</strong> {displayName || note.patientName || 'Medical Case 001'}
           </div>
@@ -735,16 +760,16 @@ export default function NotePage() {
             <strong>Date:</strong> {new Date(note.createdAt).toLocaleDateString()}
           </div>
         </div>
-        <div className="flex flex-wrap justify-between items-center text-sm text-gray-600 mt-2 gap-4">
+        <div className="flex flex-wrap justify-between items-center text-sm text-gray-600 dark:text-gray-300 mt-2 gap-4">
           <div className="flex items-center">
-            <strong className="text-gray-700">Age:</strong> 
+            <strong className="text-gray-700 dark:text-gray-200">Age:</strong> 
             {isEditing ? (
               <Input
                 type="text"
                 key={`age-${note.id}`}
                 defaultValue={String(note.patientAge || 'N/A')}
                 onChange={(e) => handleFieldChange('patientAge', e.target.value)}
-                className="inline-block w-20 ml-2 text-sm h-8 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white rounded-md shadow-sm"
+                className="inline-block w-20 ml-2 text-sm h-8 border-gray-300 dark:border-gray-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 dark:text-white rounded-md shadow-sm"
                 placeholder="Age"
               />
             ) : (
@@ -805,7 +830,7 @@ export default function NotePage() {
         </div>
 
       {/* Medical Note Content */}
-      <div className="max-w-4xl mx-auto bg-white p-8 shadow-sm border space-y-8">
+      <div className="max-w-4xl mx-auto bg-white dark:bg-gray-800 p-8 shadow-sm border border-gray-200 dark:border-gray-700 space-y-8">
                 <NoteSection title="Chief Complaint" content={note.chiefComplaint} isEditing={isEditing} onChange={e => handleFieldChange('chiefComplaint', e.target.value)} />
                 <NoteSection title="History of Presenting Illness" content={note.historyOfPresentingIllness || note.historyOfPresentIllness} isEditing={isEditing} onChange={e => handleFieldChange('historyOfPresentingIllness', e.target.value)} />
                 <NoteSection title="Past Medical History" content={note.pastMedicalHistory} isEditing={isEditing} onChange={e => handleFieldChange('pastMedicalHistory', e.target.value)} />
@@ -1216,11 +1241,11 @@ const NoteSection = ({ title, content, isEditing, onChange, rawContent }: {
   if (!content && !isEditing) return null
 
   return (
-    <div className="border-b border-gray-300 pb-4 mb-6">
-      <h3 className="font-bold text-lg text-black mb-3 border-b border-gray-400 pb-1">
+    <div className="border-b border-gray-300 dark:border-gray-600 pb-4 mb-6">
+      <h3 className="font-bold text-lg text-black dark:text-white mb-3 border-b border-gray-400 dark:border-gray-500 pb-1">
         {title}
         {isEditing && (
-          <span className="ml-2 text-sm text-blue-600 font-normal">(Editing)</span>
+          <span className="ml-2 text-sm text-blue-600 dark:text-blue-400 font-normal">(Editing)</span>
         )}
       </h3>
       {isEditing ? (
@@ -1228,11 +1253,11 @@ const NoteSection = ({ title, content, isEditing, onChange, rawContent }: {
           defaultValue={rawContent || content || ''} 
           onChange={onChange} 
           rows={6} 
-          className="bg-blue-50 border-2 border-blue-300 focus:border-blue-500 focus:ring-blue-500" 
+          className="bg-blue-50 dark:bg-gray-700 border-2 border-blue-300 dark:border-blue-600 focus:border-blue-500 focus:ring-blue-500 dark:text-white" 
           placeholder={title === "Management Plan" ? "Enter management plan as JSON or plain text" : `Enter ${title.toLowerCase()}`}
         />
       ) : (
-        <div className="text-gray-800 whitespace-pre-wrap leading-relaxed">
+        <div className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
           {content ? (
             // For Management Plan, render formatted text with bold headers
             title === "Management Plan" ? (
@@ -1245,7 +1270,7 @@ const NoteSection = ({ title, content, isEditing, onChange, rawContent }: {
               content
             )
           ) : (
-            <span className="text-gray-500 italic">N/A</span>
+            <span className="text-gray-500 dark:text-gray-400 italic">N/A</span>
           )}
         </div>
       )}

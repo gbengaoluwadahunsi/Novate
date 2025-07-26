@@ -35,6 +35,13 @@ interface MedicalNote {
 interface AudioUploadProps {
   onTranscriptionComplete: (transcription: any) => void
   onRecordingComplete?: (file: File, duration: number) => void
+  disabled?: boolean
+  patientInfo?: {
+    firstName: string
+    lastName: string
+    age: string
+    gender: string
+  }
 }
 
 // Extract functions for parsing medical transcriptions
@@ -278,7 +285,7 @@ const formatManagementPlan = (managementPlan: any): string => {
     : 'Treatment plan to be determined';
 };
 
-export default function AudioUpload({ onTranscriptionComplete, onRecordingComplete }: AudioUploadProps) {
+export default function AudioUpload({ onTranscriptionComplete, onRecordingComplete, disabled = false, patientInfo }: AudioUploadProps) {
   // Get user's preferred language from auth state
   const { user } = useAppSelector((state) => state.auth)
   
@@ -305,6 +312,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const [patientAge, setPatientAge] = useState("")
   const [patientGender, setPatientGender] = useState("")
   
+  // 🚨 REQUEST DEDUPLICATION: Prevent duplicate API calls
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const lastRequestRef = useRef<string | null>(null)
+  const requestTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
@@ -325,6 +337,17 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   useEffect(() => {
     fetchSupportedLanguages().then(setAvailableLanguages)
+  }, [])
+
+  // 🚨 CLEANUP: Reset deduplication flags on component unmount
+  useEffect(() => {
+    return () => {
+      setIsTranscribing(false);
+      if (requestTimeoutRef.current) {
+        clearTimeout(requestTimeoutRef.current);
+      }
+      lastRequestRef.current = null;
+    };
   }, [])
 
   // Function to animate progress for a specific stage
@@ -744,7 +767,43 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   const processAudioWithFile = async (audioFile: File) => {
     
+    // 🚨 REQUEST DEDUPLICATION: Prevent duplicate calls
+    const requestId = `${audioFile.name}-${audioFile.size}-${Date.now()}`;
+    
+    if (isTranscribing) {
+      console.log('🚨 DUPLICATE REQUEST BLOCKED: Already transcribing, ignoring duplicate call');
+      toast({
+        title: "Processing in Progress",
+        description: "Please wait for the current transcription to complete.",
+        variant: "default",
+      });
+      return;
+    }
+    
+    if (lastRequestRef.current === `${audioFile.name}-${audioFile.size}`) {
+      console.log('🚨 DUPLICATE REQUEST BLOCKED: Same file already processed recently');
+      return;
+    }
+    
+    // Clear any existing timeout
+    if (requestTimeoutRef.current) {
+      clearTimeout(requestTimeoutRef.current);
+    }
+    
+    // Set deduplication flags
+    setIsTranscribing(true);
+    lastRequestRef.current = `${audioFile.name}-${audioFile.size}`;
+    
+    // Reset deduplication after 30 seconds
+    requestTimeoutRef.current = setTimeout(() => {
+      setIsTranscribing(false);
+      lastRequestRef.current = null;
+    }, 30000);
+    
+    console.log('🎙️ TRANSCRIPTION STARTED - Request ID:', requestId);
+    
     if (!audioFile) {
+      setIsTranscribing(false);
       toast({
         title: "No Audio File",
         description: "Please record or upload a valid audio file.",
@@ -754,6 +813,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     }
     
     if (audioFile.size === 0) {
+      setIsTranscribing(false);
       toast({
         title: "Empty Audio File",
         description: "The audio file is empty. Please record again or upload a different file.",
@@ -763,6 +823,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     }
     
     if (audioFile.size < 1000) { // Less than 1KB is likely too small
+      setIsTranscribing(false);
       toast({
         title: "Audio File Too Small",
         description: "The audio file seems too small. Please record for a longer duration.",
@@ -792,11 +853,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         // Animate progress for fast transcription
         animateStageProgress('Fast Transcription', 85, 3000); // Animate to 85% over 3 seconds
         
-        // Prepare patient information for API call
+        // Prepare patient information for API call - prioritize props over internal state
         const patientData = {
-          patientName: patientName.trim() || undefined,
-          patientAge: patientAge.trim() || undefined,
-          patientGender: patientGender || undefined,
+          patientName: patientInfo ? `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() : (patientName.trim() || undefined),
+          patientAge: patientInfo?.age.trim() || patientAge.trim() || undefined,
+          patientGender: patientInfo?.gender || patientGender || undefined,
         };
         
         const response = await apiClient.fastTranscription(audioFile, patientData, language);
@@ -898,11 +959,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         // Animate progress for standard transcription
         animateStageProgress('Transcribing', 80, 4000); // Animate to 80% over 4 seconds
         
-        // Prepare patient information for API call
+        // Prepare patient information for API call - prioritize props over internal state
         const patientData = {
-          patientName: patientName.trim() || undefined,
-          patientAge: patientAge.trim() || undefined,
-          patientGender: patientGender || undefined,
+          patientName: patientInfo ? `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() : (patientName.trim() || undefined),
+          patientAge: patientInfo?.age.trim() || patientAge.trim() || undefined,
+          patientGender: patientInfo?.gender || patientGender || undefined,
         };
         
         const response = await apiClient.startTranscription(audioFile, patientData, language);
@@ -966,6 +1027,19 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      // 🚨 CLEANUP: Reset deduplication flags
+      setIsTranscribing(false);
+      if (requestTimeoutRef.current) {
+        clearTimeout(requestTimeoutRef.current);
+        requestTimeoutRef.current = null;
+      }
+      // Keep lastRequestRef for a short time to prevent immediate duplicates
+      setTimeout(() => {
+        lastRequestRef.current = null;
+      }, 2000);
+      
+      console.log('🎙️ TRANSCRIPTION COMPLETED - Deduplication flags reset');
     }
   };
 
@@ -1186,7 +1260,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           )}
 
           <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="h-16 w-16 rounded-lg bg-white flex items-center justify-center shadow-lg border border-gray-100">
+            <div className="h-16 w-16 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-lg border border-gray-100 dark:border-gray-700 mx-auto">
               <img 
                 src="/novateLogo-removebg-preview.png" 
                 alt="NovateScribe Logo" 
@@ -1200,7 +1274,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
               />
               <Mic className="h-8 w-8 text-blue-500 hidden" />
             </div>
-            <div className="text-center">
+            <div className="text-center w-full">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 NovateScribe AI
               </h2>
@@ -1232,7 +1306,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 onClick={startRecording}
                 className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 h-12"
                 size="lg"
-                disabled={isProcessing}
+                disabled={isProcessing || disabled}
               >
                 <Mic size={18} /> Start Recording
               </Button>
@@ -1244,7 +1318,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                     isPaused ? "bg-green-500 hover:bg-green-600" : "bg-yellow-500 hover:bg-yellow-600"
                   }`}
                   size="lg"
-                  disabled={isProcessing}
+                  disabled={isProcessing || disabled}
                 >
                   {isPaused ? (
                     <>
@@ -1260,7 +1334,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                   onClick={stopRecording}
                   className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 h-12 flex-1"
                   size="lg"
-                  disabled={isProcessing}
+                  disabled={isProcessing || disabled}
                 >
                   <span className="animate-pulse">●</span> Stop
                 </Button>
@@ -1272,8 +1346,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 variant="outline"
                 size="lg"
                 className="flex items-center justify-center gap-2 w-full h-12"
+                disabled={isProcessing || disabled}
                 onClick={() => document.getElementById("audio-upload")?.click()}
-                disabled={isRecording || isProcessing}
               >
                 <Upload size={18} /> Upload Audio File
               </Button>
@@ -1549,7 +1623,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                                 ? 'bg-blue-500 text-white' 
                                 : stage.status === 'failed' || stage.status === 'error'
                                   ? 'bg-red-500 text-white' 
-                                  : 'bg-gray-200 text-gray-500'
+                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
                           }`}>
                             {stage.status === 'completed' ? (
                               '100%'
@@ -1567,23 +1641,23 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                             <div className="flex items-center justify-between">
                             <p className={`text-sm font-medium ${
                               stage.status === 'completed' 
-                                ? 'text-green-600' 
+                                ? 'text-green-600 dark:text-green-400' 
                                 : stage.status === 'processing' 
-                                  ? 'text-blue-600' 
+                                  ? 'text-blue-600 dark:text-blue-400' 
                                     : stage.status === 'failed' || stage.status === 'error'
-                                    ? 'text-red-600' 
-                                    : 'text-gray-500'
+                                    ? 'text-red-600 dark:text-red-400' 
+                                    : 'text-gray-500 dark:text-gray-400'
                             }`}>
                               {stage.name}
                             </p>
                               <span className={`text-xs font-medium ${
                                 stage.status === 'completed' 
-                                  ? 'text-green-600' 
+                                  ? 'text-green-600 dark:text-green-400' 
                                   : stage.status === 'processing' 
-                                    ? 'text-blue-600' 
+                                    ? 'text-blue-600 dark:text-blue-400' 
                                     : stage.status === 'failed' || stage.status === 'error'
-                                      ? 'text-red-600' 
-                                      : 'text-gray-500'
+                                      ? 'text-red-600 dark:text-red-400' 
+                                      : 'text-gray-500 dark:text-gray-400'
                               }`}>
                                 {stage.status === 'completed' ? 'Complete' : 
                                  stage.status === 'processing' ? `${stage.progress}%` :

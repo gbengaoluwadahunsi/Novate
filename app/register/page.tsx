@@ -358,16 +358,16 @@ export default function RegisterPage() {
                     <Label htmlFor="password">Password *</Label>
                     <div className="relative">
                       <Input id="password" name="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={formData.password} onChange={handleChange} className={errors.password ? "border-red-500" : ""} />
-                      <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}<span className="sr-only">Toggle password visibility</span></Button>
+                      <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400 dark:text-gray-500" onClick={() => setShowPassword(!showPassword)}>{showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}<span className="sr-only">Toggle password visibility</span></Button>
                     </div>
                     {errors.password && <p className="text-sm text-red-500">{errors.password}</p>}
-                    <p className="text-xs text-gray-500">Must be at least 8 characters with uppercase, lowercase, and number.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Must be at least 8 characters with uppercase, lowercase, and number.</p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="confirmPassword">Confirm Password *</Label>
                     <div className="relative">
                       <Input id="confirmPassword" name="confirmPassword" type={showConfirmPassword ? "text" : "password"} placeholder="••••••••" value={formData.confirmPassword} onChange={handleChange} className={errors.confirmPassword ? "border-red-500" : ""} />
-                      <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>{showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}<span className="sr-only">Toggle password visibility</span></Button>
+                      <Button type="button" variant="ghost" size="icon" className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400 dark:text-gray-500" onClick={() => setShowConfirmPassword(!showConfirmPassword)}>{showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}<span className="sr-only">Toggle password visibility</span></Button>
                     </div>
                     {errors.confirmPassword && <p className="text-sm text-red-500">{errors.confirmPassword}</p>}
                   </div>
@@ -439,7 +439,7 @@ export default function RegisterPage() {
                       </SelectContent>
                     </Select>
                     {errors.preferredLanguage && <p className="text-sm text-red-500">{errors.preferredLanguage}</p>}
-                    <p className="text-xs text-gray-500">This language will be used for transcription based on your patients' common language.</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">This language will be used for transcription based on your patients' common language.</p>
                   </div>
                 </motion.div>
               )}

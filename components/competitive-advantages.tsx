@@ -67,7 +67,7 @@ export default function CompetitiveAdvantages() {
             <Star className="w-3 h-3 mr-1" />
             Why Choose NovateScribe™
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">
             Unmatched Medical Transcription Excellence
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -81,8 +81,8 @@ export default function CompetitiveAdvantages() {
             <Card key={index} className="group hover:shadow-lg transition-all duration-300 border-0 shadow-md">
               <CardHeader className="pb-4">
                 <div className="flex items-start justify-between mb-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                    <advantage.icon className="w-6 h-6 text-blue-600" />
+                  <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors">
+                    <advantage.icon className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                   </div>
                   <Badge variant="secondary" className="text-xs">
                     {advantage.badge}
@@ -108,25 +108,20 @@ export default function CompetitiveAdvantages() {
         </div>
 
         <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-4 p-4 bg-white rounded-lg shadow-sm border">
+          <div className="inline-flex items-center gap-4 p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">99.2%</div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">99.2%</div>
               <div className="text-sm text-muted-foreground">Accuracy Rate</div>
             </div>
-            <div className="w-px h-8 bg-gray-200"></div>
+            <div className="w-px h-8 bg-gray-200 dark:bg-gray-600"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">&lt;30s</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">&lt;30s</div>
               <div className="text-sm text-muted-foreground">Processing Time</div>
             </div>
-            <div className="w-px h-8 bg-gray-200"></div>
+            <div className="w-px h-8 bg-gray-200 dark:bg-gray-600"></div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-purple-600">15+</div>
-              <div className="text-sm text-muted-foreground">Languages</div>
-            </div>
-            <div className="w-px h-8 bg-gray-200"></div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-orange-600">24/7</div>
-              <div className="text-sm text-muted-foreground">Support</div>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">24/7</div>
+              <div className="text-sm text-muted-foreground">Availability</div>
             </div>
           </div>
         </div>

@@ -16,6 +16,7 @@ export default function Dashboard() {
   const [recentNotes, setRecentNotes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [totalNotesCount, setTotalNotesCount] = useState<number>(0) // 🚨 ADD: Deduplicated total count
 
   // Generate consistent case number for notes without patient names
   const generateCaseNumber = (note: any, allNotes?: any[]) => {
@@ -43,32 +44,72 @@ export default function Dashboard() {
   }
 
   useEffect(() => {
-    async function fetchNotes() {
+    async function fetchNotesAndCount() {
       setLoading(true)
       setError(null)
       try {
-        // Fetch recent notes (for the authenticated user) - limit to 5
-        const notesRes = await apiClient.getMedicalNotes({ page: 1, limit: 5 });
-        if (notesRes.success && notesRes.data && Array.isArray(notesRes.data.notes)) {
-          // Sort notes by creation date - newest first
-          const sortedNotes = (notesRes.data.notes || []).sort((a, b) => {
-            const dateA = new Date(a.createdAt || a.updatedAt || 0);
-            const dateB = new Date(b.createdAt || b.updatedAt || 0);
-            return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+        // Fetch ALL notes to get accurate deduplicated count
+        const allNotesRes = await apiClient.getMedicalNotes({ page: 1, limit: 1000 }); // Get all notes
+        let allNotes = [];
+        let totalDeduplicatedCount = 0;
+        
+        if (allNotesRes.success && allNotesRes.data && Array.isArray(allNotesRes.data.notes)) {
+          allNotes = allNotesRes.data.notes || [];
+          
+          // 🚨 DEDUPLICATION: Apply same logic as notes page
+          const uniqueAllNotes = allNotes.filter((note, index, array) => {
+            const firstIndexById = array.findIndex(n => n.id === note.id);
+            if (firstIndexById !== index) return false;
+            
+            const similarNotes = array.filter((n, idx) => {
+              if (idx >= index) return false;
+              const timeDiff = Math.abs(
+                new Date(note.createdAt || 0).getTime() - 
+                new Date(n.createdAt || 0).getTime()
+              );
+              const isWithin5Minutes = timeDiff < 5 * 60 * 1000;
+              
+              return n.patientName === note.patientName && 
+                     n.patientAge === note.patientAge &&
+                     n.patientGender === note.patientGender &&
+                     isWithin5Minutes;
+            });
+            
+            return similarNotes.length === 0;
           });
-          setRecentNotes(sortedNotes);
-        } else {
-          setRecentNotes([]);
+          
+          totalDeduplicatedCount = uniqueAllNotes.length;
+          
+          // Set recent notes (first 5 from deduplicated list)
+          const sortedRecentNotes = uniqueAllNotes
+            .sort((a, b) => {
+              const dateA = new Date(a.createdAt || a.updatedAt || 0);
+              const dateB = new Date(b.createdAt || b.updatedAt || 0);
+              return dateB.getTime() - dateA.getTime();
+            })
+            .slice(0, 5);
+            
+          setRecentNotes(sortedRecentNotes);
+          
+          console.log('🚨 DASHBOARD TOTAL COUNT DEDUPLICATION:', {
+            originalCount: allNotes.length,
+            deduplicatedCount: totalDeduplicatedCount,
+            duplicatesRemoved: allNotes.length - totalDeduplicatedCount
+          });
         }
+        
+        setTotalNotesCount(totalDeduplicatedCount);
+        
       } catch (e) {
         console.error('Error fetching notes:', e);
-        setError('Failed to load recent notes');
+        setError('Failed to load notes');
         setRecentNotes([]);
+        setTotalNotesCount(0);
       } finally {
         setLoading(false);
       }
     }
-    fetchNotes();
+    fetchNotesAndCount();
   }, []);
 
   // Format time saved
@@ -115,7 +156,9 @@ export default function Dashboard() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl md:text-3xl font-bold">{statsLoading ? "-" : (userStats?.notesCreated ?? 0)}</div>
+              <div className="text-2xl md:text-3xl font-bold">
+                {loading ? "-" : totalNotesCount}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
                 Medical notes generated
               </p>
@@ -150,17 +193,17 @@ export default function Dashboard() {
                     {Array.from({ length: 3 }).map((_, i) => (
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex-1 space-y-2">
-                          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4"></div>
+                          <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
                         </div>
-                        <div className="h-8 bg-gray-200 rounded w-16"></div>
+                        <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : !Array.isArray(recentNotes) || recentNotes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
                   <p className="text-base font-medium mb-2">No recent notes</p>
                   <p className="text-sm mb-4">Your latest medical notes will appear here</p>
                   <Link href="/dashboard/transcribe">
@@ -175,7 +218,7 @@ export default function Dashboard() {
                   <div key={note?.id || Math.random()} className="flex items-center justify-between border-b pb-3 last:border-b-0 last:pb-0">
                     <div className="flex-1 min-w-0">
                       <Link href={`/dashboard/notes/${note?.id || ''}`} className="block">
-                        <p className="font-medium text-cyan-600 hover:text-cyan-700 transition-colors text-sm md:text-base truncate">
+                        <p className="font-medium text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors text-sm md:text-base truncate">
                           {generateCaseNumber(note, recentNotes)}
                         </p>
                         <p className="text-xs md:text-sm text-muted-foreground mt-1">

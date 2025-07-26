@@ -210,8 +210,25 @@ export default function NotesPage() {
       logger.info('🔍 Authentication Status:', {
         hasToken: !!token,
         tokenLength: token ? token.length : 0,
-        tokenPreview: token ? token.substring(0, 20) + '...' : 'No token'
+        tokenPreview: token ? token.substring(0, 20) + '...' : 'No token',
+        currentUser: user ? {
+          id: user.id,
+          email: user.email,
+          name: user.firstName + ' ' + user.lastName
+        } : 'No user data'
       })
+
+      // 🚨 CRITICAL SECURITY CHECK: Verify user is authenticated
+      if (!user || !token) {
+        logger.error('🚨 SECURITY: User not authenticated, redirecting to login')
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to view your notes',
+          variant: 'destructive'
+        })
+        router.push('/login')
+        return
+      }
 
       const params: any = {
         page,
@@ -223,14 +240,6 @@ export default function NotesPage() {
       }
 
       logger.info('🔍 Making API call with params:', params)
-      logger.info('🔍 Backend URL:', process.env.NEXT_PUBLIC_BACKEND_URL || 'https://novatescribebackend.onrender.com')
-
-      // Quick backend connectivity test
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL || 'https://novatescribebackend.onrender.com'}/health`)
-      } catch (healthError) {
-        logger.warn('⚠️ Backend connection issue:', healthError instanceof Error ? healthError.message : String(healthError))
-      }
 
       const response = await apiClient.getMedicalNotes(params)
 
@@ -241,9 +250,8 @@ export default function NotesPage() {
 
       if (response.success && response.data) {
         const data = response.data
-        logger.info('🔍 Data Structure:', {
+        logger.info('🔍 API Response:', {
           hasNotes: 'notes' in data,
-          notesArray: data.notes,
           notesLength: data.notes ? data.notes.length : 'No notes array',
           hasPagination: 'pagination' in data,
           paginationData: data.pagination
@@ -253,7 +261,7 @@ export default function NotesPage() {
 
         // Apply client-side note type filter since backend might not support it
         if (filter !== 'all') {
-          filteredNotes = (data.notes || []).filter(note => note.noteType === filter)
+          filteredNotes = filteredNotes.filter(note => note.noteType === filter)
         }
 
         // Sort notes by creation date - newest first
@@ -263,11 +271,67 @@ export default function NotesPage() {
           return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
         });
 
-        setNotes(filteredNotes)
-        // Add safe access to pagination data
+        // 🚨 ENHANCED DEDUPLICATION: Remove duplicates by ID AND content similarity
+        const uniqueNotes = filteredNotes.filter((note, index, array) => {
+          // First check: Remove exact ID duplicates
+          const firstIndexById = array.findIndex(n => n.id === note.id);
+          if (firstIndexById !== index) {
+            logger.warn('🚨 DUPLICATE NOTE BY ID DETECTED AND REMOVED:', {
+              noteId: note.id,
+              patientName: note.patientName,
+              createdAt: note.createdAt,
+              duplicateIndex: index,
+              firstIndex: firstIndexById
+            });
+            return false;
+          }
+          
+          // Second check: Remove content-based duplicates (same patient, same time period)
+          const similarNotes = array.filter((n, idx) => {
+            if (idx >= index) return false; // Only check previous notes
+            
+            const timeDiff = Math.abs(
+              new Date(note.createdAt || 0).getTime() - 
+              new Date(n.createdAt || 0).getTime()
+            );
+            const isWithin5Minutes = timeDiff < 5 * 60 * 1000; // 5 minutes
+            
+            return n.patientName === note.patientName && 
+                   n.patientAge === note.patientAge &&
+                   n.patientGender === note.patientGender &&
+                   isWithin5Minutes;
+          });
+          
+          if (similarNotes.length > 0) {
+            logger.warn('🚨 DUPLICATE NOTE BY CONTENT DETECTED AND REMOVED:', {
+              noteId: note.id,
+              patientName: note.patientName,
+              createdAt: note.createdAt,
+              similarNote: similarNotes[0].id,
+              timeDifference: Math.abs(
+                new Date(note.createdAt || 0).getTime() - 
+                new Date(similarNotes[0].createdAt || 0).getTime()
+              ) / 1000 + ' seconds'
+            });
+            return false;
+          }
+          
+          return true;
+        });
+
+        if (uniqueNotes.length !== filteredNotes.length) {
+          logger.warn('🚨 DEDUPLICATION SUMMARY:', {
+            originalCount: filteredNotes.length,
+            uniqueCount: uniqueNotes.length,
+            duplicatesRemoved: filteredNotes.length - uniqueNotes.length
+          });
+        }
+
+        setNotes(uniqueNotes)
+        // 🚨 FIX: Use deduplicated count instead of original API count
         setCurrentPage(data.pagination?.page || 1)
-        setTotalPages(data.pagination?.pages || 1)
-        setTotalNotes(data.pagination?.total || 0)
+        setTotalPages(Math.ceil(uniqueNotes.length / ITEMS_PER_PAGE) || 1)
+        setTotalNotes(uniqueNotes.length) // Use actual deduplicated count, not API count
 
         performanceMonitor.endTiming('load-notes')
       } else {
@@ -288,7 +352,7 @@ export default function NotesPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [currentPage, searchTerm, noteTypeFilter, performanceMonitor, toast])
+  }, [currentPage, searchTerm, noteTypeFilter, performanceMonitor, toast, user, router])
 
   // Memoized debounced search function
   const debouncedSearch = useMemo(() => 
@@ -299,38 +363,18 @@ export default function NotesPage() {
     [loadNotes, noteTypeFilter]
   )
 
-  // Load notes
+  // 🚨 CONSOLIDATED EFFECT: Single useEffect to handle all note loading scenarios
   useEffect(() => {
-    loadNotes()
-    
-    // Add a simple direct test
-    const testDirectAPICall = async () => {
-      try {
-        const token = localStorage.getItem('token')
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://novatescribebackend.onrender.com'
-        const directResponse = await fetch(`${backendUrl}/medical-notes`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        })
-        
-        const directData = await directResponse.json()
-        logger.info('🔍 Direct API Call Result:', {
-          status: directResponse.status,
-          ok: directResponse.ok,
-          data: directData,
-          url: directResponse.url
-        })
-      } catch (directError) {
-        logger.info('🔍 Direct API Call Failed:', directError)
-      }
+    // Handle initial load and filter changes
+    if (searchTerm.trim()) {
+      debouncedSearch(searchTerm)
+    } else {
+      setCurrentPage(1)
+      loadNotes(1, '', noteTypeFilter)
     }
-    
-    testDirectAPICall()
-  }, [loadNotes])
+  }, [noteTypeFilter, debouncedSearch, loadNotes]) // Removed searchTerm from dependencies to prevent duplicate calls
 
-  // Handle search term changes
+  // Handle search term changes separately with debouncing
   useEffect(() => {
     if (searchTerm.trim()) {
       debouncedSearch(searchTerm)
@@ -340,13 +384,7 @@ export default function NotesPage() {
     }
   }, [searchTerm, debouncedSearch, noteTypeFilter, loadNotes])
 
-  // Handle filter changes
-  useEffect(() => {
-    setCurrentPage(1) // Reset to page 1 when filters change
-    loadNotes(1, searchTerm, noteTypeFilter)
-  }, [noteTypeFilter, searchTerm, filters, loadNotes])
-
-  // Reset page when filters change significantly
+  // Reset page when filtered results change
   useEffect(() => {
     if (currentPage > totalFilteredPages && totalFilteredPages > 0) {
       setCurrentPage(1)
@@ -604,10 +642,10 @@ export default function NotesPage() {
 
   const getNoteTypeColor = (noteType: string | null) => {
     switch (noteType) {
-      case 'consultation': return 'bg-blue-100 text-blue-800'
-      case 'follow-up': return 'bg-green-100 text-green-800'
-      case 'assessment': return 'bg-purple-100 text-purple-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'consultation': return 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+      case 'follow-up': return 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200'
+      case 'assessment': return 'bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200'
+      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
     }
   }
 
@@ -625,10 +663,10 @@ export default function NotesPage() {
   return (
     <div className="container mx-auto py-3 md:py-6 space-y-4 md:space-y-6 px-4 md:px-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="min-w-0 flex-1">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 truncate">Medical Notes</h1>
-          <p className="text-sm md:text-base text-gray-600 mt-1">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white truncate">Medical Notes</h1>
+          <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 mt-1">
             {filteredNotes.length > 0 ? (
               filteredNotes.length === notes.length 
                 ? `${totalNotes} notes found` 
@@ -637,12 +675,11 @@ export default function NotesPage() {
           </p>
         </div>
         <Button 
-          onClick={() => router.push('/dashboard/transcribe')}
-          className="w-full md:w-auto justify-center shrink-0"
+          onClick={() => router.push('/dashboard/transcribe')} 
+          className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg"
         >
-          <Plus className="h-4 w-4 mr-2" />
-          <span className="hidden sm:inline">Create New Note</span>
-          <span className="sm:hidden">New Note</span>
+          <Plus className="mr-2 h-4 w-4" />
+          New Note
         </Button>
       </div>
 
@@ -654,7 +691,7 @@ export default function NotesPage() {
             {/* Search Bar - Full width on mobile */}
             <div className="w-full">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                 <Input
                   placeholder="Search notes by patient name, diagnosis, or content..."
                   value={searchTerm}
@@ -844,12 +881,12 @@ export default function NotesPage() {
                       <CardTitle className="text-lg md:text-xl font-bold line-clamp-1 text-cyan-500">
                         {generateCaseNumber(note, notes)}
                       </CardTitle>
-                      <p className="text-xs md:text-sm text-gray-600 mt-1">
+                      <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 mt-1">
                         Age {String(note.patientAge) !== 'N/A' && note.patientAge ? note.patientAge : 'N/A'} • {note.patientGender}
                       </p>
                       {/* Show a brief summary instead of full chief complaint */}
                       {note.chiefComplaint && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
                           {note.chiefComplaint.length > 40 
                             ? note.chiefComplaint.substring(0, 40) + '...' 
                             : note.chiefComplaint}
@@ -866,15 +903,15 @@ export default function NotesPage() {
                     {/* Diagnosis - Keep this as it's useful medical info */}
                     {note.diagnosis && (
                       <div>
-                        <p className="text-xs md:text-sm font-medium text-gray-700">Diagnosis:</p>
-                        <p className="text-xs md:text-sm text-gray-600 line-clamp-2 leading-relaxed">
+                        <p className="text-xs md:text-sm font-medium text-gray-700 dark:text-gray-200">Diagnosis:</p>
+                        <p className="text-xs md:text-sm text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
                           {note.diagnosis}
                         </p>
                       </div>
                     )}
 
                     {/* Metadata */}
-                    <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t">
+                    <div className="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 pt-2 border-t border-gray-200 dark:border-gray-600">
                       <div className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
                         <span className="truncate">
@@ -962,7 +999,7 @@ export default function NotesPage() {
           {/* Mobile-friendly Pagination */}
           {totalFilteredPages > 1 && (
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
-              <div className="text-sm text-gray-600 order-2 sm:order-1">
+              <div className="text-sm text-gray-600 dark:text-gray-300 order-2 sm:order-1">
                 Page {currentPage} of {totalFilteredPages}
               </div>
               <div className="flex items-center gap-2 order-1 sm:order-2">
@@ -1014,11 +1051,11 @@ export default function NotesPage() {
       ) : (
         <Card>
           <CardContent className="text-center py-12">
-            <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+            <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300 dark:text-gray-600" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
               {hasActiveFilters ? 'No notes match your filters' : 'No medical notes yet'}
             </h3>
-            <p className="text-sm text-gray-600 mb-6 max-w-md mx-auto">
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-6 max-w-md mx-auto">
               {hasActiveFilters 
                 ? 'Try adjusting your search criteria or clearing the filters to see more results.'
                 : 'Create your first medical note by uploading an audio file or using the voice recorder. Your notes will appear here once created.'

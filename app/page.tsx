@@ -168,19 +168,19 @@ function FeatureCard({ icon: Icon, title, description, delay = 0 }: { icon: Reac
       viewport={{ once: true }}
       className="relative overflow-hidden rounded-xl cursor-pointer group"
     >
-      <div className="relative p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl h-full transition-all duration-300 group-hover:bg-white dark:group-hover:bg-gray-800 group-hover:shadow-2xl group-hover:shadow-sky-500/20 group-hover:border-sky-300 dark:group-hover:border-sky-600">
+      <div className="relative p-4 sm:p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl h-full transition-all duration-300 group-hover:bg-white dark:group-hover:bg-gray-800 group-hover:shadow-2xl group-hover:shadow-sky-500/20 group-hover:border-sky-300 dark:group-hover:border-sky-600">
         <motion.div 
-          className="h-12 w-12 rounded-full bg-sky-500 flex items-center justify-center mb-4 transition-all duration-300 group-hover:bg-sky-600 group-hover:shadow-lg group-hover:shadow-sky-500/50"
+          className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-sky-500 flex items-center justify-center mb-3 sm:mb-4 transition-all duration-300 group-hover:bg-sky-600 group-hover:shadow-lg group-hover:shadow-sky-500/50"
           whileHover={{ 
             scale: 1.1,
             rotate: 5,
             transition: { duration: 0.2 }
           }}
         >
-          <Icon className="h-6 w-6 text-white transition-transform duration-300 group-hover:scale-110" />
+          <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-white transition-transform duration-300 group-hover:scale-110" />
         </motion.div>
-        <h3 className="text-xl font-bold mb-2 transition-colors duration-300 group-hover:text-sky-600 dark:group-hover:text-sky-400">{title}</h3>
-        <p className="text-gray-500 dark:text-gray-400 transition-colors duration-300 group-hover:text-gray-700 dark:group-hover:text-gray-200">{description}</p>
+        <h3 className="text-lg sm:text-xl font-bold mb-2 transition-colors duration-300 group-hover:text-sky-600 dark:group-hover:text-sky-400">{title}</h3>
+        <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 transition-colors duration-300 group-hover:text-gray-700 dark:group-hover:text-gray-200">{description}</p>
         
         {/* Animated background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl"></div>
@@ -388,10 +388,10 @@ function SectionHeader({ title, subtitle }: SectionHeaderProps) {
       whileInView={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
       viewport={{ once: true }}
-      className="text-center max-w-3xl mx-auto mb-12"
+      className="text-center max-w-3xl mx-auto mb-8 sm:mb-12 px-2"
     >
-      <h2 className="text-3xl md:text-4xl font-bold mb-4 text-sky-500">{title}</h2>
-      <p className="text-gray-500 dark:text-gray-400 text-lg">{subtitle}</p>
+      <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 text-sky-500">{title}</h2>
+      <p className="text-gray-500 dark:text-gray-400 text-base sm:text-lg">{subtitle}</p>
     </motion.div>
   )
 }
@@ -474,6 +474,13 @@ export default function HomePage() {
   // Get authentication state
   const { isAuthenticated } = useAppSelector((state) => state.auth)
 
+  // Validate and sanitize stats to prevent negative or unreasonable values
+  const sanitizedStats = {
+    ...stats,
+    timeSavedPercentage: Math.max(0, Math.min(100, stats.timeSavedPercentage || 85)), // Ensure between 0-100, default to 85
+    accuracy: Math.max(0, Math.min(100, stats.accuracy || 99)), // Ensure between 0-100, default to 99
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
       <Navbar />
@@ -482,7 +489,7 @@ export default function HomePage() {
       {/* Hero Section */}
       <motion.section
         style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}
-        className="relative min-h-screen flex flex-col items-center justify-center px-4 py-20 overflow-hidden"
+        className="relative min-h-screen flex flex-col items-center justify-center px-2 sm:px-4 py-20 overflow-hidden"
       >
         {/* Gradient background */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-900/20 via-blue-900/5 to-transparent"></div>
@@ -493,7 +500,7 @@ export default function HomePage() {
         <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
 
         <div className="container mx-auto max-w-6xl relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
@@ -503,9 +510,9 @@ export default function HomePage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 1, delay: 0.1 }}
-                className="mb-6 flex justify-center lg:justify-start"
+                className="mb-4 sm:mb-6 flex justify-center lg:justify-start"
               >
-                <span className="px-3 py-1 rounded-full text-sm font-medium bg-[#0ea5e9]/20 text-[#0ea5e9] dark:text-[#0ea5e9] border border-[#0ea5e9]/30 whitespace-nowrap">
+                <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-[#0ea5e9]/20 text-[#0ea5e9] dark:text-[#0ea5e9] border border-[#0ea5e9]/30 whitespace-nowrap">
                   AI-Powered Medical Documentation
                 </span>
               </motion.div>
@@ -514,7 +521,7 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.3 }}
-                className="text-4xl md:text-6xl font-bold mb-6 text-[#0ea5e9] text-center lg:text-left"
+                className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-[#0ea5e9] text-center lg:text-left"
               >
                 NovateScribe<sup className="text-black font-normal">TM</sup>
               </motion.h1>
@@ -522,22 +529,23 @@ export default function HomePage() {
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.4 }}
-                className="text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-8 text-center lg:text-left"
+                className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 text-center lg:text-left"
               >
                 Transform your medical voice notes into perfectly structured digital records in seconds.
               </motion.p>
+              
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.5 }}
-                className="flex flex-wrap gap-4 justify-center lg:justify-start"
+                className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start"
               >
-                <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white" asChild>
+                <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white w-full sm:w-auto" asChild>
                   <Link href={isAuthenticated ? "/dashboard" : "/register"}>
                     {isAuthenticated ? "Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
+                <Button size="lg" variant="outline" className="w-full sm:w-auto" asChild>
                   <Link href="#features">
                     Learn More <ChevronRight className="ml-2 h-5 w-5" />
                   </Link>
@@ -549,10 +557,10 @@ export default function HomePage() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.5 }}
-              className="h-[400px] lg:h-[500px] w-full relative"
+              className="h-[300px] sm:h-[400px] lg:h-[500px] w-full relative"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-sky-600/10 to-blue-500/10 rounded-3xl"></div>
-              <div className="h-full w-full rounded-3xl overflow-hidden p-4">
+              <div className="h-full w-full rounded-3xl overflow-hidden p-2 sm:p-4">
                 <MedicalNoteVisual />
               </div>
             </motion.div>
@@ -578,7 +586,7 @@ export default function HomePage() {
       </motion.section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 relative">
+      <section id="features" className="py-12 sm:py-20 px-2 sm:px-4 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-50/50 dark:via-sky-950/20 to-transparent"></div>
         <div className="container mx-auto max-w-6xl relative z-10">
           <SectionHeader
@@ -586,7 +594,7 @@ export default function HomePage() {
             subtitle="Discover how  NovateScribe revolutionizes medical documentation with AI-powered tools"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
             <FeatureCard
               icon={Mic}
               title="Voice Recognition"
@@ -628,7 +636,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20 px-4 relative">
+      <section id="how-it-works" className="py-12 sm:py-20 px-2 sm:px-4 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-50/50 dark:via-blue-950/20 to-transparent"></div>
         <div className="container mx-auto max-w-6xl relative z-10">
           <SectionHeader
@@ -636,7 +644,7 @@ export default function HomePage() {
             subtitle="Three simple steps to transform your medical documentation workflow"
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 items-stretch">
             {[
               {
                 step: "1",
@@ -664,14 +672,14 @@ export default function HomePage() {
                 className="text-center relative overflow-hidden rounded-xl"
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-purple-600/10 via-blue-500/10 to-teal-400/10 backdrop-blur-sm"></div>
-                <div className="relative p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl h-full flex flex-col">
+                <div className="relative p-4 sm:p-6 bg-white/80 dark:bg-gray-800/80 border border-gray-200 dark:border-gray-700 rounded-xl h-full flex flex-col">
                   <div
-                    className={`h-16 w-16 rounded-full bg-sky-500 flex items-center justify-center text-2xl font-bold mx-auto mb-4 text-white`}
+                    className={`h-12 w-12 sm:h-16 sm:w-16 rounded-full bg-sky-500 flex items-center justify-center text-xl sm:text-2xl font-bold mx-auto mb-3 sm:mb-4 text-white`}
                   >
                     {item.step}
                   </div>
-                  <h3 className="text-xl font-bold mb-2">{item.title}</h3>
-                  <p className="text-gray-500 dark:text-gray-400 flex-1">{item.description}</p>
+                  <h3 className="text-lg sm:text-xl font-bold mb-2">{item.title}</h3>
+                  <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 flex-1">{item.description}</p>
                 </div>
               </motion.div>
             ))}
@@ -774,7 +782,7 @@ export default function HomePage() {
       )}
 
       {/* CTA Section with World Map Background */}
-      <section className="py-20 px-4 relative">
+      <section className="py-12 sm:py-20 px-2 sm:px-4 relative">
         {/* World Map Background */}
         <div className="absolute inset-0 bg-gray-900/90">
           <img
@@ -787,20 +795,20 @@ export default function HomePage() {
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-r from-blue-900/30 to-blue-600/20"></div>
 
-        <div className="container mx-auto max-w-4xl text-center relative z-10">
+        <div className="container mx-auto max-w-4xl text-center relative z-10 px-2 sm:px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
             viewport={{ once: true }}
-            className="bg-gray-900/70 backdrop-blur-sm p-10 rounded-2xl border border-blue-500/20 shadow-xl"
+            className="bg-gray-900/70 backdrop-blur-sm p-4 sm:p-6 lg:p-10 rounded-2xl border border-blue-500/20 shadow-xl mx-2 sm:mx-0"
           >
             <motion.h2
               initial={{ opacity: 0, y: -20 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               viewport={{ once: true }}
-              className="text-3xl md:text-4xl font-bold mb-6 text-white"
+              className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 text-white"
             >
               Ready to Transform Your Medical Documentation?
             </motion.h2>
@@ -809,7 +817,7 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
               viewport={{ once: true }}
-              className="text-xl text-blue-100 mb-8"
+              className="text-lg sm:text-xl text-blue-100 mb-6 sm:mb-8"
             >
               Join healthcare professionals worldwide who are saving time and improving patient care with
                NovateScribe<sup className="text-black font-normal">TM</sup>.
@@ -819,11 +827,11 @@ export default function HomePage() {
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
               viewport={{ once: true }}
-              className="flex justify-center"
+              className="flex justify-center mb-8 sm:mb-12"
             >
               <Button
                 size="lg"
-                className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white px-8 py-6 text-lg font-medium"
+                className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white px-6 sm:px-8 py-4 sm:py-6 text-base sm:text-lg font-medium w-full sm:w-auto max-w-xs sm:max-w-none"
                 asChild
               >
                 <Link href={isAuthenticated ? "/dashboard" : "/register"}>
@@ -833,18 +841,18 @@ export default function HomePage() {
             </motion.div>
 
             {/* Global usage indicators */}
-            <div className="mt-12 grid grid-cols-2 gap-6 max-w-md mx-auto">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">
-                  {loading ? "-" : `${stats.timeSavedPercentage}+`}%
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 max-w-sm sm:max-w-md mx-auto">
+              <div className="text-center bg-blue-900/30 rounded-lg p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl font-bold text-blue-400">
+                  {loading ? "85+" : `${sanitizedStats.timeSavedPercentage}+`}%
                 </div>
-                <div className="text-blue-200 text-sm">Time Saved</div>
+                <div className="text-blue-200 text-xs sm:text-sm">Time Saved</div>
               </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-400">
-                  {loading ? "-" : `${stats.accuracy}+`}%
+              <div className="text-center bg-blue-900/30 rounded-lg p-3 sm:p-4">
+                <div className="text-xl sm:text-2xl font-bold text-blue-400">
+                  {loading ? "99+" : `${sanitizedStats.accuracy}+`}%
                 </div>
-                <div className="text-blue-200 text-sm">Accuracy Rate</div>
+                <div className="text-blue-200 text-xs sm:text-sm">Accuracy Rate</div>
               </div>
             </div>
           </motion.div>
@@ -852,26 +860,26 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-12 px-4 bg-gradient-to-b from-gray-100 to-white dark:from-gray-800 dark:to-gray-900">
+      <footer className="py-8 sm:py-12 px-2 sm:px-4 bg-gradient-to-b from-gray-100 to-white dark:from-gray-800 dark:to-gray-900">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+            <div className="text-center sm:text-left">
              
-                <Image src={logo} alt=" NovateScribe Logo" className=" mr-2 rounded-full" width={120} height={120} />
+                <Image src={logo} alt=" NovateScribe Logo" className="mx-auto sm:mx-0 mr-0 sm:mr-2 rounded-full" width={100} height={100} />
                 
 
              
-              <p className="text-gray-500 dark:text-gray-400 mb-4">
+              <p className="text-gray-500 dark:text-gray-400 mb-4 text-sm sm:text-base">
                 Transforming medical documentation with AI-powered voice recognition.
               </p>
             </div>
-            <div>
-              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Product</h4>
+            <div className="text-center sm:text-left">
+              <h4 className="font-bold mb-3 sm:mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Product</h4>
               <ul className="space-y-2">
                 <li>
                   <Link
                     href="#features"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
                   >
                     Features
                   </Link>
@@ -879,20 +887,20 @@ export default function HomePage() {
                 <li>
                   <Link
                     href="#how-it-works"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
                   >
                     How It Works
                   </Link>
                 </li>
               </ul>
             </div>
-            <div>
-              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Get Started</h4>
+            <div className="text-center sm:text-left">
+              <h4 className="font-bold mb-3 sm:mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Get Started</h4>
               <ul className="space-y-2">
                 <li>
                   <Link
                     href="/register"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
                   >
                     Sign Up
                   </Link>
@@ -900,7 +908,7 @@ export default function HomePage() {
                 <li>
                   <Link
                     href="/login"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
                   >
                     Login
                   </Link>
@@ -908,27 +916,43 @@ export default function HomePage() {
                 <li>
                   <Link
                     href="/dashboard"
-                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9]"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
                   >
                     Dashboard
                   </Link>
                 </li>
               </ul>
             </div>
-            <div>
-              <h4 className="font-bold mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Support</h4>
+            <div className="text-center sm:text-left">
+              <h4 className="font-bold mb-3 sm:mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Support</h4>
               <ul className="space-y-2">
                 <li>
-                  <span className="text-gray-500 dark:text-gray-400">Contact: Coming Soon</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Contact: Coming Soon</span>
                 </li>
                 <li>
-                  <span className="text-gray-500 dark:text-gray-400">Help Center: Coming Soon</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Help Center: Coming Soon</span>
                 </li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-200 dark:border-gray-700 mt-12 pt-8 text-center text-gray-500 dark:text-gray-400">
-            <p>&copy; {new Date().getFullYear()}  NovateScribe<sup className="text-black font-normal">TM</sup>. All rights reserved.</p>
+          <div className="border-t border-gray-200 dark:border-gray-700 mt-8 sm:mt-12 pt-6 sm:pt-8">
+            {/* Mobile: Center everything vertically, Desktop: Horizontal layout */}
+            <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-0 sm:flex-row text-gray-500 dark:text-gray-400">
+              {/* Logo - centered on mobile */}
+              <div className="flex items-center justify-center">
+                <Image src={logo} alt="NovateScribe Logo" className="rounded-full" width={32} height={32} />
+              </div>
+              
+              {/* Copyright text - centered on mobile, inline on desktop */}
+              <div className="text-center sm:text-left sm:ml-3">
+                <div className="text-sm sm:text-base">
+                  &copy; {new Date().getFullYear()} NovateScribe<sup className="text-black dark:text-white font-normal">TM</sup>
+                </div>
+                <div className="text-sm sm:text-base sm:inline sm:ml-1">
+                  All rights reserved.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

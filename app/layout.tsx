@@ -84,7 +84,11 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: "your-google-verification-code", // Add your Google Search Console verification code
+    google: "your-google-verification-code", // TODO: Add your actual Google Search Console verification code here
+    // To get this: 1. Go to https://search.google.com/search-console
+    // 2. Add your property (https://www.novatescribe.com)
+    // 3. Choose "HTML tag" verification method
+    // 4. Copy the content value and paste it here
   },
 }
 

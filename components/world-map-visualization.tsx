@@ -145,7 +145,7 @@ export default function WorldMapVisualization({ data }: WorldMapVisualizationPro
             className="w-full h-auto border rounded-lg bg-gray-50"
           />
           <div className="absolute inset-0 flex items-center justify-center">
-            <Badge variant="secondary" className="bg-white/90">
+            <Badge variant="secondary" className="bg-white/90 dark:bg-gray-800/90">
               Interactive Map Coming Soon
             </Badge>
           </div>

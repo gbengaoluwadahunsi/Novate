@@ -145,7 +145,7 @@ function ResetPasswordForm() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400"
+                      className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400 dark:text-gray-500"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
@@ -187,7 +187,7 @@ function ResetPasswordForm() {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400"
+                      className="absolute right-0 top-0 h-full px-3 py-2 text-gray-400 dark:text-gray-500"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                     >
                       {showConfirmPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}

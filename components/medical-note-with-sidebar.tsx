@@ -384,7 +384,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter chief complaint..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.chiefComplaint}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.chiefComplaint}</p>
                   )}
                 </div>
 
@@ -400,7 +400,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter history of presenting illness..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.historyOfPresentingIllness}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.historyOfPresentingIllness}</p>
                   )}
                 </div>
 
@@ -416,7 +416,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter past medical history..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.pastMedicalHistory}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.pastMedicalHistory}</p>
                   )}
                 </div>
 
@@ -432,7 +432,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter system review..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.systemReview}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.systemReview}</p>
                   )}
                 </div>
 
@@ -446,7 +446,7 @@ export default function MedicalNoteWithSidebar({
                       {isEditing ? (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           <div>
-                            <label className="text-xs text-gray-500">BP</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">BP</label>
                             <Input
                               value={editedNote.physicalExamination?.vitals?.bloodPressure || ''}
                               onChange={(e) => handleVitalChange('bloodPressure', e.target.value)}
@@ -455,7 +455,7 @@ export default function MedicalNoteWithSidebar({
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">HR</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">HR</label>
                             <Input
                               value={editedNote.physicalExamination?.vitals?.heartRate || ''}
                               onChange={(e) => handleVitalChange('heartRate', e.target.value)}
@@ -464,7 +464,7 @@ export default function MedicalNoteWithSidebar({
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">Temp</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">Temp</label>
                             <Input
                               value={editedNote.physicalExamination?.vitals?.temperature || ''}
                               onChange={(e) => handleVitalChange('temperature', e.target.value)}
@@ -473,7 +473,7 @@ export default function MedicalNoteWithSidebar({
                             />
                           </div>
                           <div>
-                            <label className="text-xs text-gray-500">RR</label>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">RR</label>
                             <Input
                               value={editedNote.physicalExamination?.vitals?.respiratoryRate || ''}
                               onChange={(e) => handleVitalChange('respiratoryRate', e.target.value)}
@@ -501,7 +501,7 @@ export default function MedicalNoteWithSidebar({
                           placeholder="Enter throat examination findings..."
                         />
                       ) : (
-                        <p className="text-gray-700">{getPhysicalExamValue('throat')}</p>
+                        <p className="text-gray-700 dark:text-gray-300">{getPhysicalExamValue('throat')}</p>
                       )}
                     </div>
                   </div>
@@ -519,7 +519,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter diagnosis..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.diagnosis}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.diagnosis}</p>
                   )}
                 </div>
 
@@ -535,7 +535,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter management plan..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.managementPlan}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.managementPlan}</p>
                   )}
                 </div>
 
@@ -551,7 +551,7 @@ export default function MedicalNoteWithSidebar({
                       placeholder="Enter medication certificate details..."
                     />
                   ) : (
-                    <p className="text-gray-700">{currentNote.medicationCertificate}</p>
+                    <p className="text-gray-700 dark:text-gray-300">{currentNote.medicationCertificate}</p>
                   )}
                 </div>
               </div>
@@ -566,7 +566,7 @@ export default function MedicalNoteWithSidebar({
                   {/* Doctor Details */}
                   <div className="space-y-3">
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Doctor Name</label>
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Doctor Name</label>
                       {isEditing ? (
                         <Input
                           value={editedNote.doctorName || user?.name || 
@@ -587,7 +587,7 @@ export default function MedicalNoteWithSidebar({
                       )}
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Medical Registration No.</label>
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Medical Registration No.</label>
                       {isEditing ? (
                         <Input
                           value={editedNote.doctorRegistrationNo || user?.registrationNo || (user as any)?.registrationNumber || "MMC-[Registration]"}
@@ -602,7 +602,7 @@ export default function MedicalNoteWithSidebar({
                       )}
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Department</label>
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Department</label>
                       {isEditing ? (
                         <Input
                           value={editedNote.doctorDepartment || (user as any)?.department || user?.specialization || "General Medicine"}
@@ -620,8 +620,8 @@ export default function MedicalNoteWithSidebar({
                   
                                     {/* Signature Section */}
                   <div className="space-y-3">
-                    <label className="text-sm font-medium text-gray-600">Doctor's Signature</label>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[120px] flex flex-col items-center justify-center bg-gray-50 signature-space">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Doctor's Signature</label>
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 min-h-[120px] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800 signature-space">
                       {signatureFile || editedNote.doctorSignature ? (
                         <div className="w-full h-full flex items-center justify-center">
                           <img 
@@ -633,9 +633,9 @@ export default function MedicalNoteWithSidebar({
                         </div>
                       ) : (
                         <div className="text-center space-y-2">
-                          <div className="text-4xl text-gray-400">✍️</div>
-                          <p className="text-sm text-gray-500">Digital signature space</p>
-                          <p className="text-xs text-gray-400">
+                          <div className="text-4xl text-gray-400 dark:text-gray-500">✍️</div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Digital signature space</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
                             Print to sign manually or upload e-signature
                           </p>
                         </div>
@@ -701,7 +701,7 @@ export default function MedicalNoteWithSidebar({
                                   {/* Date and Stamp Section */}
                   <div className="flex justify-between items-end pt-4 border-t border-gray-200">
                     <div>
-                      <label className="text-sm font-medium text-gray-600">Date of Issue</label>
+                      <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Date of Issue</label>
                       {isEditing ? (
                         <Input
                           type="date"
@@ -728,8 +728,8 @@ export default function MedicalNoteWithSidebar({
                     </div>
                   
                                      <div className="text-right">
-                     <div className="border-2 border-gray-300 rounded p-3 w-24 h-16 flex items-center justify-center bg-gray-50 stamp-area">
-                       <span className="text-xs text-gray-500 text-center">Official<br/>Stamp</span>
+                     <div className="border-2 border-gray-300 dark:border-gray-600 rounded p-3 w-24 h-16 flex items-center justify-center bg-gray-50 dark:bg-gray-800 stamp-area">
+                       <span className="text-xs text-gray-500 dark:text-gray-400 text-center">Official<br/>Stamp</span>
                      </div>
                    </div>
                 </div>
@@ -740,7 +740,7 @@ export default function MedicalNoteWithSidebar({
       </div>
 
       {/* Sidebar */}
-      <div className="w-80 bg-white border-l overflow-auto">
+      <div className="w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 overflow-auto">
         <div className="p-4 space-y-4">
           <h3 className="font-semibold text-lg">Note Actions</h3>
           
