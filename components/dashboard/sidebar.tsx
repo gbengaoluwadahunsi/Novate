@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { clearAuth } from "@/store/features/authSlice"
 import { useToast } from "@/hooks/use-toast"
-import logo from "@/public/novateLogo-removebg-preview2.png"
+import { Logo } from "@/components/ui/logo"
 import { logger } from "@/lib/logger"
 
 interface SidebarProps {
@@ -79,7 +79,7 @@ export function Sidebar({ className }: SidebarProps) {
       <div className="p-6 border-b">
         <Link href="/">
           <div className="flex items-center gap-1">
-            <NextImage src={logo} alt="Novate AI Logo" className=" rounded-full" width={160} height={160} />
+            <Logo width={160} height={160} className="rounded-full" alt="NovateScribe Logo" />
           </div>
         </Link>
       </div>

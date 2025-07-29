@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
                 <div className="relative flex items-center justify-center">
                 <Image
                   src={logo}
-                  alt="Novate AI Logo"
+                  alt="NovateScribe Logo"
                     className="h-20 w-20 rounded-full"
                 />
               </div>

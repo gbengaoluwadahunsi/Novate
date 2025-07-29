@@ -6,7 +6,7 @@ import Link from "next/link"
 import { motion, useScroll, useTransform, useInView } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Navbar } from "@/components/navbar"
- import logo from "@/public/novateLogo-removebg-preview2.png"
+ import { Logo } from "@/components/ui/logo"
 import Image from "next/image"
 import { ArrowRight, CheckCircle2, Mic, FileText, Clock, BarChart3, Shield, Sparkles, ChevronRight } from "lucide-react"
 import ClientOnly from "@/components/client-only"
@@ -523,7 +523,7 @@ export default function HomePage() {
                 transition={{ duration: 0.5, delay: 0.3 }}
                 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-[#0ea5e9] text-center lg:text-left"
               >
-                NovateScribe<sup className="text-black font-normal">TM</sup>
+                NovateScribe<sup className="text-black dark:text-white font-normal">TM</sup>
               </motion.h1>
               <motion.p
                 initial={{ opacity: 0, y: -20 }}
@@ -820,7 +820,7 @@ export default function HomePage() {
               className="text-lg sm:text-xl text-blue-100 mb-6 sm:mb-8"
             >
               Join healthcare professionals worldwide who are saving time and improving patient care with
-               NovateScribe<sup className="text-black font-normal">TM</sup>.
+               NovateScribe<sup className="text-black dark:text-white font-normal">TM</sup>.
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: -20 }}
@@ -865,7 +865,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
             <div className="text-center sm:text-left">
              
-                <Image src={logo} alt=" NovateScribe Logo" className="mx-auto sm:mx-0 mr-0 sm:mr-2 rounded-full" width={100} height={100} />
+                <Logo width={100} height={100} className="mx-auto sm:mx-0 mr-0 sm:mr-2 rounded-full" alt="NovateScribe Logo" />
                 
 
              
@@ -940,7 +940,7 @@ export default function HomePage() {
             <div className="flex flex-col items-center justify-center space-y-3 sm:space-y-0 sm:flex-row text-gray-500 dark:text-gray-400">
               {/* Logo - centered on mobile */}
               <div className="flex items-center justify-center">
-                <Image src={logo} alt="NovateScribe Logo" className="rounded-full" width={32} height={32} />
+                <Logo width={32} height={32} className="rounded-full" alt="NovateScribe Logo" />
               </div>
               
               {/* Copyright text - centered on mobile, inline on desktop */}

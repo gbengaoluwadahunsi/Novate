@@ -5,8 +5,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
-import logo from "@/public/novateLogo-removebg-preview2.png"
-import Image from "next/image"
+import { Logo } from "@/components/ui/logo"
 import { Menu, X } from "lucide-react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { clearAuth } from "@/store/features/authSlice"
@@ -44,20 +43,17 @@ export function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <Image 
-              src={logo} 
-              alt="Novate AI Logo" 
-              className="rounded-full" 
+            <Logo 
               width={160} 
               height={160}
-              style={{ width: 'auto', height: 'auto' }}
-              priority
+              className="rounded-full"
+              alt="NovateScribe Logo"
             />
           </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            {["Features", "How It Works", "Pricing", "Testimonials"].map((item) => (
+            {["Features", "How It Works"].map((item) => (
               <Link
                 key={item}
                 href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
@@ -66,6 +62,24 @@ export function Navbar() {
                 {item}
               </Link>
             ))}
+            {/* Show Pricing only for authenticated users */}
+            {isAuthenticated && (
+              <Link
+                href="#pricing"
+                className="text-gray-700 dark:text-gray-200 hover:text-[#2563eb] dark:hover:text-[#2563eb] font-medium"
+              >
+                Pricing
+              </Link>
+            )}
+            {/* Show Dashboard next to Pricing for authenticated users */}
+            {isAuthenticated && (
+              <Link
+                href="/dashboard"
+                className="text-gray-700 dark:text-gray-200 hover:text-[#2563eb] dark:hover:text-[#2563eb] font-medium"
+              >
+                Dashboard
+              </Link>
+            )}
           </nav>
 
           {/* Auth Buttons */}
@@ -74,14 +88,9 @@ export function Navbar() {
               <div className="h-8 w-36 animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
             )}
             {isAuthenticated && (
-              <>
-                <Button variant="ghost" className="font-medium" asChild>
-                  <Link href="/dashboard">Dashboard</Link>
-                </Button>
-                <Button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white font-medium">
-                  Sign Out
-                </Button>
-              </>
+              <Button onClick={handleLogout} className="bg-red-500 hover:bg-red-600 text-white font-medium">
+                Sign Out
+              </Button>
             )}
             {!isAuthenticated && !isLoading && (
               <>
@@ -119,7 +128,7 @@ export function Navbar() {
             className="md:hidden mt-4 py-4 bg-white dark:bg-gray-900 rounded-lg shadow-lg"
           >
             <nav className="flex flex-col space-y-2">
-              {["Features", "How It Works", "Pricing", "Testimonials"].map((item) => (
+              {["Features", "How It Works"].map((item) => (
                 <Link
                   key={item}
                   href={`#${item.toLowerCase().replace(/\s+/g, "-")}`}
@@ -129,19 +138,34 @@ export function Navbar() {
                   {item}
                 </Link>
               ))}
+              {/* Show Pricing only for authenticated users - Mobile */}
+              {isAuthenticated && (
+                <Link
+                  href="#pricing"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+              )}
+              {/* Show Dashboard next to Pricing for authenticated users - Mobile */}
+              {isAuthenticated && (
+                <Link
+                  href="/dashboard"
+                  className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+              )}
               <div className="pt-2 mt-2 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 gap-2 px-4">
                 {isLoading && !isAuthenticated && (
                   <div className="h-10 w-full animate-pulse rounded-md bg-gray-200 dark:bg-gray-800" />
                 )}
                 {isAuthenticated && (
-                  <>
-                    <Button variant="outline" className="w-full" asChild>
-                      <Link href="/dashboard">Dashboard</Link>
-                    </Button>
-                    <Button onClick={handleLogout} className="w-full bg-red-500 hover:bg-red-600 text-white">
-                      Sign Out
-                    </Button>
-                  </>
+                  <Button onClick={handleLogout} className="w-full bg-red-500 hover:bg-red-600 text-white">
+                    Sign Out
+                  </Button>
                 )}
                 {!isAuthenticated && !isLoading && (
                   <>

@@ -5,6 +5,7 @@ import "./globals.css"
 import { Providers } from "./providers"
 import { PerformanceProvider } from "@/components/performance-provider"
 import { ScrollToTop } from "@/components/ui/scroll-to-top"
+import { SecurityWrapper } from "@/components/security-wrapper"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -180,12 +181,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className={inter.className}>
-        <PerformanceProvider>
-          <Providers>
-            {children}
-            <ScrollToTop />
-          </Providers>
-        </PerformanceProvider>
+        <SecurityWrapper>
+          <PerformanceProvider>
+            <Providers>
+              {children}
+              <ScrollToTop />
+            </Providers>
+          </PerformanceProvider>
+        </SecurityWrapper>
       </body>
     </html>
   )

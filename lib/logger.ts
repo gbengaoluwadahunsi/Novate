@@ -66,14 +66,16 @@ class Logger {
   error(message: string, error?: Error | any, data?: any) {
     const entry = this.createLogEntry('error', message, data, error instanceof Error ? error : undefined);
     
-    // Always log errors
-    console.error(`[ERROR] ${entry.timestamp}: ${entry.message}`, {
-      error: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : undefined,
-      data
-    });
+    // Only log errors in development for security
+    if (this.isDevelopment) {
+      console.error(`[ERROR] ${entry.timestamp}: ${entry.message}`, {
+        error: error instanceof Error ? error.message : error,
+        stack: error instanceof Error ? error.stack : undefined,
+        data
+      });
+    }
 
-    // In production, you might want to send errors to a monitoring service
+    // In production, send to monitoring service instead of console
     if (!this.isDevelopment && typeof window !== 'undefined') {
       // TODO: Send to error monitoring service (Sentry, LogRocket, etc.)
       // this.sendToMonitoringService(entry);

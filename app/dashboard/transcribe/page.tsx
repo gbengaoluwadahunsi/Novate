@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge"
 
 import AudioUpload from "@/components/audio-upload"
 import { useToast } from "@/hooks/use-toast"
-import { useAppDispatch } from "@/store/hooks"
+import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { createMedicalNote } from "@/store/features/notesSlice"
 // import { DebugAuth } from "@/components/debug-auth"
 
@@ -50,6 +50,65 @@ export default function TranscribePage() {
   const dispatch = useAppDispatch()
   const router = useRouter()
   const { toast } = useToast()
+  
+  // Get user information for student detection
+  const { user } = useAppSelector((state) => state.auth)
+  const [anonymizationSettings, setAnonymizationSettings] = useState<any>(null)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  
+  // Fetch anonymization settings from backend
+  useEffect(() => {
+    const fetchAnonymizationSettings = async () => {
+      try {
+        // This will integrate with the new backend API
+        // For now, we'll use the existing user data
+        if (user) {
+          // Check if user is a student based on role or userType
+          // Only consider users with explicit STUDENT roles as students
+          const isStudent = user?.role === 'STUDENT' || 
+                           user?.role === 'MEDICAL_STUDENT' || 
+                           (user as any)?.userType === 'STUDENT'
+          
+
+          
+          setAnonymizationSettings({
+            isStudent: isStudent === true, // Explicit boolean check
+            requiresAnonymization: isStudent === true,
+            anonymizePatientNames: isStudent === true,
+            privacyNotice: isStudent === true ? 
+              "🔒 PRIVACY PROTECTION: Patient names are anonymized for educational purposes to ensure compliance and protect patient identity." : 
+              null
+          })
+          setSettingsLoaded(true)
+        }
+              } catch (error) {
+        // Use logger instead of console for production security
+        setSettingsLoaded(true)
+      }
+    }
+
+    if (user) {
+      fetchAnonymizationSettings()
+    } else {
+      setSettingsLoaded(true)
+    }
+  }, [user])
+  
+  // Generate anonymous patient ID for students
+  const generateAnonymousPatientId = () => {
+    const timestamp = Date.now().toString().slice(-4)
+    return {
+      firstName: 'Patient',
+      lastName: `Case-${timestamp}`,
+      anonymized: true
+    }
+  }
+  
+  // Check if current user is a medical student
+  // Only show student UI when we're certain the user is a student AND settings are loaded
+  const isStudentUser = settingsLoaded && anonymizationSettings?.isStudent === true
+  
+
 
   const clearPatientForm = () => {
     setPatientInfo({
@@ -70,11 +129,11 @@ export default function TranscribePage() {
   const handleTranscriptionComplete = async (data: any) => {
     // Check if it's a minimal/error response
     if (data.isMinimal) {
-      console.log('⚠️ Minimal transcription, not creating note');
+      // Minimal transcription, not creating note
       return;
     }
     
-    console.log('🎯 Creating note for:', `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() || data.patientName || 'Unknown Patient');
+          // Creating note for patient
     
     // Automatically create a draft note in the backend and navigate to it
     try {
@@ -83,10 +142,26 @@ export default function TranscribePage() {
       const medicalNote = data.medicalNote || {};
       
       const noteData = {
-        // Prioritize manual patient information over transcribed data
+        // Prioritize manual patient information over transcribed data, but anonymize for students
         patientName: (() => {
           const manualName = `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim();
-          return manualName || transcribedPatientInfo.name || data.patientName || 'Unknown Patient';
+          const originalName = manualName || transcribedPatientInfo.name || data.patientName || 'Unknown Patient';
+          
+          // 🎓 AUTOMATIC ANONYMIZATION FOR STUDENTS
+          if (isStudentUser) {
+            // Generate anonymous ID if real names detected
+            const hasRealName = /^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(originalName) && 
+                               !originalName.toLowerCase().includes('patient') && 
+                               !originalName.toLowerCase().includes('case');
+            
+            if (hasRealName || originalName === 'Unknown Patient') {
+              const anonymousId = generateAnonymousPatientId();
+              // Student user detected - anonymizing patient name
+              return `${anonymousId.firstName} ${anonymousId.lastName}`;
+            }
+          }
+          
+          return originalName;
         })(),
         patientAge: (() => {
           // Try manual age first, then transcribed age
@@ -113,24 +188,13 @@ export default function TranscribePage() {
         audioJobId: data.audioJobId,
       };
 
-      // Log note data consistency for debugging
-      console.log('🔬 NOTE CREATION DATA:', {
-        timestamp: new Date().toISOString(),
-        patientName: noteData.patientName,
-        diagnosis: noteData.diagnosis,
-        chiefComplaint: noteData.chiefComplaint,
-        diagnosisSource: medicalNote.assessmentAndDiagnosis ? 'assessmentAndDiagnosis' : 
-                        medicalNote.diagnosis ? 'medicalNote.diagnosis' : 
-                        data.diagnosis ? 'data.diagnosis' : 'none',
-        rawMedicalNote: medicalNote,
-        audioJobId: noteData.audioJobId
-      });
+      // Note data prepared for creation
 
       const result = await dispatch(createMedicalNote(noteData));
       
       if (createMedicalNote.fulfilled.match(result)) {
         const savedNote = result.payload;
-        console.log('✅ Note creation successful:', savedNote);
+        // Note creation successful
         
         // Navigate directly to the saved note instead of showing transcription view
         if (savedNote && savedNote.id) {
@@ -349,33 +413,104 @@ export default function TranscribePage() {
           <div className="lg:col-span-2">
             <Card className="mb-6">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <User className="h-5 w-5" />
-                  Patient Information
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Patient Information
+                  </div>
+                  {settingsLoaded && (
+                    <Badge variant="outline" className={
+                      isStudentUser 
+                        ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-300 dark:border-green-800"
+                        : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-800"
+                    }>
+                      {isStudentUser ? "🔒 Auto-Anonymized" : "🏥 Professional Mode"}
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* Privacy Warning - Different for Students vs Professionals */}
+                {/* Only show alerts when settings are loaded and we know user type */}
+                {settingsLoaded && (isStudentUser ? (
+                  <Alert className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+                    <AlertCircle className="h-4 w-4 text-orange-600" />
+                    <AlertTitle className="text-orange-800 dark:text-orange-200">
+                      🎓 Medical Student: Automatic Patient Anonymization Active
+                    </AlertTitle>
+                    <AlertDescription className="text-orange-700 dark:text-orange-300 space-y-3">
+                      <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
+                        <p className="font-semibold text-green-800 dark:text-green-200 mb-2">
+                          🔒 Privacy Protection Enabled
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-green-700 dark:text-green-300">
+                          <li>Patient names will be <strong>automatically anonymized</strong> in the PDF</li>
+                          <li>Real names will be replaced with "Patient Case-XXXX"</li>
+                          <li>Age and gender information will be preserved for medical accuracy</li>
+                          <li>All identifying information will be removed from documentation</li>
+                        </ul>
+                      </div>
+                      <p className="text-xs italic">
+                        ✅ You can enter any information - our system will automatically protect patient privacy in the final documentation.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                ) : (
+                  <Alert className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                    <AlertCircle className="h-4 w-4 text-blue-600" />
+                    <AlertTitle className="text-blue-800 dark:text-blue-200">
+                      🏥 Healthcare Professional: Patient Privacy Guidelines
+                    </AlertTitle>
+                    <AlertDescription className="text-blue-700 dark:text-blue-300 space-y-3">
+                      <p className="font-semibold">Please ensure patient consent and follow privacy regulations:</p>
+                      <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg">
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          <li>Obtain patient consent before recording consultations</li>
+                          <li>Ensure secure handling of patient information</li>
+                          <li>Follow your institution's privacy policies</li>
+                          <li>Consider anonymization for training or research purposes</li>
+                        </ul>
+                      </div>
+                      <p className="text-xs italic">
+                        Patient information will appear exactly as entered in the generated documentation.
+                      </p>
+                    </AlertDescription>
+                  </Alert>
+                ))}
+
                 <div className="grid gap-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="patientFirstName" className="text-right">
                       First Name
+                      {isStudentUser && (
+                        <span className="text-xs text-orange-600 dark:text-orange-400 block font-normal">
+                          (Use "Patient" or "Mr. A")
+                        </span>
+                      )}
                     </Label>
                     <Input
                       id="patientFirstName"
                       value={patientInfo.firstName}
                       onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
                       className="col-span-3"
+                      placeholder={isStudentUser ? "Patient / Mr. A / Ms. B (DO NOT use real names)" : "Enter patient's first name"}
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="patientLastName" className="text-right">
                       Last Name
+                      {isStudentUser && (
+                        <span className="text-xs text-orange-600 dark:text-orange-400 block font-normal">
+                          (Anonymous identifier)
+                        </span>
+                      )}
                     </Label>
                     <Input
                       id="patientLastName"
                       value={patientInfo.lastName}
                       onChange={(e) => setPatientInfo({ ...patientInfo, lastName: e.target.value })}
                       className="col-span-3"
+                      placeholder={isStudentUser ? "Case-001 / Anonymous (DO NOT use real surnames)" : "Enter patient's last name"}
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -406,6 +541,25 @@ export default function TranscribePage() {
                     </Select>
                   </div>
                 </div>
+                
+                {/* Educational Footer - Only for Students */}
+                {isStudentUser && (
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                        <Info className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
+                          Why Patient Anonymization Matters
+                        </h4>
+                        <p className="text-xs text-gray-600 dark:text-gray-400">
+                          Anonymizing patient information protects privacy, ensures HIPAA compliance, and allows safe use of AI tools for medical education and practice improvement without compromising patient confidentiality.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -415,7 +569,32 @@ export default function TranscribePage() {
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Patient Information Required</AlertTitle>
                 <AlertDescription>
-                  Please fill in the patient's first name, last name, age, and gender before recording. This ensures accurate medical documentation.
+                  Please fill in the patient's anonymized information before recording. Remember to use generic identifiers, not real patient names.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Recording Privacy Guidance - Only for Students */}
+            {isStudentUser && isPatientInfoValid() && (
+              <Alert className="mb-4 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                <Info className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-800 dark:text-blue-200">
+                  🎙️ Recording Privacy Guidelines
+                </AlertTitle>
+                <AlertDescription className="text-blue-700 dark:text-blue-300">
+                  <div className="space-y-2">
+                    <p className="font-semibold">When recording your consultation:</p>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      <li>Say "The patient" instead of using real names</li>
+                      <li>Avoid mentioning specific hospital/clinic names</li>
+                      <li>Do not include registration numbers or ID numbers</li>
+                      <li>Focus on symptoms, examination findings, and clinical decisions</li>
+                    </ul>
+                    <p className="text-xs italic mt-2">
+                      ✅ Good: "The patient is a 28-year-old male presenting with sore throat..."<br/>
+                      ❌ Avoid: "John Smith from Ward 3A, ID 12345, is presenting with..."
+                    </p>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}

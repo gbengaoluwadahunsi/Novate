@@ -9,9 +9,10 @@ const nextConfig = {
   
   // Compiler optimizations
   compiler: {
-    removeConsole: process.env.NODE_ENV === 'production' ? {
-      exclude: ['error', 'warn'] // Keep console.error and console.warn
-    } : false,
+    // Remove ALL console statements in production for security
+    removeConsole: process.env.NODE_ENV === 'production' ? true : false,
+    // Remove React DevTools in production
+    reactRemoveProperties: process.env.NODE_ENV === 'production' ? true : false,
   },
   
   eslint: {

@@ -14,6 +14,8 @@ import { EyeIcon, EyeOffIcon, ArrowLeft, CheckCircle2, AlertCircle, Mail } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAppDispatch } from "@/store/hooks"
 import { register } from "@/store/features/authSlice"
 import { INITIAL_LANGUAGES, fetchSupportedLanguages, type Language } from "@/app/config/languages"
@@ -40,6 +42,148 @@ interface FormErrors {
 
 
 
+// Terms of Service Modal Content
+function TermsOfServiceContent() {
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-lg font-semibold mb-3">1. Acceptance of Terms</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          By accessing and using NovateScribe, you accept and agree to be bound by the terms and provision of this agreement.
+        </p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">2. Description of Service</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+          NovateScribe is a medical documentation platform that provides healthcare professionals with AI-powered transcription and note-taking services, including:
+        </p>
+        <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+          <li>Audio transcription for medical consultations</li>
+          <li>AI-generated medical notes and summaries</li>
+          <li>Patient information management</li>
+          <li>Medical document generation and export</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">3. Medical Disclaimer</h3>
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
+          <p className="font-semibold text-yellow-800 dark:text-yellow-200 text-sm">
+            IMPORTANT MEDICAL DISCLAIMER
+          </p>
+        </div>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          NovateScribe is a documentation tool and does not provide medical advice, diagnosis, or treatment recommendations. Healthcare professionals remain fully responsible for all clinical decisions and patient care.
+        </p>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">4. User Responsibilities</h3>
+        <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+          <li>Use the Service only for legitimate medical documentation purposes</li>
+          <li>Maintain the confidentiality of account credentials</li>
+          <li>Ensure patient consent is obtained before recording consultations</li>
+          <li>Comply with all applicable laws and professional standards</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">5. Data Protection</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          We comply with HIPAA, GDPR, and other applicable privacy regulations. All patient data is encrypted and processed only for providing the Service.
+        </p>
+      </section>
+
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          For complete terms, visit our full Terms of Service page. By using NovateScribe, you agree to these terms and our Privacy Policy.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Privacy Policy Modal Content
+function PrivacyPolicyContent() {
+  return (
+    <div className="space-y-6">
+      <section>
+        <h3 className="text-lg font-semibold mb-3">1. Information We Collect</h3>
+        <div className="space-y-3">
+          <div>
+            <h4 className="font-medium text-sm mb-2">Healthcare Professional Information</h4>
+            <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+              <li>Name, email address, and contact information</li>
+              <li>Professional credentials and licensing information</li>
+              <li>Medical specialization and practice details</li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-medium text-sm mb-2">Patient Health Information (PHI)</h4>
+            <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+              <li>Audio recordings of medical consultations</li>
+              <li>Transcribed medical notes and documentation</li>
+              <li>Patient demographic information</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">2. How We Use Your Information</h3>
+        <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+          <li>Transcribe audio recordings into medical notes</li>
+          <li>Generate AI-powered medical documentation</li>
+          <li>Provide clinical decision support tools</li>
+          <li>Improve transcription accuracy and AI models</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">3. Data Security</h3>
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-3">
+          <p className="font-semibold text-blue-800 dark:text-blue-200 text-sm">
+            HIPAA COMPLIANCE NOTICE
+          </p>
+          <p className="text-blue-700 dark:text-blue-300 text-xs mt-1">
+            We maintain the highest standards of medical data protection.
+          </p>
+        </div>
+        <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+          <li>All data is encrypted in transit and at rest</li>
+          <li>Multi-factor authentication for all accounts</li>
+          <li>SOC 2 Type II certified data centers</li>
+          <li>Regular security assessments and monitoring</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">4. Your Rights</h3>
+        <ul className="list-disc pl-5 text-sm text-gray-600 dark:text-gray-300 space-y-1">
+          <li>Request access to your personal information</li>
+          <li>Correct inaccurate information</li>
+          <li>Request deletion of your account and data</li>
+          <li>Export your data in standard formats</li>
+        </ul>
+      </section>
+
+      <section>
+        <h3 className="text-lg font-semibold mb-3">5. Data Sharing</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          We do not sell, trade, or otherwise transfer your personal information or PHI to third parties, except as required by law or with your explicit consent.
+        </p>
+      </section>
+
+      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          For complete privacy information, visit our full Privacy Policy page. We are committed to protecting your privacy and maintaining HIPAA compliance.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function RegisterPage() {
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState<FormData>({
@@ -48,7 +192,7 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    userType: "DOCTOR", // Use uppercase as expected by backend
+    userType: "HEALTHCARE_PROFESSIONAL_DOCTOR", // Default to doctor
     specialization: "",
     registrationNo: "",
     licenseNumber: "",
@@ -65,9 +209,27 @@ export default function RegisterPage() {
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
   const [availableLanguages, setAvailableLanguages] = useState<Language[]>(INITIAL_LANGUAGES)
+  const [showTermsModal, setShowTermsModal] = useState(false)
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false)
   
   const router = useRouter()
   const dispatch = useAppDispatch()
+
+  // Helper function to format user type display names
+  const formatUserType = (userType: string): string => {
+    switch (userType) {
+      case 'HEALTHCARE_PROFESSIONAL_DOCTOR':
+        return 'Healthcare Professional (Doctor)'
+      case 'HEALTHCARE_PROFESSIONAL_NURSE':
+        return 'Healthcare Professional (Nurse)'
+      case 'HEALTHCARE_PROFESSIONAL_OTHER':
+        return 'Healthcare Professional (Other)'
+      case 'STUDENT':
+        return 'Student'
+      default:
+        return userType
+    }
+  }
 
   // Load supported languages from backend
   useEffect(() => {
@@ -250,7 +412,7 @@ export default function RegisterPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
           <Card>
             <CardHeader className="space-y-1">
-              <div className="flex justify-center"><Image src={logo} alt="Novate AI Logo" className="h-20 w-20 rounded-full" /></div>
+              <div className="flex justify-center"><Image src={logo} alt="NovateScribe Logo" className="h-20 w-20 rounded-full" /></div>
               <CardTitle className="text-2xl font-bold text-center">Check Your Email</CardTitle>
               <CardDescription className="text-center">We've sent a verification link to your email address</CardDescription>
             </CardHeader>
@@ -310,7 +472,7 @@ export default function RegisterPage() {
         </Link>
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex justify-center"><Image src={logo} alt="Novate AI Logo" className="h-20 w-20 rounded-full" /></div>
+            <div className="flex justify-center"><Image src={logo} alt="NovateScribe Logo" className="h-20 w-20 rounded-full" /></div>
             <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
             <CardDescription className="text-center">
               {step === 1 ? "Enter your personal information" : step === 2 ? "Tell us about your professional background" : "Review and confirm your information"}
@@ -382,8 +544,10 @@ export default function RegisterPage() {
                         <SelectValue placeholder="Select account type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="DOCTOR">Doctor</SelectItem>
-                        <SelectItem value="STUDENT">Medical Student</SelectItem>
+                        <SelectItem value="HEALTHCARE_PROFESSIONAL_DOCTOR">Healthcare Professional (Doctor)</SelectItem>
+                        <SelectItem value="HEALTHCARE_PROFESSIONAL_NURSE">Healthcare Professional (Nurse)</SelectItem>
+                        <SelectItem value="HEALTHCARE_PROFESSIONAL_OTHER">Healthcare Professional (Other)</SelectItem>
+                        <SelectItem value="STUDENT">Student</SelectItem>
                       </SelectContent>
                     </Select>
                     {errors.userType && <p className="text-sm text-red-500">{errors.userType}</p>}
@@ -395,20 +559,19 @@ export default function RegisterPage() {
                         <SelectValue placeholder="Select specialization" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PRIMARY_CARE">Primary Care</SelectItem>
+                        <SelectItem value="PRIMARY_CARE_FAMILY_MEDICINE">Primary Care and Family Medicine</SelectItem>
                         <SelectItem value="INTERNAL_MEDICINE">Internal Medicine</SelectItem>
                         <SelectItem value="SURGERY">Surgery</SelectItem>
                         <SelectItem value="ORTHOPEDIC">Orthopedic</SelectItem>
                         <SelectItem value="CARDIOLOGY">Cardiology</SelectItem>
                         <SelectItem value="NEUROLOGY">Neurology</SelectItem>
                         <SelectItem value="PEDIATRICS">Pediatrics</SelectItem>
-                        <SelectItem value="GYNECOLOGY">Gynecology</SelectItem>
+                        <SelectItem value="OBSTETRICS_GYNECOLOGY">Obstetrics and Gynecology</SelectItem>
                         <SelectItem value="DERMATOLOGY">Dermatology</SelectItem>
                         <SelectItem value="PSYCHIATRY">Psychiatry</SelectItem>
                         <SelectItem value="RADIOLOGY">Radiology</SelectItem>
                         <SelectItem value="ANESTHESIA">Anesthesia</SelectItem>
                         <SelectItem value="EMERGENCY_MEDICINE">Emergency Medicine</SelectItem>
-                        <SelectItem value="FAMILY_MEDICINE">Family Medicine</SelectItem>
                         <SelectItem value="OTHER">Other</SelectItem>
                       </SelectContent>
                     </Select>
@@ -455,7 +618,7 @@ export default function RegisterPage() {
                         <span className="text-gray-500 dark:text-gray-400">Email:</span><span className="break-all text-xs sm:text-sm">{formData.email}</span>
                       </div>
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
-                        <span className="text-gray-500 dark:text-gray-400">Account Type:</span><span className="break-words">{formData.userType === 'DOCTOR' ? 'Doctor' : 'Medical Student'}</span>
+                        <span className="text-gray-500 dark:text-gray-400">Account Type:</span><span className="break-words">{formatUserType(formData.userType)}</span>
                       </div>
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Specialization:</span><span className="break-words">{formData.specialization.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</span>
@@ -475,7 +638,60 @@ export default function RegisterPage() {
                   <div className="space-y-2">
                     <div className="flex items-start space-x-2">
                       <Checkbox id="acceptTerms" checked={formData.acceptTerms} onCheckedChange={(checked) => setFormData(prev => ({ ...prev, acceptTerms: checked as boolean }))} className={errors.acceptTerms ? "border-red-500" : ""} />
-                      <Label htmlFor="acceptTerms" className="text-sm leading-5">I agree to the <a href="#" className="text-blue-500 hover:text-blue-700 underline">Terms of Service</a> and <a href="#" className="text-blue-500 hover:text-blue-700 underline">Privacy Policy</a></Label>
+                      <Label htmlFor="acceptTerms" className="text-sm leading-5">
+                        I agree to the{" "}
+                        <Dialog open={showTermsModal} onOpenChange={setShowTermsModal}>
+                          <DialogTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-blue-500 hover:text-blue-700 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                setShowTermsModal(true)
+                              }}
+                            >
+                              Terms of Service
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[80vh]">
+                            <DialogHeader>
+                              <DialogTitle>Terms of Service</DialogTitle>
+                              <DialogDescription>
+                                Please read our Terms of Service carefully before agreeing.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <ScrollArea className="h-[60vh] pr-4">
+                              <TermsOfServiceContent />
+                            </ScrollArea>
+                          </DialogContent>
+                        </Dialog>
+                        {" "}and{" "}
+                        <Dialog open={showPrivacyModal} onOpenChange={setShowPrivacyModal}>
+                          <DialogTrigger asChild>
+                            <button
+                              type="button"
+                              className="text-blue-500 hover:text-blue-700 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                setShowPrivacyModal(true)
+                              }}
+                            >
+                              Privacy Policy
+                            </button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl max-h-[80vh]">
+                            <DialogHeader>
+                              <DialogTitle>Privacy Policy</DialogTitle>
+                              <DialogDescription>
+                                Please read our Privacy Policy to understand how we protect your data.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <ScrollArea className="h-[60vh] pr-4">
+                              <PrivacyPolicyContent />
+                            </ScrollArea>
+                          </DialogContent>
+                        </Dialog>
+                      </Label>
                     </div>
                     {errors.acceptTerms && <p className="text-sm text-red-500">{errors.acceptTerms}</p>}
                   </div>

@@ -15,7 +15,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Menu } from "lucide-react"
 import { ModeToggle } from "@/components/mode-toggle"
 import { useToast } from "@/hooks/use-toast"
-import logo from "@/public/novateLogo-removebg-preview2.png"
+import { Logo } from "@/components/ui/logo"
 
 // Simplified route structure with only core features
 const routes = [
@@ -80,12 +80,11 @@ export default function MobileSidebar() {
         <div className="flex h-full flex-col bg-white dark:bg-gray-950">
           <div className="p-4 flex items-center justify-center border-b border-gray-200 dark:border-gray-800">
             <Link href="/" onClick={() => setOpen(false)} className="flex items-center">
-              <NextImage 
-                src={logo} 
-                alt="Novate AI Logo" 
+              <Logo 
                 width={100} 
                 height={100} 
                 className="rounded-full"
+                alt="NovateScribe Logo"
               />
             </Link>
           </div>

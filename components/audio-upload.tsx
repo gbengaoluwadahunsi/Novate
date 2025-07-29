@@ -44,6 +44,66 @@ interface AudioUploadProps {
   }
 }
 
+/**
+ * 🚨 WhatsApp File Detection Utility
+ * 
+ * Detects audio files that may have been processed through WhatsApp, which applies
+ * heavy compression that degrades transcription quality. This helps users understand
+ * why their transcription might be poor and guides them to use original files.
+ * 
+ * Detection methods:
+ * - Filename patterns (aud-YYYYMMDD-waXXXX.mp4, ptt-YYYYMMDD-waXXXX.mp4)
+ * - File characteristics (MP4 video with audio prefix)
+ * - File size analysis (unusually small files indicating compression)
+ * 
+ * @param file - The uploaded audio file
+ * @returns Object with isWhatsApp flag and reason for detection
+ */
+const detectWhatsAppFile = (file: File): { isWhatsApp: boolean; reason: string } => {
+  const fileName = file.name.toLowerCase()
+  const fileType = file.type.toLowerCase()
+  
+  // Common WhatsApp audio file patterns
+  const whatsappPatterns = [
+    // WhatsApp voice message patterns
+    /aud-\d{8}-wa\d{4}/,     // aud-20240101-wa0001.mp4
+    /ptt-\d{8}-wa\d{4}/,     // ptt-20240101-wa0001.mp4
+    /whatsapp.*audio/,        // whatsapp audio
+    /wa\d{4}\.mp4$/,         // wa0001.mp4
+    /voice.*\d{8}/,          // voice-20240101
+    // Generic suspicious patterns
+    /\d{8}-\d{6}/,           // 20240101-123456 (timestamp pattern common in WhatsApp)
+  ]
+  
+  // Check filename patterns
+  for (const pattern of whatsappPatterns) {
+    if (pattern.test(fileName)) {
+      return { 
+        isWhatsApp: true, 
+        reason: `Filename pattern suggests WhatsApp origin: "${fileName}"` 
+      }
+    }
+  }
+  
+  // Check for suspicious file characteristics
+  if (fileType === 'video/mp4' && fileName.includes('aud')) {
+    return { 
+      isWhatsApp: true, 
+      reason: 'MP4 video file with audio prefix suggests WhatsApp conversion' 
+    }
+  }
+  
+  // Check for very small file sizes (WhatsApp heavily compresses)
+  if (file.size < 50000 && file.size > 1000) { // Between 1KB and 50KB
+    return { 
+      isWhatsApp: true, 
+      reason: 'File size suggests heavy compression typical of WhatsApp' 
+    }
+  }
+  
+  return { isWhatsApp: false, reason: '' }
+}
+
 // Extract functions for parsing medical transcriptions
 const extractChiefComplaint = (segments: any[]): string => {
   const fullText = segments.map(s => s.text).join(' ').toLowerCase();
@@ -314,6 +374,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   
   // 🚨 REQUEST DEDUPLICATION: Prevent duplicate API calls
   const [isTranscribing, setIsTranscribing] = useState(false)
+  const [whatsappWarning, setWhatsappWarning] = useState<{show: boolean; reason: string} | null>(null)
   const lastRequestRef = useRef<string | null>(null)
   const requestTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   
@@ -402,6 +463,31 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const uploadedFile = e.target.files[0]
+      
+      // 🚨 WHATSAPP FILE DETECTION
+      const whatsappCheck = detectWhatsAppFile(uploadedFile)
+      if (whatsappCheck.isWhatsApp) {
+        setWhatsappWarning({
+          show: true,
+          reason: whatsappCheck.reason
+        })
+        
+        toast({
+          title: "⚠️ WhatsApp Audio Detected",
+          description: "WhatsApp compresses audio files which reduces transcription quality. For best results, use original audio files.",
+          variant: "destructive",
+        })
+        
+        logger.warn('🚨 WhatsApp file detected:', {
+          fileName: uploadedFile.name,
+          fileSize: uploadedFile.size,
+          fileType: uploadedFile.type,
+          reason: whatsappCheck.reason
+        })
+      } else {
+        setWhatsappWarning(null)
+      }
+      
       setFile(uploadedFile)
       
       // Disable demo mode when real file is uploaded
@@ -832,6 +918,22 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       return;
     }
 
+    // 🚨 ENHANCED WHATSAPP DETECTION DURING PROCESSING
+    const whatsappCheck = detectWhatsAppFile(audioFile);
+    if (whatsappCheck.isWhatsApp) {
+      logger.warn('🚨 Processing WhatsApp file - expect lower quality:', {
+        fileName: audioFile.name,
+        fileSize: audioFile.size,
+        reason: whatsappCheck.reason
+      });
+      
+      toast({
+        title: "⚠️ Processing WhatsApp Audio",
+        description: "This appears to be a WhatsApp file. Results may be less accurate due to compression. Consider using original audio files.",
+        variant: "destructive",
+      });
+    }
+
     performanceMonitor.current.startTiming('audio-processing');
     initializeProcessingStages();
     setIsProcessing(true);
@@ -1229,6 +1331,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     setDetectedKeywords([])
     setTranscriptionComplete(false)
     setProgress(0)
+    setWhatsappWarning(null) // Clear any WhatsApp warnings for demo file
     
     toast({
       title: "Demo File Loaded",
@@ -1250,7 +1353,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
               <AlertCircle className="h-4 w-4 text-blue-500" />
               <AlertTitle>Demo Mode Active</AlertTitle>
               <AlertDescription>
-                This is a demonstration of NovateScribe AI. You can either record a short sample or upload the pre-recorded
+                This is a demonstration of NovateScribe. You can either record a short sample or upload the pre-recorded
                 demo file.
                 <Button variant="link" className="p-0 h-auto text-blue-500" onClick={() => setShowDemoAlert(false)}>
                   Dismiss
@@ -1261,10 +1364,23 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
           <div className="flex flex-col items-center justify-center space-y-4">
             <div className="h-16 w-16 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-lg border border-gray-100 dark:border-gray-700 mx-auto">
+              {/* Light mode logo */}
               <img 
                 src="/novateLogo-removebg-preview.png" 
                 alt="NovateScribe Logo" 
-                className="h-12 w-12 object-contain"
+                className="h-12 w-12 object-contain dark:hidden"
+                onError={(e) => {
+                  // Fallback to microphone icon if logo fails to load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+              {/* Dark mode logo */}
+              <img 
+                src="/darkmodelogo.png" 
+                alt="NovateScribe Logo" 
+                className="h-12 w-12 object-contain hidden dark:block"
                 onError={(e) => {
                   // Fallback to microphone icon if logo fails to load
                   const target = e.target as HTMLImageElement;
@@ -1276,7 +1392,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             </div>
             <div className="text-center w-full">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                NovateScribe AI
+                NovateScribe
               </h2>
               <p className="text-muted-foreground text-center">Advanced Medical Voice Recognition</p>
             </div>
@@ -1298,6 +1414,72 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           </div>
 
 
+
+          {/* WhatsApp File Warning */}
+          {whatsappWarning?.show && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="w-full"
+            >
+              <Alert className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
+                <AlertCircle className="h-4 w-4 text-orange-600" />
+                <AlertTitle className="text-orange-800 dark:text-orange-200">
+                  ⚠️ WhatsApp Audio Detected
+                </AlertTitle>
+                <AlertDescription className="text-orange-700 dark:text-orange-300 space-y-2">
+                  <p>This file appears to be from WhatsApp, which heavily compresses audio and may result in poor transcription quality.</p>
+                  <div className="text-sm bg-orange-100 dark:bg-orange-900/30 p-2 rounded">
+                    <strong>For best results:</strong>
+                    <ul className="list-disc list-inside mt-1 space-y-1">
+                      <li>Record audio directly on your device</li>
+                      <li>Share via AirDrop, Google Drive, or email</li>
+                      <li>Use original .m4a, .wav, or .mp3 files</li>
+                      <li>Avoid sharing through WhatsApp first</li>
+                    </ul>
+                  </div>
+                  <p className="text-xs italic">Reason: {whatsappWarning.reason}</p>
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+
+          {/* Audio Quality Best Practices */}
+          {!whatsappWarning?.show && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="w-full"
+            >
+              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
+                <Zap className="h-4 w-4 text-blue-600" />
+                <AlertTitle className="text-blue-800 dark:text-blue-200">
+                  💡 Best Audio Quality Tips
+                </AlertTitle>
+                <AlertDescription className="text-blue-700 dark:text-blue-300">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <strong>✅ Use:</strong>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>Original audio files (.m4a, .wav, .mp3)</li>
+                        <li>Direct recordings from your device</li>
+                        <li>Clear, quiet environment</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <strong>❌ Avoid:</strong>
+                      <ul className="list-disc list-inside mt-1 space-y-1">
+                        <li>WhatsApp-shared audio files</li>
+                        <li>Multiple file compressions</li>
+                        <li>Background noise</li>
+                      </ul>
+                    </div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
 
           {/* Action Buttons - Equal Width Grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
@@ -1348,6 +1530,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 className="flex items-center justify-center gap-2 w-full h-12"
                 disabled={isProcessing || disabled}
                 onClick={() => document.getElementById("audio-upload")?.click()}
+                title="Upload original audio files (.m4a, .wav, .mp3) for best transcription quality. Avoid WhatsApp-shared files."
               >
                 <Upload size={18} /> Upload Audio File
               </Button>
@@ -1358,6 +1541,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 className="hidden"
                 onChange={handleFileChange}
                 disabled={isRecording || isProcessing}
+                title="For best transcription quality, use original audio files. Avoid WhatsApp-compressed files."
               />
             </div>
 

@@ -95,7 +95,7 @@ export default function LoginPage() {
             <div className="flex justify-center mb-4">
               <Image 
                 src={logo} 
-                alt="Novate AI Logo" 
+                alt="NovateScribe Logo" 
                 width={80} 
                 height={80} 
                 className="rounded-full" 
