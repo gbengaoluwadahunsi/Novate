@@ -398,6 +398,22 @@ function SectionHeader({ title, subtitle }: SectionHeaderProps) {
 
 // Particle Background
 function ParticleBackground() {
+  const [showParticles, setShowParticles] = useState(false)
+
+  // Delay particle rendering to prevent flicker
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowParticles(true)
+    }, 1500) // Wait 1.5 seconds before rendering particles
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Don't render particles at all until ready
+  if (!showParticles) {
+    return null
+  }
+
   // Reduced particle data with shorter delays to prevent initial scattered appearance
   const particles = [
     { width: 45, height: 52, top: 44, left: 42, opacity: 0.24, delay: 0 },
@@ -448,7 +464,7 @@ function ParticleBackground() {
             repeat: Number.POSITIVE_INFINITY,
             repeatType: "loop",
             ease: "easeInOut",
-            delay: particle.delay + 2, // Add 2 second delay so particles appear after main content
+            delay: particle.delay * 0.1, // Much faster staggered entrance
           }}
         />
       ))}
