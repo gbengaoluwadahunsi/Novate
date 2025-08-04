@@ -560,46 +560,80 @@ class EnhancedTemplatePDFGenerator {
     }
     
     // Doctor Information and Signature (always show)
-    this.currentY += 20
+    this.currentY += 25
+    
+    // Professional signature section with border
+    this.doc.setLineWidth(0.5)
+    this.doc.rect(15, this.currentY - 5, 180, 60) // Signature box border
+    
     this.doc.setFont('helvetica', 'bold')
     this.doc.setFontSize(12)
-    this.doc.text('Doctor Information', 20, this.currentY)
-    this.currentY += 15
+    this.doc.text('Doctor Information & Authorization', 20, this.currentY + 5)
     
+    // Doctor details in left column
     this.doc.setFont('helvetica', 'normal')
-    this.doc.setFontSize(10)
-    this.doc.text(`Doctor: ${note.doctorName}`, 20, this.currentY)
-    this.currentY += 8
+    this.doc.setFontSize(9)
+    this.doc.text(`Doctor: ${note.doctorName}`, 20, this.currentY + 15)
     
     if (this.hasContent(note.doctorRegistrationNo)) {
-      this.doc.text(`Registration No: ${note.doctorRegistrationNo!}`, 20, this.currentY)
-      this.currentY += 8
+      this.doc.text(`Registration No: ${note.doctorRegistrationNo!}`, 20, this.currentY + 22)
     }
     
-    this.doc.text(`Generated on: ${note.generatedOn}`, 20, this.currentY)
-    this.currentY += 20
+    this.doc.text(`Generated on: ${note.generatedOn}`, 20, this.currentY + 29)
     
-    // Signature area
-    this.doc.text('Doctor Signature:', 20, this.currentY)
-    this.doc.line(90, this.currentY, 170, this.currentY)
+    // Signature section in right column
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFontSize(8)
+    this.doc.text('Doctor Signature:', 110, this.currentY + 12)
+    
+    // Signature border box
+    this.doc.setLineWidth(0.3)
+    this.doc.rect(110, this.currentY + 15, 40, 20)
     
     // Add signature image if available
     if (this.hasContent(note.signature)) {
       try {
-        this.doc.addImage(note.signature!, 'PNG', 90, this.currentY - 15, 40, 15)
+        this.doc.addImage(note.signature!, 'PNG', 112, this.currentY + 17, 36, 16)
       } catch (error) {
         console.warn('Failed to add signature:', error)
       }
+    } else {
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setFontSize(6)
+      this.doc.text('No signature', 125, this.currentY + 25)
     }
+    
+    // Stamp section
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.setFontSize(8)
+    this.doc.text('Official Stamp:', 155, this.currentY + 12)
+    
+    // Stamp border box
+    this.doc.rect(155, this.currentY + 15, 25, 20)
     
     // Add stamp if available
     if (this.hasContent(note.stamp)) {
       try {
-        this.doc.addImage(note.stamp!, 'PNG', 140, this.currentY - 20, 25, 25)
+        this.doc.addImage(note.stamp!, 'PNG', 157, this.currentY + 17, 21, 16)
       } catch (error) {
         console.warn('Failed to add stamp:', error)
       }
+    } else {
+      this.doc.setFont('helvetica', 'normal')
+      this.doc.setFontSize(6)
+      this.doc.text('No stamp', 163, this.currentY + 25)
     }
+    
+    // Professional footer
+    this.currentY += 45
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(7)
+    this.doc.text('This medical note was generated electronically and is valid with digital authorization', 20, this.currentY)
+    
+    // Digital verification line
+    this.currentY += 8
+    this.doc.setFontSize(6)
+    this.doc.text('NOVATE AI - Digital Medical Documentation System', 20, this.currentY)
   }
 
   // Helper methods for diagrams

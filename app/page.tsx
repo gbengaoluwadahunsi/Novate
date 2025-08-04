@@ -399,23 +399,42 @@ function SectionHeader({ title, subtitle }: SectionHeaderProps) {
 // Particle Background
 function ParticleBackground() {
   const [showParticles, setShowParticles] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+
+  // Detect iOS devices
+  useEffect(() => {
+    const detectIOS = () => {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    }
+    
+    setIsIOS(detectIOS())
+  }, [])
 
   // Delay particle rendering to prevent flicker
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowParticles(true)
-    }, 1500) // Wait 1.5 seconds before rendering particles
+    }, isIOS ? 2500 : 1500) // Longer delay on iOS for better stability
 
     return () => clearTimeout(timer)
-  }, [])
+  }, [isIOS])
 
   // Don't render particles at all until ready
   if (!showParticles) {
     return null
   }
 
-  // Reduced particle data with shorter delays to prevent initial scattered appearance
-  const particles = [
+  // iOS-optimized particles (much fewer for performance)
+  const iosParticles = [
+    { width: 50, height: 50, top: 20, left: 15, opacity: 0.15, delay: 0 },
+    { width: 40, height: 40, top: 60, left: 70, opacity: 0.12, delay: 0.5 },
+    { width: 35, height: 35, top: 80, left: 25, opacity: 0.10, delay: 1.0 },
+    { width: 45, height: 45, top: 30, left: 80, opacity: 0.08, delay: 1.5 }
+  ];
+
+  // Full particle data for non-iOS devices
+  const fullParticles = [
     { width: 45, height: 52, top: 44, left: 42, opacity: 0.24, delay: 0 },
     { width: 74, height: 32, top: 82, left: 46, opacity: 0.09, delay: 0.1 },
     { width: 72, height: 66, top: 87, left: 22, opacity: 0.20, delay: 0.2 },
@@ -438,6 +457,8 @@ function ParticleBackground() {
     { width: 76, height: 28, top: 83, left: 19, opacity: 0.18, delay: 1.9 }
   ];
 
+  const particles = isIOS ? iosParticles : fullParticles;
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {particles.map((particle, i) => (
@@ -456,15 +477,15 @@ function ParticleBackground() {
             opacity: 0,
           }}
           animate={{
-            y: [0, -150],
-            opacity: [0, 0.5, 0],
+            y: isIOS ? [0, -80] : [0, -150], // Smaller movement on iOS
+            opacity: isIOS ? [0, 0.3, 0] : [0, 0.5, 0], // Lower opacity on iOS
           }}
           transition={{
-            duration: 15,
+            duration: isIOS ? 20 : 15, // Slower, gentler animation on iOS
             repeat: Number.POSITIVE_INFINITY,
             repeatType: "loop",
-            ease: "easeInOut",
-            delay: particle.delay * 0.1, // Much faster staggered entrance
+            ease: isIOS ? "linear" : "easeInOut", // Simpler easing on iOS
+            delay: particle.delay * (isIOS ? 0.5 : 0.1), // Longer stagger on iOS
           }}
         />
       ))}
@@ -473,10 +494,23 @@ function ParticleBackground() {
 }
 
 export default function HomePage() {
+  const [isIOS, setIsIOS] = useState(false)
+  
+  // Detect iOS devices
+  useEffect(() => {
+    const detectIOS = () => {
+      return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+    }
+    
+    setIsIOS(detectIOS())
+  }, [])
+
   const { scrollYProgress } = useScroll()
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], [1, 0])
-  const heroScale = useTransform(scrollYProgress, [0, 0.2], [1, 0.9])
-  const heroY = useTransform(scrollYProgress, [0, 0.2], [0, -50])
+  // Disable scroll-based animations on iOS to prevent interference
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.2], isIOS ? [1, 1] : [1, 0])
+  const heroScale = useTransform(scrollYProgress, [0, 0.2], isIOS ? [1, 1] : [1, 0.9])
+  const heroY = useTransform(scrollYProgress, [0, 0.2], isIOS ? [0, 0] : [0, -50])
   
   // Fetch dynamic dashboard statistics
   const { stats, loading, error } = usePublicDashboardStats()
@@ -492,7 +526,15 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950">
+    <div 
+      className="min-h-screen bg-gradient-to-b from-gray-50 via-white to-gray-100 dark:from-gray-950 dark:via-gray-900 dark:to-gray-950"
+      style={{ 
+        // iOS-specific scroll optimization
+        WebkitOverflowScrolling: isIOS ? 'touch' : 'auto',
+        scrollBehavior: isIOS ? 'auto' : 'smooth',
+        transform: isIOS ? 'translate3d(0,0,0)' : 'none' // Force hardware acceleration on iOS
+      }}
+    >
       <Navbar />
       <ParticleBackground />
 
@@ -504,17 +546,26 @@ export default function HomePage() {
         {/* Gradient background */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-900/20 via-blue-900/5 to-transparent"></div>
 
-        {/* Animated gradient circles */}
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-        <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-blue-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+        {/* Animated gradient circles - disabled on iOS for performance */}
+        {!isIOS && (
+          <>
+            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+            <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-blue-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+            <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+          </>
+        )}
+
+        {/* iOS-optimized static gradient */}
+        {isIOS && (
+          <div className="absolute inset-0 bg-gradient-to-br from-sky-600/10 via-blue-600/5 to-transparent"></div>
+        )}
 
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <motion.div
-              initial={{ opacity: 0, x: -50 }}
+              initial={{ opacity: 0, x: isIOS ? 0 : -50 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.6, delay: 0 }}
+              transition={{ duration: isIOS ? 0.3 : 0.6, delay: 0 }}
             >
               <motion.div
                 initial={{ opacity: 0 }}
@@ -528,26 +579,26 @@ export default function HomePage() {
               </motion.div>
 
               <motion.h1
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: isIOS ? 0 : -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
+                transition={{ duration: isIOS ? 0.3 : 0.5, delay: isIOS ? 0 : 0.1 }}
                 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-[#0ea5e9] text-center lg:text-left"
               >
                 NovateScribe<sup className="text-black dark:text-white font-normal">TM</sup>
               </motion.h1>
               <motion.p
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: isIOS ? 0 : -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
+                transition={{ duration: isIOS ? 0.3 : 0.5, delay: isIOS ? 0 : 0.2 }}
                 className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 text-center lg:text-left"
               >
                 Transform your medical voice notes into perfectly structured digital records in seconds.
               </motion.p>
               
               <motion.div
-                initial={{ opacity: 0, y: -20 }}
+                initial={{ opacity: 0, y: isIOS ? 0 : -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ duration: isIOS ? 0.3 : 0.5, delay: isIOS ? 0 : 0.3 }}
                 className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start"
               >
                 <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white w-full sm:w-auto" asChild>
@@ -991,6 +1042,35 @@ export default function HomePage() {
         }
         .animation-delay-4000 {
           animation-delay: 4s;
+        }
+
+        /* iOS-specific performance optimizations */
+        @supports (-webkit-overflow-scrolling: touch) {
+          * {
+            -webkit-transform: translate3d(0, 0, 0);
+            -webkit-backface-visibility: hidden;
+            -webkit-perspective: 1000;
+          }
+          
+          body {
+            -webkit-overflow-scrolling: touch;
+            -webkit-transform: translateZ(0);
+          }
+          
+          /* Reduce animation complexity on iOS */
+          .animate-blob {
+            animation: none !important;
+          }
+          
+          /* Optimize scrolling performance */
+          .scroll-smooth {
+            scroll-behavior: auto;
+          }
+        }
+
+        /* Force hardware acceleration for better performance */
+        .relative {
+          transform: translateZ(0);
         }
       `}</style>
     </div>

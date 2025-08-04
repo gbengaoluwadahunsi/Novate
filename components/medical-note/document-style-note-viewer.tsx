@@ -261,6 +261,18 @@ export default function DocumentStyleNoteViewer({
       {/* Document Content - Medical Note */}
       <div className="p-8 space-y-8 bg-white" style={{ fontFamily: 'Georgia, serif' }}>
 
+        {/* Patient Information */}
+        <section className="border-b pb-4">
+          <h2 className="text-lg font-semibold mb-3 text-blue-900">Patient Information</h2>
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div><strong>Patient Name:</strong> {formatFieldValue(note.patientName)}</div>
+            <div><strong>Age:</strong> {formatFieldValue(note.patientAge)}</div>
+            <div><strong>Gender:</strong> {formatFieldValue(note.patientGender)}</div>
+            <div><strong>Date of Visit:</strong> {formatFieldValue(note.generatedOn)}</div>
+            <div><strong>Patient ID:</strong> {formatFieldValue(note.patientId) || 'Not specified'}</div>
+            <div><strong>Doctor:</strong> {formatFieldValue(note.doctorName) || 'Not specified'}</div>
+          </div>
+        </section>
 
         {/* Vital Signs */}
         <section className="border-b pb-4">
@@ -570,28 +582,70 @@ export default function DocumentStyleNoteViewer({
           </section>
         )}
 
-        {/* Doctor Information */}
-        <section className="pt-4">
-          <div className="flex justify-between items-end">
-            <div className="text-sm">
+        {/* Doctor Information & Signature */}
+        <section className="pt-8 mt-8 border-t border-gray-200">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Doctor Information */}
+            <div className="space-y-3">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Doctor Information</h3>
               {note.doctorName && (
-                <div>
-                  <strong>Doctor:</strong> {note.doctorName}
-                  {note.doctorRegistrationNo && ` (Reg: ${note.doctorRegistrationNo})`}
+                <div className="text-sm">
+                  <span className="font-medium text-gray-600">Doctor:</span>
+                  <span className="ml-2 text-gray-900">{note.doctorName}</span>
+                  {note.doctorRegistrationNo && (
+                    <div className="mt-1">
+                      <span className="font-medium text-gray-600">Registration No:</span>
+                      <span className="ml-2 text-gray-900">{note.doctorRegistrationNo}</span>
+                    </div>
+                  )}
                 </div>
               )}
+              <div className="text-sm">
+                <span className="font-medium text-gray-600">Generated on:</span>
+                <span className="ml-2 text-gray-900">{note.generatedOn}</span>
+              </div>
             </div>
-            <div className="text-right">
-              {note.signature && (
-                <div className="mb-2">
-                  <img src={note.signature} alt="Doctor Signature" className="h-16 ml-auto" />
+
+            {/* Signature & Stamp */}
+            <div className="space-y-4">
+              <h3 className="text-base font-semibold text-gray-800 mb-4">Authorization</h3>
+              
+              {/* Signature Section */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="text-sm font-medium text-gray-600 mb-3">Doctor Signature:</div>
+                <div className="min-h-[60px] bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center relative">
+                  {note.signature ? (
+                    <img 
+                      src={note.signature} 
+                      alt="Doctor Signature" 
+                      className="max-h-14 max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-gray-400 text-xs">No signature uploaded</span>
+                  )}
                 </div>
-              )}
-              {note.stamp && (
-                <div>
-                  <img src={note.stamp} alt="Doctor Stamp" className="h-16 ml-auto" />
+              </div>
+
+              {/* Stamp Section */}
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div className="text-sm font-medium text-gray-600 mb-3">Official Stamp:</div>
+                <div className="min-h-[60px] bg-white border border-dashed border-gray-300 rounded-lg flex items-center justify-center relative">
+                  {note.stamp ? (
+                    <img 
+                      src={note.stamp} 
+                      alt="Doctor Stamp" 
+                      className="max-h-14 max-w-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-gray-400 text-xs">No stamp uploaded</span>
+                  )}
                 </div>
-              )}
+              </div>
+
+              {/* Professional Footer */}
+              <div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-100">
+                This medical note was generated electronically and is valid with digital authorization
+              </div>
             </div>
           </div>
         </section>
