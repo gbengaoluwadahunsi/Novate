@@ -62,17 +62,19 @@ export default function DynamicMedicalDiagram({
             >
               {/* Finding Point */}
               <div 
-                className={`w-3 h-3 rounded-full border-2 border-white shadow-lg animate-pulse hover:scale-125 transition-all duration-200 ${
+                className={`w-4 h-4 rounded-full border-2 border-white shadow-lg hover:scale-150 transition-all duration-300 cursor-pointer ${
                   colorMap[finding.color || 'red']
-                }`}
+                } ${hoveredFinding === finding.id ? 'animate-pulse scale-125' : 'animate-pulse'}`}
               />
               
               {/* Tooltip */}
-              <div className={`absolute left-4 top-0 bg-black text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10 pointer-events-none transition-opacity duration-200 ${
-                hoveredFinding === finding.id ? 'opacity-100' : 'opacity-0'
+              <div className={`absolute left-5 -top-2 bg-gray-900 text-white text-xs px-3 py-2 rounded-lg shadow-xl border border-gray-700 z-20 pointer-events-none transition-all duration-200 min-w-max max-w-64 ${
+                hoveredFinding === finding.id ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
               }`}>
-                <div className="font-medium">{finding.label}</div>
-                <div className="text-gray-300 max-w-48 break-words">{finding.value}</div>
+                <div className="font-semibold text-yellow-300 mb-1">{finding.label}</div>
+                <div className="text-gray-200 text-xs leading-relaxed break-words">{finding.value}</div>
+                {/* Tooltip arrow */}
+                <div className="absolute left-[-6px] top-3 w-0 h-0 border-t-[6px] border-b-[6px] border-r-[6px] border-t-transparent border-b-transparent border-r-gray-900"></div>
               </div>
             </div>
           ))}
@@ -129,13 +131,13 @@ export function convertExaminationDataToFindings(examinationData: any): {
   if (examinationData.GEI) {
     const gei = examinationData.GEI
 
-    // Head findings
+    // Head findings - anatomically correct positioning
     if (gei.Head?.Head1) {
       findings.general.push({
         id: 'head1',
         label: 'Head',
         value: gei.Head.Head1,
-        position: { x: 50, y: 12 }, // Top center of head
+        position: { x: 50, y: 8 }, // Top of head
         color: 'red',
         section: 'general'
       })
@@ -147,7 +149,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'face1', 
         label: 'Face',
         value: gei.Face.Face1,
-        position: { x: 50, y: 18 }, // Face area
+        position: { x: 50, y: 15 }, // Center of face
         color: 'red',
         section: 'general'
       })
@@ -159,7 +161,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'eye1',
         label: 'Right Eye',
         value: gei.Eyes.Eye1,
-        position: { x: 46, y: 16 }, // Right eye position
+        position: { x: 45, y: 13 }, // Right eye (patient's right)
         color: 'red',
         section: 'general'
       })
@@ -170,7 +172,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'eye2',
         label: 'Left Eye', 
         value: gei.Eyes.Eye2,
-        position: { x: 54, y: 16 }, // Left eye position
+        position: { x: 55, y: 13 }, // Left eye (patient's left)
         color: 'red',
         section: 'general'
       })
@@ -182,7 +184,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'neck1',
         label: 'Neck',
         value: gei.Neck.Neck1,
-        position: { x: 50, y: 25 }, // Neck area
+        position: { x: 50, y: 20 }, // Neck area
         color: 'red',
         section: 'general'
       })
@@ -194,7 +196,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'shoulder1',
         label: 'Right Shoulder',
         value: gei.Shoulders.Shoulder1[1],
-        position: { x: 32, y: 35 }, // Right shoulder
+        position: { x: 35, y: 28 }, // Right shoulder (patient's right)
         color: 'red',
         section: 'general'
       })
@@ -205,7 +207,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'shoulder2',
         label: 'Left Shoulder',
         value: gei.Shoulders.Shoulder1[2],
-        position: { x: 68, y: 35 }, // Left shoulder
+        position: { x: 65, y: 28 }, // Left shoulder (patient's left)
         color: 'red',
         section: 'general'
       })
@@ -217,7 +219,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'arm1',
         label: 'Right Arm',
         value: gei.Arms.Arm1[1],
-        position: { x: 28, y: 45 }, // Right arm
+        position: { x: 25, y: 40 }, // Right upper arm
         color: 'red',
         section: 'general'
       })
@@ -228,7 +230,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'arm2',
         label: 'Left Arm',
         value: gei.Arms.Arm1[2],
-        position: { x: 72, y: 45 }, // Left arm
+        position: { x: 75, y: 40 }, // Left upper arm
         color: 'red',
         section: 'general'
       })
@@ -240,7 +242,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'hand1',
         label: 'Right Hand',
         value: gei.Arms.Hand1[1],
-        position: { x: 24, y: 65 }, // Right hand
+        position: { x: 20, y: 58 }, // Right hand
         color: 'red',
         section: 'general'
       })
@@ -251,7 +253,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'hand2',
         label: 'Left Hand',
         value: gei.Arms.Hand1[2],
-        position: { x: 76, y: 65 }, // Left hand
+        position: { x: 80, y: 58 }, // Left hand
         color: 'red',
         section: 'general'
       })
@@ -263,7 +265,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'thigh1',
         label: 'Right Thigh',
         value: gei.Legs.Thigh1[1],
-        position: { x: 46, y: 75 }, // Right thigh
+        position: { x: 45, y: 68 }, // Right thigh
         color: 'red',
         section: 'general'
       })
@@ -274,7 +276,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'thigh2',
         label: 'Left Thigh',
         value: gei.Legs.Thigh1[2],
-        position: { x: 54, y: 75 }, // Left thigh
+        position: { x: 55, y: 68 }, // Left thigh
         color: 'red',
         section: 'general'
       })
@@ -286,7 +288,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'knee1',
         label: 'Right Knee',
         value: gei.Legs.Knee1[1],
-        position: { x: 46, y: 85 }, // Right knee
+        position: { x: 45, y: 80 }, // Right knee
         color: 'red',
         section: 'general'
       })
@@ -297,7 +299,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'knee2',
         label: 'Left Knee',
         value: gei.Legs.Knee1[2],
-        position: { x: 54, y: 85 }, // Left knee
+        position: { x: 55, y: 80 }, // Left knee
         color: 'red',
         section: 'general'
       })
@@ -309,7 +311,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'feet1',
         label: 'Right Foot',
         value: gei.Legs.Feet1[1],
-        position: { x: 46, y: 95 }, // Right foot
+        position: { x: 45, y: 92 }, // Right foot
         color: 'red',
         section: 'general'
       })
@@ -320,7 +322,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'feet2',
         label: 'Left Foot',
         value: gei.Legs.Feet1[2],
-        position: { x: 54, y: 95 }, // Left foot
+        position: { x: 55, y: 92 }, // Left foot
         color: 'red',
         section: 'general'
       })
@@ -331,26 +333,26 @@ export function convertExaminationDataToFindings(examinationData: any): {
   if (examinationData.CVSRespExamination?.Chest) {
     const chest = examinationData.CVSRespExamination.Chest
 
-    // Heart sounds
+    // Heart sounds - anatomically correct positioning for chest diagram
     if (chest.A) {
       findings.cardiovascular.push({
         id: 'aortic',
         label: 'Aortic Area',
         value: chest.A,
-        position: { x: 30, y: 25 }, // Aortic area
+        position: { x: 65, y: 25 }, // Right 2nd intercostal space (Aortic area)
         color: 'red',
         section: 'cardiovascular'
       })
     }
 
     if (chest.P) {
-      findings.respiratory.push({
+      findings.cardiovascular.push({
         id: 'pulmonary',
         label: 'Pulmonary Area',
         value: chest.P,
-        position: { x: 68, y: 25 }, // Pulmonary area
-        color: 'blue',
-        section: 'respiratory'
+        position: { x: 35, y: 25 }, // Left 2nd intercostal space (Pulmonary area)
+        color: 'red',
+        section: 'cardiovascular'
       })
     }
 
@@ -359,7 +361,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'tricuspid',
         label: 'Tricuspid Area',
         value: chest.T,
-        position: { x: 40, y: 35 }, // Tricuspid area
+        position: { x: 60, y: 50 }, // Left lower sternal border (Tricuspid area)
         color: 'red',
         section: 'cardiovascular'
       })
@@ -370,7 +372,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'mitral',
         label: 'Mitral Area',
         value: chest.M,
-        position: { x: 60, y: 35 }, // Mitral area
+        position: { x: 35, y: 60 }, // Apex/5th intercostal space (Mitral area)
         color: 'red',
         section: 'cardiovascular'
       })
@@ -382,19 +384,19 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'jvp',
         label: 'JVP',
         value: chest.JVP,
-        position: { x: 35, y: 15 }, // Neck area for JVP
+        position: { x: 65, y: 10 }, // Right side of neck for JVP
         color: 'red',
         section: 'cardiovascular'
       })
     }
 
-    // Lung sounds
+    // Lung sounds - anatomically correct positioning
     if (chest.G) {
       findings.respiratory.push({
         id: 'general_lung',
         label: 'General Lung Sounds',
         value: chest.G,
-        position: { x: 50, y: 45 }, // Central chest
+        position: { x: 50, y: 35 }, // Central chest area
         color: 'blue',
         section: 'respiratory'
       })
@@ -405,7 +407,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'adventitious',
         label: 'Adventitious Sounds',
         value: chest.G2,
-        position: { x: 50, y: 55 }, // Lower chest
+        position: { x: 50, y: 45 }, // Mid chest
         color: 'blue',
         section: 'respiratory'
       })
@@ -416,7 +418,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'left_lower',
         label: 'Left Lower Lobe',
         value: chest.G3_1,
-        position: { x: 30, y: 65 }, // Left lower lobe
+        position: { x: 25, y: 70 }, // Left lower chest
         color: 'blue',
         section: 'respiratory'
       })
@@ -427,7 +429,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'right_lower',
         label: 'Right Lower Lobe',
         value: chest.G3_2,
-        position: { x: 70, y: 65 }, // Right lower lobe
+        position: { x: 75, y: 70 }, // Right lower chest
         color: 'blue',
         section: 'respiratory'
       })
@@ -438,12 +440,13 @@ export function convertExaminationDataToFindings(examinationData: any): {
   if (examinationData.AbdominalInguinalExamination) {
     const abdomen = examinationData.AbdominalInguinalExamination
 
+    // Abdominal findings - anatomically correct positioning
     if (abdomen.Stomach) {
       findings.abdominal.push({
         id: 'stomach',
         label: 'Stomach',
         value: abdomen.Stomach,
-        position: { x: 50, y: 25 }, // Epigastric area
+        position: { x: 45, y: 20 }, // Left upper quadrant (Epigastric/LUQ)
         color: 'green',
         section: 'abdominal'
       })
@@ -454,7 +457,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'liver',
         label: 'Liver',
         value: abdomen.Liver,
-        position: { x: 28, y: 30 }, // Right hypochondriac
+        position: { x: 65, y: 25 }, // Right upper quadrant
         color: 'green',
         section: 'abdominal'
       })
@@ -465,7 +468,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'spleen',
         label: 'Spleen',
         value: abdomen.Spleen,
-        position: { x: 72, y: 35 }, // Left hypochondriac
+        position: { x: 25, y: 30 }, // Left upper quadrant
         color: 'green',
         section: 'abdominal'
       })
@@ -476,7 +479,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'umbilicus',
         label: 'Umbilicus',
         value: abdomen.Umbilicus,
-        position: { x: 50, y: 45 }, // Umbilical area
+        position: { x: 50, y: 50 }, // Center of abdomen
         color: 'green',
         section: 'abdominal'
       })
@@ -487,7 +490,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'bladder',
         label: 'Bladder',
         value: abdomen.Bladder,
-        position: { x: 50, y: 65 }, // Hypogastric area
+        position: { x: 50, y: 75 }, // Suprapubic/hypogastric area
         color: 'green',
         section: 'abdominal'
       })
@@ -498,7 +501,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'right_flank',
         label: 'Right Flank',
         value: abdomen.RF,
-        position: { x: 28, y: 50 }, // Right lumbar
+        position: { x: 80, y: 50 }, // Right flank/lumbar
         color: 'green',
         section: 'abdominal'
       })
@@ -509,7 +512,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'left_flank',
         label: 'Left Flank',
         value: abdomen.LF,
-        position: { x: 72, y: 50 }, // Left lumbar
+        position: { x: 20, y: 50 }, // Left flank/lumbar
         color: 'green',
         section: 'abdominal'
       })
@@ -520,7 +523,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'appendix',
         label: 'Appendix (RIF)',
         value: abdomen.Appendix_RIF,
-        position: { x: 28, y: 65 }, // Right iliac fossa
+        position: { x: 65, y: 70 }, // Right iliac fossa (McBurney's point)
         color: 'green',
         section: 'abdominal'
       })
@@ -531,7 +534,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'lif',
         label: 'LIF',
         value: abdomen.LIF,
-        position: { x: 72, y: 65 }, // Left iliac fossa
+        position: { x: 35, y: 70 }, // Left iliac fossa
         color: 'green',
         section: 'abdominal'
       })
@@ -542,19 +545,19 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'scrotum',
         label: 'Scrotum',
         value: abdomen.Scrotum,
-        position: { x: 50, y: 80 }, // Genital area
+        position: { x: 50, y: 85 }, // Scrotal area
         color: 'green',
         section: 'abdominal'
       })
     }
 
-    // Inguinal findings
+    // Inguinal findings - anatomically correct
     if (abdomen.Inguinal?.['1_1']) {
       findings.abdominal.push({
         id: 'inguinal_right',
         label: 'Right Inguinal',
         value: abdomen.Inguinal['1_1'],
-        position: { x: 40, y: 75 }, // Right inguinal
+        position: { x: 60, y: 80 }, // Right inguinal canal
         color: 'green',
         section: 'abdominal'
       })
@@ -565,7 +568,7 @@ export function convertExaminationDataToFindings(examinationData: any): {
         id: 'inguinal_left',
         label: 'Left Inguinal',
         value: abdomen.Inguinal['1_2'],
-        position: { x: 60, y: 75 }, // Left inguinal
+        position: { x: 40, y: 80 }, // Left inguinal canal
         color: 'green',
         section: 'abdominal'
       })
