@@ -36,6 +36,7 @@ export default function SettingsPage() {
   // File upload refs
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const stampInputRef = useRef<HTMLInputElement>(null)
+  const letterheadInputRef = useRef<HTMLInputElement>(null)
 
   // Form state for editable fields
   const [formData, setFormData] = useState({
@@ -47,11 +48,13 @@ export default function SettingsPage() {
     preferredLanguage: 'en-US'
   })
 
-  // Signature and stamp state
+  // Signature, stamp, and letterhead state
   const [signatureFile, setSignatureFile] = useState<string | null>(null)
   const [stampFile, setStampFile] = useState<string | null>(null)
+  const [letterheadFile, setLetterheadFile] = useState<string | null>(null)
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
   const [stampPreview, setStampPreview] = useState<string | null>(null)
+  const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null)
 
   // Load user data when component mounts
   useEffect(() => {
@@ -68,11 +71,13 @@ export default function SettingsPage() {
         preferredLanguage: user.preferredLanguage || 'en-US'
       })
       
-      // Load existing signature and stamp if available
+      // Load existing signature, stamp, and letterhead if available
       setSignatureFile((user as any)?.doctorSignature || null)
       setStampFile((user as any)?.doctorStamp || null)
+      setLetterheadFile((user as any)?.letterhead || null)
       setSignaturePreview((user as any)?.doctorSignature || null)
       setStampPreview((user as any)?.doctorStamp || null)
+      setLetterheadPreview((user as any)?.letterhead || null)
     }
   }, [dispatch, user])
 
@@ -88,11 +93,13 @@ export default function SettingsPage() {
         preferredLanguage: user.preferredLanguage || 'en-US'
       })
       
-      // Load existing signature and stamp if available
+      // Load existing signature, stamp, and letterhead if available
       setSignatureFile((user as any)?.doctorSignature || null)
       setStampFile((user as any)?.doctorStamp || null)
+      setLetterheadFile((user as any)?.letterhead || null)
       setSignaturePreview((user as any)?.doctorSignature || null)
       setStampPreview((user as any)?.doctorStamp || null)
+      setLetterheadPreview((user as any)?.letterhead || null)
     }
   }, [user])
 
@@ -167,6 +174,38 @@ export default function SettingsPage() {
     }
   }
 
+  // Handle letterhead file upload
+  const handleLetterheadUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit for letterhead (larger than signature/stamp)
+        toast({
+          title: "File too large",
+          description: "Please select an image smaller than 10MB.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select an image file (PNG, JPG, etc).",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setLetterheadPreview(result)
+        setLetterheadFile(result)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
   // Remove signature
   const removeSignature = () => {
     setSignatureFile(null)
@@ -182,6 +221,15 @@ export default function SettingsPage() {
     setStampPreview(null)
     if (stampInputRef.current) {
       stampInputRef.current.value = ''
+    }
+  }
+
+  // Remove letterhead
+  const removeLetterhead = () => {
+    setLetterheadFile(null)
+    setLetterheadPreview(null)
+    if (letterheadInputRef.current) {
+      letterheadInputRef.current.value = ''
     }
   }
 
@@ -208,7 +256,7 @@ export default function SettingsPage() {
       // Import apiClient dynamically to avoid SSR issues
       const { apiClient } = await import('@/lib/api-client')
       
-      // Prepare profile data including signature and stamp
+      // Prepare profile data including signature, stamp, and letterhead
       const profileData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -218,6 +266,7 @@ export default function SettingsPage() {
         preferredLanguage: formData.preferredLanguage,
         doctorSignature: signatureFile || undefined,
         doctorStamp: stampFile || undefined,
+        letterhead: letterheadFile || undefined,
       }
       
       // Call API to update profile
@@ -229,7 +278,7 @@ export default function SettingsPage() {
         
         toast({
           title: "Settings Saved",
-          description: "Your profile, signature, and stamp have been updated successfully.",
+          description: "Your profile, signature, stamp, and letterhead have been updated successfully.",
         })
       } else {
         throw new Error(response.error || 'Failed to save settings')
@@ -520,6 +569,46 @@ export default function SettingsPage() {
                       accept="image/*"
                       ref={stampInputRef}
                       onChange={handleStampUpload}
+                      className="hidden"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="letterhead-upload">Letterhead Template</Label>
+                  <p className="text-sm text-muted-foreground">Upload your official letterhead to use as PDF template</p>
+                  <div className="flex items-center gap-2">
+                    {letterheadPreview ? (
+                      <div className="relative w-32 h-20 border rounded-lg overflow-hidden">
+                        <Image
+                          src={letterheadPreview}
+                          alt="Letterhead Template"
+                          layout="fill"
+                          objectFit="cover"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={removeLetterhead}
+                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        onClick={() => letterheadInputRef.current?.click()}
+                        className="flex-1"
+                      >
+                        <FileImage className="h-5 w-5 mr-2" />
+                        Upload Letterhead
+                      </Button>
+                    )}
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      ref={letterheadInputRef}
+                      onChange={handleLetterheadUpload}
                       className="hidden"
                     />
                   </div>

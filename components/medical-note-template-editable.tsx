@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Edit, Save, FileCheck, Printer, Download, Check, FileText } from "lucide-react"
+import { Edit, Save, FileCheck, Printer, Download, Check, FileText, Upload, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import SignatureSpace from "./signature-space"
 import { jsPDF } from "jspdf"
@@ -34,6 +34,8 @@ interface PhysicalExamination {
   [key: string]: any
 }
 
+import { ExaminationTemplate } from "@/types/examination"
+
 interface MedicalNote {
   patientInfo: PatientInfo
   chiefComplaint: string
@@ -41,9 +43,11 @@ interface MedicalNote {
   pastMedicalHistory: string
   systemReview: string
   physicalExamination: PhysicalExamination
+  comprehensiveExamination?: ExaminationTemplate // New detailed examination
   diagnosis: string
   managementPlan: string
   medicationCertificate: string
+  letterhead?: string
   doctorDetails?: {
     name: string
     signature: string
@@ -66,6 +70,7 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
   const [isFinalized, setIsFinalized] = useState(false)
   const [doctorName, setDoctorName] = useState("")
   const [showFinalizeDialog, setShowFinalizeDialog] = useState(false)
+  const [letterheadFile, setLetterheadFile] = useState<string | null>(null)
   const { toast } = useToast()
   const [registrationNumber, setRegistrationNumber] = useState("RCMP-12345")
 
@@ -115,6 +120,53 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
         [field]: value,
       },
     }));
+  }
+
+  const handleLetterheadUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please upload an image file (PNG, JPG, GIF, etc.)',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please upload an image smaller than 5MB',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Convert to base64 for storage
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string
+        setLetterheadFile(base64String)
+        setData(prev => ({ ...prev, letterhead: base64String }))
+        toast({
+          title: 'Letterhead Uploaded',
+          description: 'Practice letterhead has been uploaded successfully',
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeLetterhead = () => {
+    setLetterheadFile(null)
+    setData(prev => ({ ...prev, letterhead: undefined }))
+    toast({
+      title: 'Letterhead Removed',
+      description: 'Practice letterhead has been removed',
+    })
   }
 
   const handleFinalize = () => {
@@ -230,19 +282,45 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
     try {
       const doc = new jsPDF()
 
-      // Add title
-      doc.setFontSize(18)
-      doc.text("Medical Consultation Note", 105, 15, { align: "center" })
-      doc.setFontSize(12)
-      doc.text("Novate Medical Center", 105, 22, { align: "center" })
+      let yPos = 15;
+
+      // Add letterhead if available, otherwise add standard title
+      if (letterheadFile || data.letterhead) {
+        try {
+          const letterheadImage = letterheadFile || data.letterhead
+          if (letterheadImage) {
+            doc.addImage(letterheadImage, 'JPEG', 14, yPos, 182, 30)
+            yPos += 40
+          }
+        } catch (error) {
+          console.error('Failed to add letterhead to PDF:', error)
+          // Fallback to standard header
+          doc.setFontSize(18)
+          doc.text("Medical Consultation Note", 105, yPos, { align: "center" })
+          doc.setFontSize(12)
+          doc.text("Novate Medical Center", 105, yPos + 7, { align: "center" })
+          yPos += 20
+        }
+      } else {
+        // Standard header
+        doc.setFontSize(18)
+        doc.text("Medical Consultation Note", 105, yPos, { align: "center" })
+        doc.setFontSize(12)
+        doc.text("Novate Medical Center", 105, yPos + 7, { align: "center" })
+        yPos += 20
+      }
 
       // Add patient information
       doc.setFontSize(14)
-      doc.text("Patient Information", 14, 35)
+      doc.text("Patient Information", 14, yPos)
       doc.setFontSize(10)
-      doc.text(`Name: ${data.patientInfo.name}`, 14, 42)
-      doc.text(`Age/Gender: ${data.patientInfo.age} / ${data.patientInfo.gender}`, 14, 48)
-      doc.text(`Visit Date: ${data.patientInfo.visitDate}`, 14, 54)
+      yPos += 7
+      doc.text(`Name: ${data.patientInfo.name}`, 14, yPos)
+      yPos += 6
+      doc.text(`Age/Gender: ${data.patientInfo.age} / ${data.patientInfo.gender}`, 14, yPos)
+      yPos += 6
+      doc.text(`Visit Date: ${data.patientInfo.visitDate}`, 14, yPos)
+      yPos += 10
 
       // Add chief complaint
       doc.setFontSize(14)
@@ -260,7 +338,7 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
       doc.text(splitHPI, 14, 90)
 
       // Add past medical history
-      let yPos = 90 + splitHPI.length * 6
+      yPos = 90 + splitHPI.length * 6
       doc.setFontSize(14)
       doc.text("Past Medical History", 14, yPos)
       doc.setFontSize(10)
@@ -1059,6 +1137,76 @@ export default function MedicalNoteTemplateEditable({ initialData, onSave }: Med
             </TabsContent>
           </Tabs>
         </CardContent>
+
+        {/* Letterhead Upload Section */}
+        <div className="px-6 py-4 border-t border-gray-200">
+          <div className="space-y-3">
+            <label className="text-sm font-medium text-gray-600">Practice Letterhead (Optional)</label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 min-h-[80px] flex flex-col items-center justify-center bg-gray-50">
+              {letterheadFile || data.letterhead ? (
+                <div className="w-full h-full flex items-center justify-center">
+                  <img 
+                    src={letterheadFile || data.letterhead} 
+                    alt="Practice Letterhead" 
+                    className="max-w-full max-h-full object-contain"
+                    style={{ maxHeight: '60px' }}
+                  />
+                </div>
+              ) : (
+                <div className="text-center space-y-2">
+                  <div className="text-2xl text-gray-400">🏥</div>
+                  <p className="text-sm text-gray-500">Upload your practice letterhead</p>
+                  <p className="text-xs text-gray-400">Will be used as PDF header if provided</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Hidden File Input */}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleLetterheadUpload}
+              className="hidden"
+              id="letterhead-upload"
+            />
+            
+            {/* Letterhead Options */}
+            <div className="flex gap-2">
+              {letterheadFile || data.letterhead ? (
+                <>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => document.getElementById('letterhead-upload')?.click()}
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    Change Letterhead
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={removeLetterhead}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Remove
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => document.getElementById('letterhead-upload')?.click()}
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  Upload Letterhead
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <CardFooter className="bg-muted/30 border-t flex justify-between">
           <div className="flex gap-2">

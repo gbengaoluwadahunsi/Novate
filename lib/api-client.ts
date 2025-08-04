@@ -91,6 +91,8 @@ interface User {
   updatedAt: string;
 }
 
+import { ExaminationTemplate } from "../types/examination"
+
 interface MedicalNote {
   id: string;
   patientName: string;
@@ -104,6 +106,7 @@ interface MedicalNote {
   pastMedicalHistory?: string;
   systemReview?: string;
   physicalExamination?: string;
+  comprehensiveExamination?: ExaminationTemplate; // New detailed examination
   diagnosis?: string;
   assessmentAndDiagnosis?: string; // Backend field name before transform
   treatmentPlan?: string;
@@ -122,6 +125,7 @@ interface MedicalNote {
   doctorDepartment?: string;
   doctorSignature?: string;
   doctorStamp?: string;
+  letterhead?: string;
   dateOfIssue?: string;
 }
 
@@ -1396,6 +1400,7 @@ class ApiClient {
     preferredLanguages?: string[];
     doctorSignature?: string;
     doctorStamp?: string;
+    letterhead?: string;
   }): Promise<ApiResponse<User>> {
     try {
       // For now, store signature and stamp in localStorage until backend is implemented
@@ -1415,6 +1420,14 @@ class ApiClient {
         }
       }
 
+      if (profileData.letterhead !== undefined) {
+        if (profileData.letterhead) {
+          localStorage.setItem('letterhead', profileData.letterhead);
+        } else {
+          localStorage.removeItem('letterhead');
+        }
+      }
+
       // TODO: Backend needs to implement user profile update endpoint
       // For now, simulate success and return updated user data
       const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1423,6 +1436,7 @@ class ApiClient {
         ...profileData,
         doctorSignature: profileData.doctorSignature || localStorage.getItem('doctorSignature'),
         doctorStamp: profileData.doctorStamp || localStorage.getItem('doctorStamp'),
+        letterhead: profileData.letterhead || localStorage.getItem('letterhead'),
       };
       
       // Update localStorage user data

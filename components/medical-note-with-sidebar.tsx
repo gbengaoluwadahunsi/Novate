@@ -45,7 +45,9 @@ export default function MedicalNoteWithSidebar({
   const { toast } = useToast()
   const [isEditing, setIsEditing] = useState(false)
   const [signatureFile, setSignatureFile] = useState<string | null>(null)
+  const [letterheadFile, setLetterheadFile] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const letterheadInputRef = useRef<HTMLInputElement>(null)
   const [editedNote, setEditedNote] = useState({
     id: "",
     patientName: "",
@@ -74,6 +76,7 @@ export default function MedicalNoteWithSidebar({
     doctorDepartment: "",
     doctorSignature: "",
     doctorStamp: "",
+    letterhead: "",
     dateOfIssue: "",
     createdAt: "",
     updatedAt: "",
@@ -172,7 +175,8 @@ export default function MedicalNoteWithSidebar({
       doctorDepartment: (currentNote as any).doctorDepartment || (user as any)?.department || user?.specialization || "General Medicine",
       dateOfIssue: (currentNote as any).dateOfIssue || new Date().toISOString().split('T')[0],
       doctorSignature: (currentNote as any).doctorSignature || "",
-      doctorStamp: (currentNote as any).doctorStamp || ""
+      doctorStamp: (currentNote as any).doctorStamp || "",
+      letterhead: (currentNote as any).letterhead || ""
     })
     
     // Set signature file state
@@ -279,6 +283,60 @@ export default function MedicalNoteWithSidebar({
     toast({
       title: 'Signature Removed',
       description: 'Digital signature has been removed',
+    })
+  }
+
+  const handleLetterheadUpload = () => {
+    letterheadInputRef.current?.click()
+  }
+
+  const handleLetterheadFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid File Type',
+          description: 'Please upload an image file (PNG, JPG, GIF, etc.)',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please upload an image smaller than 5MB',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // Convert to base64 for storage
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const base64String = e.target?.result as string
+        setLetterheadFile(base64String)
+        handleInputChange('letterhead', base64String)
+        toast({
+          title: 'Letterhead Uploaded',
+          description: 'Practice letterhead has been uploaded successfully',
+        })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeLetterhead = () => {
+    setLetterheadFile(null)
+    handleInputChange('letterhead', '')
+    if (letterheadInputRef.current) {
+      letterheadInputRef.current.value = ''
+    }
+    toast({
+      title: 'Letterhead Removed',
+      description: 'Practice letterhead has been removed',
     })
   }
 
@@ -614,6 +672,76 @@ export default function MedicalNoteWithSidebar({
                         <p className="text-base">
                           {editedNote.doctorDepartment || (user as any)?.department || user?.specialization || "General Medicine"}
                         </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Letterhead Section */}
+                  <div className="space-y-3">
+                    <label className="text-sm font-medium text-gray-600 dark:text-gray-300">Practice Letterhead</label>
+                    <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 min-h-[100px] flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800">
+                      {letterheadFile || editedNote.letterhead ? (
+                        <div className="w-full h-full flex items-center justify-center">
+                          <img 
+                            src={letterheadFile || editedNote.letterhead} 
+                            alt="Practice Letterhead" 
+                            className="max-w-full max-h-full object-contain"
+                            style={{ maxHeight: '80px' }}
+                          />
+                        </div>
+                      ) : (
+                        <div className="text-center space-y-2">
+                          <div className="text-4xl text-gray-400 dark:text-gray-500">🏥</div>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">Upload your practice letterhead</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">
+                            Optional - will be used as PDF header if provided
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Hidden File Input */}
+                    <input
+                      ref={letterheadInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLetterheadFileChange}
+                      className="hidden"
+                    />
+                    
+                    {/* Letterhead Options */}
+                    <div className="flex gap-2 no-print">
+                      {letterheadFile || editedNote.letterhead ? (
+                        <>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="flex-1"
+                            onClick={handleLetterheadUpload}
+                          >
+                            <Upload className="h-4 w-4 mr-1" />
+                            Change Letterhead
+                          </Button>
+                          <Button 
+                            size="sm" 
+                            variant="outline" 
+                            onClick={removeLetterhead}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4 mr-1" />
+                            Remove
+                          </Button>
+                        </>
+                      ) : (
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          className="flex-1"
+                          onClick={handleLetterheadUpload}
+                        >
+                          <Upload className="h-4 w-4 mr-1" />
+                          Upload Letterhead
+                        </Button>
                       )}
                     </div>
                   </div>

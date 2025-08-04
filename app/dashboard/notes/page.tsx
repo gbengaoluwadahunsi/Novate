@@ -33,7 +33,8 @@ import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
 import { debounce } from '@/lib/performance'
 import { useAppSelector } from '@/store/hooks'
-import { MedicalNotePDFGenerator } from '@/lib/pdf-generator'
+import { generateAndDownloadComprehensivePDF } from '@/lib/comprehensive-pdf-generator'
+import { ComprehensiveMedicalNote } from '@/types/medical-note-comprehensive'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -48,6 +49,7 @@ export default function NotesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalNotes, setTotalNotes] = useState(0)
+  const [itemsPerPage, setItemsPerPage] = useState(12)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [showPracticeSelector, setShowPracticeSelector] = useState<{open: boolean, noteId: string, patientName: string} | null>(null)
   
@@ -63,7 +65,6 @@ export default function NotesPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
 
   const performanceMonitor = PerformanceMonitor.getInstance()
-  const ITEMS_PER_PAGE = 12
 
   // Generate consistent case number for notes without patient names
   const generateCaseNumber = (note: MedicalNote, allNotes?: MedicalNote[]) => {
@@ -193,11 +194,11 @@ export default function NotesPage() {
 
   // Update pagination based on filtered results
   const paginatedNotes = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
-    return filteredNotes.slice(startIndex, startIndex + ITEMS_PER_PAGE)
-  }, [filteredNotes, currentPage, ITEMS_PER_PAGE])
+    const startIndex = (currentPage - 1) * itemsPerPage
+    return filteredNotes.slice(startIndex, startIndex + itemsPerPage)
+  }, [filteredNotes, currentPage, itemsPerPage])
 
-  const totalFilteredPages = Math.ceil(filteredNotes.length / ITEMS_PER_PAGE)
+  const totalFilteredPages = Math.ceil(filteredNotes.length / itemsPerPage)
 
   // Memoized loadNotes function
   const loadNotes = useCallback(async (page: number = currentPage, search: string = searchTerm, filter: string = noteTypeFilter) => {
@@ -232,7 +233,7 @@ export default function NotesPage() {
 
       const params: any = {
         page,
-        limit: ITEMS_PER_PAGE,
+        limit: itemsPerPage,
       }
 
       if (search.trim()) {
@@ -330,7 +331,7 @@ export default function NotesPage() {
         setNotes(uniqueNotes)
         // 🚨 FIX: Use deduplicated count instead of original API count
         setCurrentPage(data.pagination?.page || 1)
-        setTotalPages(Math.ceil(uniqueNotes.length / ITEMS_PER_PAGE) || 1)
+        setTotalPages(Math.ceil(uniqueNotes.length / itemsPerPage) || 1)
         setTotalNotes(uniqueNotes.length) // Use actual deduplicated count, not API count
 
         performanceMonitor.endTiming('load-notes')
@@ -453,7 +454,7 @@ export default function NotesPage() {
                       // Get fresh notes directly from API
                       const params: any = {
                         page: currentPage,
-                        limit: ITEMS_PER_PAGE,
+                        limit: itemsPerPage,
                       }
                       if (searchTerm.trim()) {
                         params.search = searchTerm.trim()
@@ -600,21 +601,42 @@ export default function NotesPage() {
       
       const note = noteResponse.data
 
-      // Add doctor information to the note
-      const noteWithDoctorInfo = {
-        ...note,
-        doctorName: user?.name || 
-                   (user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : null) ||
-                   "Dr. [Name]",
-        doctorRegistrationNo: user?.registrationNo || "",
-        doctorDepartment: user?.specialization || "General Medicine",
-        // Use signature and stamp from user settings if available, otherwise from note
-        doctorSignature: (user as any)?.doctorSignature || (note as any).doctorSignature || null,
-        doctorStamp: (user as any)?.doctorStamp || (note as any).doctorStamp || null
+      // Convert to ComprehensiveMedicalNote format for the new PDF generator
+      const comprehensiveNote: ComprehensiveMedicalNote = {
+        id: note.id,
+        patientName: note.patientName || '',
+        patientAge: note.patientAge?.toString() || '',
+        patientGender: note.patientGender || 'Male',
+        visitDate: note.visitDate || new Date().toISOString().split('T')[0],
+        visitTime: note.visitTime || new Date().toTimeString().split(' ')[0],
+        noteType: note.noteType || 'consultation',
+        chiefComplaint: note.chiefComplaint || '',
+        historyOfPresentingIllness: note.historyOfPresentingIllness || '',
+        pastMedicalHistory: note.pastMedicalHistory || '',
+        systemReview: note.systemReview || '',
+        physicalExamination: note.physicalExamination || '',
+        diagnosis: note.diagnosis || '',
+        treatmentPlan: note.treatmentPlan || '',
+        managementPlan: note.managementPlan || '',
+        followUpInstructions: note.followUpInstructions || '',
+        additionalNotes: note.additionalNotes || '',
+        prescriptions: note.prescriptions || [],
+        comprehensiveExamination: (note as any).comprehensiveExamination,
+        doctorName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.name || 'Dr. [Name]',
+        doctorRegistrationNo: user?.registrationNo || '[Registration Number]',
+        doctorDepartment: user?.specialization || 'General Medicine',
+        doctorSignature: (user as any)?.doctorSignature || (note as any).doctorSignature || '',
+        doctorStamp: (user as any)?.doctorStamp || (note as any).doctorStamp || '',
+        letterhead: (note as any)?.letterhead || '',
+        dateOfIssue: new Date().toISOString().split('T')[0],
+        createdAt: note.createdAt,
+        updatedAt: note.updatedAt,
+        version: 1,
+        lastModified: new Date().toISOString()
       };
 
-      // Use the professional PDF generator
-      MedicalNotePDFGenerator.generateAndDownload(noteWithDoctorInfo, practiceInfo, patientName);
+      // Use the comprehensive PDF generator that follows new.pdf template
+      generateAndDownloadComprehensivePDF(comprehensiveNote, practiceInfo.organizationName);
 
       toast({
         title: 'PDF Downloaded',
@@ -652,6 +674,11 @@ export default function NotesPage() {
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage)
     loadNotes(newPage, searchTerm, noteTypeFilter)
+  }
+
+  const handleItemsPerPageChange = (newItemsPerPage: number) => {
+    setItemsPerPage(newItemsPerPage)
+    setCurrentPage(1) // Reset to first page when changing items per page
   }
 
   const hasActiveFilters = searchTerm.trim() || noteTypeFilter !== 'all' || 
@@ -996,55 +1023,115 @@ export default function NotesPage() {
             ))}
           </div>
 
-          {/* Mobile-friendly Pagination */}
-          {totalFilteredPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6">
-              <div className="text-sm text-gray-600 dark:text-gray-300 order-2 sm:order-1">
-                Page {currentPage} of {totalFilteredPages}
-              </div>
-              <div className="flex items-center gap-2 order-1 sm:order-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage - 1)}
-                  disabled={currentPage <= 1}
-                  className="text-sm"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                  <span className="hidden sm:inline ml-1">Previous</span>
-                </Button>
-                
-                {/* Show page numbers on larger screens only */}
-                <div className="hidden md:flex items-center gap-1">
-                  {Array.from({ length: Math.min(5, totalFilteredPages) }, (_, i) => {
-                    const pageNum = Math.max(1, Math.min(totalFilteredPages - 4, currentPage - 2)) + i
-                    if (pageNum > totalFilteredPages) return null
-                    
-                    return (
-                      <Button
-                        key={pageNum}
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handlePageChange(pageNum)}
-                        className="w-8 h-8 p-0"
-                      >
-                        {pageNum}
-                      </Button>
-                    )
-                  })}
+          {/* Enhanced Pagination */}
+          {(filteredNotes.length > 0 || totalFilteredPages > 1) && (
+            <div className="border-t pt-6 space-y-4">
+              {/* Results summary and items per page selector */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  Showing {paginatedNotes.length > 0 ? ((currentPage - 1) * itemsPerPage) + 1 : 0} to {Math.min(currentPage * itemsPerPage, filteredNotes.length)} of {filteredNotes.length} notes
                 </div>
                 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(currentPage + 1)}
-                  disabled={currentPage >= totalFilteredPages}
-                  className="text-sm"
-                >
-                  <span className="hidden sm:inline mr-1">Next</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                  <label htmlFor="items-per-page" className="text-sm text-gray-600 dark:text-gray-300">
+                    Show:
+                  </label>
+                  <Select
+                    value={itemsPerPage.toString()}
+                    onValueChange={(value) => handleItemsPerPageChange(parseInt(value))}
+                  >
+                    <SelectTrigger id="items-per-page" className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="6">6</SelectItem>
+                      <SelectItem value="12">12</SelectItem>
+                      <SelectItem value="24">24</SelectItem>
+                      <SelectItem value="48">48</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">per page</span>
+                </div>
               </div>
+
+              {/* Pagination controls */}
+              {totalFilteredPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-sm text-gray-600 dark:text-gray-300 order-2 sm:order-1">
+                    Page {currentPage} of {totalFilteredPages}
+                  </div>
+                  
+                  <div className="flex items-center gap-2 order-1 sm:order-2">
+                    {/* First page button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(1)}
+                      disabled={currentPage <= 1}
+                      className="text-sm"
+                      title="First page"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <ChevronLeft className="h-4 w-4 -ml-2" />
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      className="text-sm"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">Previous</span>
+                    </Button>
+                    
+                    {/* Show page numbers on larger screens only */}
+                    <div className="hidden md:flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalFilteredPages) }, (_, i) => {
+                        const pageNum = Math.max(1, Math.min(totalFilteredPages - 4, currentPage - 2)) + i
+                        if (pageNum > totalFilteredPages) return null
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(pageNum)}
+                            className="w-8 h-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage >= totalFilteredPages}
+                      className="text-sm"
+                    >
+                      <span className="hidden sm:inline mr-1">Next</span>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    
+                    {/* Last page button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(totalFilteredPages)}
+                      disabled={currentPage >= totalFilteredPages}
+                      className="text-sm"
+                      title="Last page"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                      <ChevronRight className="h-4 w-4 -ml-2" />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </>

@@ -398,38 +398,28 @@ function SectionHeader({ title, subtitle }: SectionHeaderProps) {
 
 // Particle Background
 function ParticleBackground() {
-  // Predefined particle data to avoid hydration mismatch
+  // Reduced particle data with shorter delays to prevent initial scattered appearance
   const particles = [
     { width: 45, height: 52, top: 44, left: 42, opacity: 0.24, delay: 0 },
-    { width: 74, height: 32, top: 82, left: 46, opacity: 0.09, delay: 0.5 },
-    { width: 72, height: 66, top: 87, left: 22, opacity: 0.20, delay: 1 },
-    { width: 44, height: 59, top: 86, left: 1, opacity: 0.06, delay: 1.5 },
-    { width: 55, height: 37, top: 5, left: 62, opacity: 0.21, delay: 2 },
-    { width: 33, height: 48, top: 21, left: 77, opacity: 0.22, delay: 2.5 },
-    { width: 75, height: 20, top: 65, left: 37, opacity: 0.04, delay: 3 },
-    { width: 69, height: 61, top: 57, left: 92, opacity: 0.20, delay: 3.5 },
-    { width: 31, height: 21, top: 16, left: 30, opacity: 0.15, delay: 4 },
-    { width: 49, height: 50, top: 72, left: 48, opacity: 0.08, delay: 4.5 },
-    { width: 27, height: 72, top: 39, left: 4, opacity: 0.25, delay: 5 },
-    { width: 66, height: 42, top: 57, left: 9, opacity: 0.27, delay: 5.5 },
-    { width: 52, height: 78, top: 6, left: 58, opacity: 0.01, delay: 6 },
-    { width: 66, height: 40, top: 70, left: 55, opacity: 0.26, delay: 6.5 },
-    { width: 32, height: 38, top: 50, left: 47, opacity: 0.09, delay: 7 },
-    { width: 65, height: 62, top: 48, left: 15, opacity: 0.29, delay: 7.5 },
-    { width: 65, height: 52, top: 85, left: 71, opacity: 0.23, delay: 8 },
-    { width: 64, height: 67, top: 46, left: 59, opacity: 0.26, delay: 8.5 },
-    { width: 67, height: 40, top: 69, left: 23, opacity: 0.24, delay: 9 },
-    { width: 76, height: 28, top: 83, left: 19, opacity: 0.18, delay: 9.5 },
-    { width: 61, height: 31, top: 2, left: 70, opacity: 0.27, delay: 10 },
-    { width: 37, height: 30, top: 57, left: 92, opacity: 0.29, delay: 10.5 },
-    { width: 23, height: 29, top: 63, left: 99, opacity: 0.23, delay: 11 },
-    { width: 49, height: 71, top: 38, left: 96, opacity: 0.03, delay: 11.5 },
-    { width: 71, height: 56, top: 42, left: 87, opacity: 0.24, delay: 12 },
-    { width: 20, height: 31, top: 71, left: 83, opacity: 0.03, delay: 12.5 },
-    { width: 56, height: 72, top: 58, left: 12, opacity: 0.02, delay: 13 },
-    { width: 73, height: 79, top: 59, left: 28, opacity: 0.02, delay: 13.5 },
-    { width: 78, height: 30, top: 74, left: 62, opacity: 0.22, delay: 14 },
-    { width: 40, height: 47, top: 30, left: 41, opacity: 0.25, delay: 14.5 }
+    { width: 74, height: 32, top: 82, left: 46, opacity: 0.09, delay: 0.1 },
+    { width: 72, height: 66, top: 87, left: 22, opacity: 0.20, delay: 0.2 },
+    { width: 44, height: 59, top: 86, left: 1, opacity: 0.06, delay: 0.3 },
+    { width: 55, height: 37, top: 5, left: 62, opacity: 0.21, delay: 0.4 },
+    { width: 33, height: 48, top: 21, left: 77, opacity: 0.22, delay: 0.5 },
+    { width: 75, height: 20, top: 65, left: 37, opacity: 0.04, delay: 0.6 },
+    { width: 69, height: 61, top: 57, left: 92, opacity: 0.20, delay: 0.7 },
+    { width: 31, height: 21, top: 16, left: 30, opacity: 0.15, delay: 0.8 },
+    { width: 49, height: 50, top: 72, left: 48, opacity: 0.08, delay: 0.9 },
+    { width: 27, height: 72, top: 39, left: 4, opacity: 0.25, delay: 1 },
+    { width: 66, height: 42, top: 57, left: 9, opacity: 0.27, delay: 1.1 },
+    { width: 52, height: 78, top: 6, left: 58, opacity: 0.01, delay: 1.2 },
+    { width: 66, height: 40, top: 70, left: 55, opacity: 0.26, delay: 1.3 },
+    { width: 32, height: 38, top: 50, left: 47, opacity: 0.09, delay: 1.4 },
+    { width: 65, height: 62, top: 48, left: 15, opacity: 0.29, delay: 1.5 },
+    { width: 65, height: 52, top: 85, left: 71, opacity: 0.23, delay: 1.6 },
+    { width: 64, height: 67, top: 46, left: 59, opacity: 0.26, delay: 1.7 },
+    { width: 67, height: 40, top: 69, left: 23, opacity: 0.24, delay: 1.8 },
+    { width: 76, height: 28, top: 83, left: 19, opacity: 0.18, delay: 1.9 }
   ];
 
   return (
@@ -445,6 +435,10 @@ function ParticleBackground() {
             left: `${particle.left}%`,
             background: `radial-gradient(circle, rgba(14, 165, 233, ${particle.opacity}), rgba(14, 165, 233, 0))`,
           }}
+          initial={{
+            y: 0,
+            opacity: 0,
+          }}
           animate={{
             y: [0, -150],
             opacity: [0, 0.5, 0],
@@ -454,7 +448,7 @@ function ParticleBackground() {
             repeat: Number.POSITIVE_INFINITY,
             repeatType: "loop",
             ease: "easeInOut",
-            delay: particle.delay,
+            delay: particle.delay + 2, // Add 2 second delay so particles appear after main content
           }}
         />
       ))}
@@ -504,12 +498,12 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, x: -50 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.2 }}
+              transition={{ duration: 0.6, delay: 0 }}
             >
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 1, delay: 0.1 }}
+                transition={{ duration: 0.5, delay: 0 }}
                 className="mb-4 sm:mb-6 flex justify-center lg:justify-start"
               >
                 <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-[#0ea5e9]/20 text-[#0ea5e9] dark:text-[#0ea5e9] border border-[#0ea5e9]/30 whitespace-nowrap">
@@ -520,7 +514,7 @@ export default function HomePage() {
               <motion.h1
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
                 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-[#0ea5e9] text-center lg:text-left"
               >
                 NovateScribe<sup className="text-black dark:text-white font-normal">TM</sup>
@@ -528,7 +522,7 @@ export default function HomePage() {
               <motion.p
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.4 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
                 className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 text-center lg:text-left"
               >
                 Transform your medical voice notes into perfectly structured digital records in seconds.
@@ -537,7 +531,7 @@ export default function HomePage() {
               <motion.div
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
                 className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start"
               >
                 <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white w-full sm:w-auto" asChild>
@@ -556,7 +550,7 @@ export default function HomePage() {
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
               className="h-[300px] sm:h-[400px] lg:h-[500px] w-full relative"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-sky-600/10 to-blue-500/10 rounded-3xl"></div>
@@ -570,7 +564,7 @@ export default function HomePage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 1 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
           className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
         >
           <div className="flex flex-col items-center">

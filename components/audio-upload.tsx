@@ -1873,7 +1873,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                             ? "🏥 Extracting medical information..."
                             : overallProgress < 100
                               ? "📝 Structuring medical note..."
-                              : "✅ Finalizing transcription..."}
+                              : "✅ Finalizing note creation..."}
                     </p>
                   </div>
                 )}

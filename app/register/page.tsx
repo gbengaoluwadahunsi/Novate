@@ -256,6 +256,8 @@ export default function RegisterPage() {
     }
   }
 
+
+
   const validateStep1 = (): boolean => {
     const newErrors: FormErrors = {}
 
@@ -368,6 +370,8 @@ export default function RegisterPage() {
       if (formData.hospital.trim()) {
         registrationData.hospital = formData.hospital.trim()
       }
+      
+
       
       const result = await dispatch(register(registrationData))
       if (result.type === 'auth/register/fulfilled') {
@@ -589,6 +593,8 @@ export default function RegisterPage() {
                     <Label htmlFor="hospital">Primary Hospital/Clinic (Optional)</Label>
                     <Input id="hospital" name="hospital" placeholder="City General Hospital" value={formData.hospital} onChange={handleChange} />
                   </div>
+
+
                   <div className="space-y-2">
                     <Label>Common Language of Patients *</Label>
                     <Select value={formData.preferredLanguage} onValueChange={(value) => handleSelectChange("preferredLanguage", value)}>
@@ -630,6 +636,8 @@ export default function RegisterPage() {
                         <span className="text-gray-500 dark:text-gray-400">License Number:</span><span className="break-words">{formData.licenseNumber}</span>
                       </div>}
                       {formData.hospital && <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4"><span className="text-gray-500 dark:text-gray-400">Hospital/Clinic:</span><span className="break-words">{formData.hospital}</span></div>}
+
+
                       <div className="flex flex-col sm:grid sm:grid-cols-2 sm:gap-x-4">
                         <span className="text-gray-500 dark:text-gray-400">Language:</span><span className="break-words">{availableLanguages.find(lang => lang.code === formData.preferredLanguage)?.name || "Not selected"}</span>
                       </div>
