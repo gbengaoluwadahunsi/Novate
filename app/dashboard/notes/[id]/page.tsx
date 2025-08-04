@@ -11,7 +11,7 @@ import { getUser } from '@/store/features/authSlice'
 import DocumentStyleNoteViewer from '@/components/medical-note/document-style-note-viewer'
 import NoteVersionHistory from '@/components/medical-note/note-version-history'
 import { SimpleMedicalNote } from '@/components/medical-note/simple-medical-note-editor'
-import { generateProfessionalMedicalNotePDF, ProfessionalMedicalNote } from '@/lib/professional-pdf-generator'
+import { generateEnhancedProfessionalMedicalNotePDF, ProfessionalMedicalNote } from '@/lib/enhanced-professional-pdf-generator'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -335,8 +335,8 @@ export default function NotePage() {
         letterhead: (user as any)?.letterhead
       }
 
-      // Use the professional PDF generator that matches the template exactly
-      generateProfessionalMedicalNotePDF(professionalNote)
+      // Use the enhanced professional PDF generator that matches the template exactly
+      generateEnhancedProfessionalMedicalNotePDF(professionalNote)
 
       toast({
         title: 'PDF Downloaded',

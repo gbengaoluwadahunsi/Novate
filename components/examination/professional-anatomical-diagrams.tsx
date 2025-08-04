@@ -7,7 +7,7 @@ import Image from 'next/image'
 export const ProfessionalMaleBodyFront: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`relative ${className}`}>
     <Image 
-      src="/svg/b20f2eb0-83a1-432b-b5d4-6783b04f1336-0.svg"
+      src="/svg/male1.svg"
       alt="Professional Male Body - Front View"
       width={300}
       height={400}
@@ -20,7 +20,7 @@ export const ProfessionalMaleBodyFront: React.FC<{ className?: string }> = ({ cl
 export const ProfessionalFemaleBodyFront: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`relative ${className}`}>
     <Image 
-      src="/svg/b20f2eb0-83a1-432b-b5d4-6783b04f1336-1.svg"
+      src="/svg/female1.svg"
       alt="Professional Female Body - Front View"
       width={300}
       height={400}
@@ -29,11 +29,11 @@ export const ProfessionalFemaleBodyFront: React.FC<{ className?: string }> = ({ 
   </div>
 )
 
-// Professional Male Body Diagram - Back View (using uploaded SVG)
+// Professional Male Body Diagram - Back View (using renamed SVG)
 export const ProfessionalMaleBodyBack: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`relative ${className}`}>
     <Image 
-      src="/svg/101f1ee9-b262-4822-a578-eefed3d5f54b-0.svg"
+      src="/svg/male2.svg"
       alt="Professional Male Body - Back View"
       width={300}
       height={400}
@@ -42,11 +42,11 @@ export const ProfessionalMaleBodyBack: React.FC<{ className?: string }> = ({ cla
   </div>
 )
 
-// Professional Female Body Diagram - Back View (using uploaded SVG)
+// Professional Female Body Diagram - Back View (using renamed SVG)
 export const ProfessionalFemaleBodyBack: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`relative ${className}`}>
     <Image 
-      src="/svg/101f1ee9-b262-4822-a578-eefed3d5f54b-0.svg"
+      src="/svg/female2.svg"
       alt="Professional Female Body - Back View"
       width={300}
       height={400}
@@ -55,11 +55,11 @@ export const ProfessionalFemaleBodyBack: React.FC<{ className?: string }> = ({ c
   </div>
 )
 
-// Professional Male Body Diagram - Side View (using uploaded SVG)
+// Professional Male Body Diagram - Side View (using renamed SVG)
 export const ProfessionalMaleBodySide: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`relative ${className}`}>
     <Image 
-      src="/svg/101f1ee9-b262-4822-a578-eefed3d5f54b-1.svg"
+      src="/svg/male2.svg"
       alt="Professional Male Body - Side View"
       width={300}
       height={400}
@@ -68,11 +68,11 @@ export const ProfessionalMaleBodySide: React.FC<{ className?: string }> = ({ cla
   </div>
 )
 
-// Professional Female Body Diagram - Side View (using uploaded SVG)
+// Professional Female Body Diagram - Side View (using renamed SVG)
 export const ProfessionalFemaleBodySide: React.FC<{ className?: string }> = ({ className }) => (
   <div className={`relative ${className}`}>
     <Image 
-      src="/svg/101f1ee9-b262-4822-a578-eefed3d5f54b-1.svg"
+      src="/svg/female2.svg"
       alt="Professional Female Body - Side View"
       width={300}
       height={400}
@@ -84,6 +84,33 @@ export const ProfessionalFemaleBodySide: React.FC<{ className?: string }> = ({ c
 // Backward compatibility - keeping the original components
 export const ProfessionalBodyBack = ProfessionalMaleBodyBack
 export const ProfessionalBodySide = ProfessionalMaleBodySide
+
+// Dynamic components that select based on gender
+interface DynamicDiagramProps {
+  gender?: string | null;
+  className?: string;
+}
+
+export const DynamicBodyFront: React.FC<DynamicDiagramProps> = ({ gender, className }) => {
+  const isFemale = gender?.toLowerCase() === 'female';
+  return isFemale ? 
+    <ProfessionalFemaleBodyFront className={className} /> : 
+    <ProfessionalMaleBodyFront className={className} />;
+};
+
+export const DynamicBodyBack: React.FC<DynamicDiagramProps> = ({ gender, className }) => {
+  const isFemale = gender?.toLowerCase() === 'female';
+  return isFemale ? 
+    <ProfessionalFemaleBodyBack className={className} /> : 
+    <ProfessionalMaleBodyBack className={className} />;
+};
+
+export const DynamicBodySide: React.FC<DynamicDiagramProps> = ({ gender, className }) => {
+  const isFemale = gender?.toLowerCase() === 'female';
+  return isFemale ? 
+    <ProfessionalFemaleBodySide className={className} /> : 
+    <ProfessionalMaleBodySide className={className} />;
+};
 
 // If you have additional SVG files for chest and abdominal diagrams, we can use those too
 // For now, keeping simpler chest and abdominal diagrams as fallback

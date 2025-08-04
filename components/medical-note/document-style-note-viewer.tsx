@@ -32,7 +32,10 @@ import {
   ProfessionalMaleBodySide,
   ProfessionalFemaleBodySide,
   ProfessionalChestDiagram,
-  ProfessionalAbdominalDiagram
+  ProfessionalAbdominalDiagram,
+  DynamicBodyFront,
+  DynamicBodyBack,
+  DynamicBodySide
 } from '@/components/examination/professional-anatomical-diagrams'
 import DynamicMedicalDiagram, { convertExaminationDataToFindings } from '@/components/examination/dynamic-medical-diagram'
 
@@ -490,9 +493,9 @@ export default function DocumentStyleNoteViewer({
                     {/* General Examination - Front View */}
                     {note.generalExamination && findings.general.length > 0 && (
                       <DynamicMedicalDiagram
-                        diagramComponent={note.patientGender?.toLowerCase() === 'female' ? ProfessionalFemaleBodyFront : ProfessionalMaleBodyFront}
+                        diagramComponent={() => <DynamicBodyFront gender={note.patientGender} />}
                         findings={findings.general}
-                        title={`General Examination - Front View (${note.patientGender || 'Unknown'} Patient)`}
+                        title="General Examination - Front View"
                         maxWidth="max-w-lg"
                       />
                     )}
@@ -500,9 +503,9 @@ export default function DocumentStyleNoteViewer({
                     {/* Back View */}
                     {note.generalExamination && (
                       <DynamicMedicalDiagram
-                        diagramComponent={note.patientGender?.toLowerCase() === 'female' ? ProfessionalFemaleBodyBack : ProfessionalMaleBodyBack}
+                        diagramComponent={() => <DynamicBodyBack gender={note.patientGender} />}
                         findings={[]} // Back view findings would go here
-                        title={`General Examination - Back View (${note.patientGender || 'Unknown'} Patient)`}
+                        title="General Examination - Back View"
                         maxWidth="max-w-lg"
                       />
                     )}
@@ -510,9 +513,9 @@ export default function DocumentStyleNoteViewer({
                     {/* Side View */}
                     {note.generalExamination && (
                       <DynamicMedicalDiagram
-                        diagramComponent={note.patientGender?.toLowerCase() === 'female' ? ProfessionalFemaleBodySide : ProfessionalMaleBodySide}
+                        diagramComponent={() => <DynamicBodySide gender={note.patientGender} />}
                         findings={[]} // Side view findings would go here
-                        title={`General Examination - Side View (${note.patientGender || 'Unknown'} Patient)`}
+                        title="General Examination - Side View"
                         maxWidth="max-w-lg"
                       />
                     )}
