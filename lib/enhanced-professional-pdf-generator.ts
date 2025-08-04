@@ -242,17 +242,7 @@ class EnhancedTemplatePDFGenerator {
     this.doc.text('Medical Notes', 20, this.currentY)
     this.currentY += 15
     
-    // Patient Information Section
-    this.addSectionHeader('Patient Information')
-    this.addLabeledContent('Patient Name', note.patientName, true)
-    this.addLabeledContent('Age', note.patientAge, true)
-    this.addLabeledContent('Gender', note.patientGender, true)
-    this.addLabeledContent('Patient ID', note.patientId, true)
-    if (note.chaperone) {
-      this.addLabeledContent('Chaperone', note.chaperone, true)
-    }
-    
-    this.currentY += 5
+    // Skip Patient Information section - removed per user feedback
     
     // Chief Complaint
     this.addSectionHeader('Chief Complaint')

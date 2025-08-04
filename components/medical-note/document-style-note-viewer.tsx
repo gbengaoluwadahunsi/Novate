@@ -261,18 +261,7 @@ export default function DocumentStyleNoteViewer({
       {/* Document Content - Medical Note */}
       <div className="p-8 space-y-8 bg-white" style={{ fontFamily: 'Georgia, serif' }}>
 
-        {/* Patient Information */}
-        <section className="border-b pb-4">
-          <h2 className="text-lg font-semibold mb-3 text-blue-900">Patient Information</h2>
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div><strong>Patient Name:</strong> {formatFieldValue(note.patientName)}</div>
-            <div><strong>Age:</strong> {formatFieldValue(note.patientAge)}</div>
-            <div><strong>Gender:</strong> {formatFieldValue(note.patientGender)}</div>
-            <div><strong>Date of Visit:</strong> {formatFieldValue(note.generatedOn)}</div>
-            <div><strong>Patient ID:</strong> {formatFieldValue(note.patientId) || 'Not specified'}</div>
-            <div><strong>Doctor:</strong> {formatFieldValue(note.doctorName) || 'Not specified'}</div>
-          </div>
-        </section>
+        {/* Patient Information section removed per user feedback */}
 
         {/* Vital Signs */}
         <section className="border-b pb-4">
