@@ -93,24 +93,15 @@ class EnhancedTemplatePDFGenerator {
   }
 
   private addProfessionalHeader() {
-    // Add letterhead background first
-    this.applyLetterheadBackground()
-    
-    // Professional header with company info
-    this.doc.setFontSize(16)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text('NOVATE AI GROUP (M) SDN. BHD.', 20, 25)
-    
-    this.doc.setFontSize(10)
-    this.doc.setFont('helvetica', 'normal')
-    this.doc.text('AI-Powered Medical Documentation Platform', 20, 35)
-    this.doc.text('Registration No: 123456789 | License: MD-2024-001', 20, 45)
-    
-    // Header line
-    this.doc.setLineWidth(0.5)
-    this.doc.line(20, 55, this.pageWidth - 20, 55)
-    
-    this.currentY = 70
+    // Only add letterhead if one is provided
+    if (this.letterheadTemplate) {
+      this.applyLetterheadBackground()
+      // Set content to start below letterhead area
+      this.currentY = 100
+    } else {
+      // No letterhead - start content from top with minimal margin
+      this.currentY = 20
+    }
   }
 
   private addSectionHeader(title: string, fontSize: number = 14): void {
@@ -128,20 +119,58 @@ class EnhancedTemplatePDFGenerator {
     this.currentY += 8
   }
 
-  private addContent(content: string, maxWidth: number = 170): void {
+  private addContent(content: any, maxWidth: number = 170): void {
     this.doc.setFont('helvetica', 'normal')
     this.doc.setFontSize(10)
     
-    if (content && content.trim()) {
-      const lines = this.doc.splitTextToSize(content, maxWidth)
+    // Convert content to string safely
+    let textContent = ''
+    if (content === undefined || content === null) {
+      return // Skip empty content
+    }
+    
+    if (typeof content === 'string') {
+      textContent = content.trim()
+    } else if (Array.isArray(content)) {
+      textContent = content.filter(item => item != null).join(', ').trim()
+    } else if (typeof content === 'object') {
+      textContent = JSON.stringify(content).trim()
+    } else {
+      textContent = String(content).trim()
+    }
+    
+    if (textContent) {
+      const lines = this.doc.splitTextToSize(textContent, maxWidth)
       this.doc.text(lines, 20, this.currentY)
       this.currentY += lines.length * 5 + 5
     }
     // Don't show "Not recorded" - skip empty sections entirely
   }
 
-  private hasContent(content?: string): boolean {
-    return content !== undefined && content !== null && content.trim() !== ''
+  private hasContent(content?: any): boolean {
+    if (content === undefined || content === null) return false
+    
+    // Handle string content
+    if (typeof content === 'string') {
+      return content.trim() !== ''
+    }
+    
+    // Handle array content
+    if (Array.isArray(content)) {
+      return content.length > 0 && content.some(item => 
+        item !== null && item !== undefined && (typeof item === 'string' ? item.trim() !== '' : true)
+      )
+    }
+    
+    // Handle object content
+    if (typeof content === 'object') {
+      return Object.keys(content).length > 0 && Object.values(content).some(value => 
+        value !== null && value !== undefined && (typeof value === 'string' ? value.trim() !== '' : true)
+      )
+    }
+    
+    // Handle other types (numbers, booleans, etc.)
+    return true
   }
 
   private addLabeledContent(label: string, content: string, inline: boolean = false): void {
@@ -410,38 +439,56 @@ class EnhancedTemplatePDFGenerator {
       this.addSectionHeader('General Examination', 12)
       this.addContent(note.generalExamination!)
       
-      // Body Diagrams Section - only if there are general examination findings
-      const findings = this.extractAnatomicalFindings(note)
-      if (findings.general.length > 0) {
-        this.checkPageBreak(80)
-        this.addSectionHeader('Body Diagrams', 12)
-        
-        // Draw anatomical diagram placeholders with dynamic labeling
-        const diagramY = this.currentY + 10
-        const diagramSize = 25
-        const spacing = 45
-        
-        // Front view
-        this.addBodyDiagramPlaceholder(30, diagramY, diagramSize, 'Front')
-        
-        // Back view  
-        this.addBodyDiagramPlaceholder(30 + spacing, diagramY, diagramSize, 'Back')
-        
-        // Side view
-        this.addBodyDiagramPlaceholder(30 + spacing * 2, diagramY, diagramSize, 'Side')
-        
-        // Add findings labels below diagrams
-        let labelY = diagramY + diagramSize + 15
-        this.doc.setFontSize(7)
-        this.doc.setFont('helvetica', 'normal')
-        
-        findings.general.forEach((finding: any) => {
-          this.doc.text(`${finding.label}: ${finding.value}`, 30, labelY)
+              // Body Diagrams Section - only if there are general examination findings
+        const findings = this.extractAnatomicalFindings(note)
+        if (findings.general.length > 0) {
+          this.checkPageBreak(80)
+          this.addSectionHeader('Medical Body Diagrams', 12)
+          
+          // Enhanced diagram section with Novate MedViz integration
+          const diagramY = this.currentY + 10
+          const diagramSize = 25
+          const spacing = 45
+          
+          // Add note about diagram integration
+          this.doc.setFontSize(8)
+          this.doc.setFont('helvetica', 'italic')
+          this.doc.text('Generated using Novate MedViz - Advanced Medical Visualization', 30, diagramY)
+          
+          // Front view with enhanced labeling
+          this.addEnhancedBodyDiagram(30, diagramY + 10, diagramSize, 'Front View', findings.general)
+          
+          // Back view with enhanced labeling
+          this.addEnhancedBodyDiagram(30 + spacing, diagramY + 10, diagramSize, 'Back View', findings.general)
+          
+          // Side view with enhanced labeling
+          this.addEnhancedBodyDiagram(30 + spacing * 2, diagramY + 10, diagramSize, 'Side View', findings.general)
+          
+          // Add detailed findings summary below diagrams
+          let labelY = diagramY + diagramSize + 25
+          this.doc.setFontSize(8)
+          this.doc.setFont('helvetica', 'bold')
+          this.doc.text('Anatomical Findings Summary:', 30, labelY)
           labelY += 8
-        })
-        
-        this.currentY = labelY + 10
-      }
+          
+          this.doc.setFont('helvetica', 'normal')
+          this.doc.setFontSize(7)
+          
+          findings.general.forEach((finding: any, index: number) => {
+            const severity = this.determineFindingSeverity(finding.value)
+            const severityColor = severity === 'severe' ? [255, 0, 0] : severity === 'moderate' ? [255, 165, 0] : [0, 128, 0]
+            
+            // Add colored indicator for severity
+            this.doc.setFillColor(severityColor[0], severityColor[1], severityColor[2])
+            this.doc.circle(28, labelY - 1, 1, 'F')
+            
+            this.doc.setTextColor(0, 0, 0)
+            this.doc.text(`${finding.label}: ${finding.value}`, 30, labelY)
+            labelY += 6
+          })
+          
+          this.currentY = labelY + 10
+        }
     }
   }
 
@@ -614,16 +661,7 @@ class EnhancedTemplatePDFGenerator {
       this.doc.text('No stamp', 163, this.currentY + 25)
     }
     
-    // Professional footer
-    this.currentY += 45
-    this.doc.setFont('helvetica', 'normal')
-    this.doc.setFontSize(7)
-    this.doc.text('This medical note was generated electronically and is valid with digital authorization', 20, this.currentY)
-    
-    // Digital verification line
-    this.currentY += 8
-    this.doc.setFontSize(6)
-    this.doc.text('NOVATE AI - Digital Medical Documentation System', 20, this.currentY)
+
   }
 
   // Helper methods for diagrams
@@ -758,12 +796,70 @@ class EnhancedTemplatePDFGenerator {
     
     return this.doc
   }
+
+  // Helper method to add enhanced body diagrams with Novate MedViz integration
+  private addEnhancedBodyDiagram(x: number, y: number, size: number, viewLabel: string, findings: any[]): void {
+    // Draw enhanced diagram placeholder with border
+    this.doc.setDrawColor(100, 100, 100)
+    this.doc.setLineWidth(0.5)
+    this.doc.rect(x, y, size, size)
+    
+    // Add gradient background effect
+    this.doc.setFillColor(245, 245, 250)
+    this.doc.rect(x + 1, y + 1, size - 2, size - 2, 'F')
+    
+    // Add view label
+    this.doc.setFontSize(8)
+    this.doc.setFont('helvetica', 'bold')
+    this.doc.text(viewLabel, x + size/2, y + size + 5, { align: 'center' })
+    
+    // Add finding indicators on diagram
+    findings.slice(0, 3).forEach((finding, index) => {
+      const indicatorX = x + 5 + (index * 6)
+      const indicatorY = y + 5
+      
+      // Color code based on severity
+      const severity = this.determineFindingSeverity(finding.value)
+      const color = severity === 'severe' ? [255, 0, 0] : severity === 'moderate' ? [255, 165, 0] : [0, 128, 0]
+      
+      this.doc.setFillColor(color[0], color[1], color[2])
+      this.doc.circle(indicatorX, indicatorY, 2, 'F')
+    })
+    
+    // Add "Powered by Novate MedViz" watermark
+    this.doc.setFontSize(6)
+    this.doc.setFont('helvetica', 'italic')
+    this.doc.setTextColor(150, 150, 150)
+    this.doc.text('Novate MedViz', x + size/2, y + size - 2, { align: 'center' })
+    this.doc.setTextColor(0, 0, 0)
+  }
+
+  // Helper method to determine finding severity
+  private determineFindingSeverity(findingValue: string): 'mild' | 'moderate' | 'severe' {
+    const value = findingValue.toLowerCase()
+    
+    if (value.includes('severe') || value.includes('acute') || value.includes('critical') || value.includes('significant')) {
+      return 'severe'
+    }
+    
+    if (value.includes('moderate') || value.includes('notable') || value.includes('marked') || value.includes('prominent')) {
+      return 'moderate'
+    }
+    
+    return 'mild'
+  }
 }
 
 export function generateEnhancedProfessionalMedicalNotePDF(note: ProfessionalMedicalNote): void {
   const generator = new EnhancedTemplatePDFGenerator(note.letterhead)
   const pdf = generator.generatePDF(note)
-  pdf.save(`Medical_Note_${note.patientName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`)
+  
+  // Safely handle patient name for filename
+  const patientName = typeof note.patientName === 'string' ? note.patientName : 'Unknown_Patient'
+  const safePatientName = patientName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+  const dateStr = new Date().toISOString().split('T')[0]
+  
+  pdf.save(`Medical_Note_${safePatientName}_${dateStr}.pdf`)
 }
 
 export { EnhancedTemplatePDFGenerator }

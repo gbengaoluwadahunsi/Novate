@@ -5,11 +5,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
-import { Save, FileText, User, Stethoscope, ClipboardList, Brain } from 'lucide-react'
+import { Save, FileText, User, Stethoscope, ClipboardList, Brain, Volume2 } from 'lucide-react'
+import NovateMedicalDiagram, { SymptomData } from '@/components/medical-diagram/novate-medical-diagram'
+import IntelligentMedicalDiagrams from '@/components/medical-diagram/intelligent-medical-diagrams'
 
 // Simple interface matching the new.pdf template exactly
 interface CleanMedicalNote {
@@ -69,6 +72,10 @@ interface CleanMedicalNote {
   dateTime: string
   signature?: string
   stamp?: string
+  
+  // Transcript for validation
+  originalTranscript?: string
+  transcript?: string
 }
 
 const createEmptyNote = (): CleanMedicalNote => ({
@@ -104,7 +111,9 @@ const createEmptyNote = (): CleanMedicalNote => ({
   doctorRegistrationNo: '',
   dateTime: new Date().toLocaleString(),
   signature: '',
-  stamp: ''
+  stamp: '',
+  originalTranscript: '',
+  transcript: ''
 })
 
 interface CleanMedicalNoteEditorProps {
@@ -153,11 +162,12 @@ export default function CleanMedicalNoteEditor({
       </div>
 
       <Tabs defaultValue="patient" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="patient">Patient & History</TabsTrigger>
           <TabsTrigger value="systems">Systems Review</TabsTrigger>
           <TabsTrigger value="assessment">Assessment & Plan</TabsTrigger>
           <TabsTrigger value="examination">Physical Exam</TabsTrigger>
+          <TabsTrigger value="transcript">Original Transcript</TabsTrigger>
         </TabsList>
 
         {/* Patient Information & History */}
@@ -569,13 +579,50 @@ export default function CleanMedicalNoteEditor({
               
               <Separator />
               
-              <div className="text-center text-sm text-gray-600 p-4">
-                <p>Physical examination diagrams will be included in PDF generation</p>
-                <p className="text-xs mt-2">
-                  • General body diagrams (front, side, back views)<br/>
-                  • Cardiovascular and Respiratory Examination<br/>
-                  • Abdominal and Inguinal Examination<br/>
-                  • Other specialized examinations as needed
+              {/* Intelligent Visual Medical Diagrams */}
+              <div className="p-4">
+                <IntelligentMedicalDiagrams
+                  examinationData={{
+                    generalExamination: `Temperature: ${note.temperature}, Pulse: ${note.pulseRate}, RR: ${note.respiratoryRate}, BP: ${note.bloodPressure}`,
+                    cardiovascularExamination: '', // Add if you have specific cardio fields
+                    respiratoryExamination: '', // Add if you have specific respiratory fields  
+                    abdominalExamination: '', // Add if you have specific abdominal fields
+                    otherSystemsExamination: '', // Add if you have other systems
+                    chiefComplaint: note.chiefComplaint,
+                    historyOfPresentingIllness: note.historyOfPresentingIllness
+                  }}
+                  patientGender={determinePatientGender(note.patientGender)}
+                  className="max-w-4xl mx-auto"
+                />
+                <div className="text-center text-xs text-gray-500 mt-4">
+                  <p>• Intelligent anatomical visualization based on examination findings</p>
+                  <p>• Automatically displays relevant views (front, back, specialized organs)</p>
+                  <p>• Gender-specific medical diagrams with symptom mapping</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Original Transcript Tab - For Validation */}
+        <TabsContent value="transcript" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Volume2 className="h-5 w-5" />
+                Original Audio Transcript
+                <Badge variant="outline" className="text-xs">
+                  For Validation
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-sm text-gray-600 mb-4">
+                This is the original transcript from the audio recording to ensure accuracy and prevent hallucination.
+              </div>
+              <div className="bg-gray-50 border rounded-lg p-4 max-h-96 overflow-y-auto">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {note.originalTranscript || note.transcript || 'No transcript available for this note.'}
                 </p>
               </div>
             </CardContent>
@@ -584,6 +631,141 @@ export default function CleanMedicalNoteEditor({
       </Tabs>
     </div>
   )
+}
+
+// Helper function to extract symptoms from medical note for diagram visualization
+function extractSymptomsFromNote(note: CleanMedicalNote): SymptomData[] {
+  const symptoms: SymptomData[] = []
+  
+  // Extract from chief complaint
+  if (note.chiefComplaint) {
+    const findings = extractFindingsFromText(note.chiefComplaint, 'chief_complaint')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from history of present illness
+  if (note.historyOfPresentingIllness) {
+    const findings = extractFindingsFromText(note.historyOfPresentingIllness, 'history')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from assessment (which may contain physical findings)
+  if (note.assessment) {
+    const findings = extractFindingsFromText(note.assessment, 'assessment')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from investigations (which may contain examination results)
+  if (note.investigations) {
+    const findings = extractFindingsFromText(note.investigations, 'investigations')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from assessment
+  if (note.assessment) {
+    const findings = extractFindingsFromText(note.assessment, 'diagnosis')
+    symptoms.push(...findings)
+  }
+  
+  return symptoms
+}
+
+// Helper function to extract findings from examination text
+function extractFindingsFromText(text: string, systemType: string): SymptomData[] {
+  const findings: SymptomData[] = []
+  const lowerText = text.toLowerCase()
+  
+  // Common medical findings and their body part mappings
+  const findingsMap: Record<string, { bodyPart: string; coordinates: { x: number; y: number } }> = {
+    // Pain and discomfort
+    'chest pain': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    'abdominal pain': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'headache': { bodyPart: 'head', coordinates: { x: 0.5, y: 0.15 } },
+    'back pain': { bodyPart: 'general', coordinates: { x: 0.5, y: 0.5 } },
+    'neck pain': { bodyPart: 'head', coordinates: { x: 0.5, y: 0.25 } },
+    'sore throat': { bodyPart: 'head', coordinates: { x: 0.5, y: 0.22 } },
+    
+    // Respiratory symptoms
+    'cough': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'shortness of breath': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'wheezing': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'difficulty breathing': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    
+    // Cardiovascular symptoms
+    'palpitations': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    'heart murmur': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    'irregular heartbeat': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    
+    // Gastrointestinal symptoms
+    'nausea': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'vomiting': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'diarrhea': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'constipation': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    
+    // General symptoms
+    'fever': { bodyPart: 'general', coordinates: { x: 0.5, y: 0.5 } },
+    'fatigue': { bodyPart: 'general', coordinates: { x: 0.5, y: 0.5 } },
+    'weakness': { bodyPart: 'general', coordinates: { x: 0.5, y: 0.5 } },
+    'dizziness': { bodyPart: 'head', coordinates: { x: 0.5, y: 0.15 } },
+    'swelling': { bodyPart: 'lower_extremity', coordinates: { x: 0.5, y: 0.8 } },
+    'edema': { bodyPart: 'lower_extremity', coordinates: { x: 0.5, y: 0.8 } }
+  }
+  
+  // Search for findings in the text
+  Object.entries(findingsMap).forEach(([finding, mapping]) => {
+    if (lowerText.includes(finding)) {
+      const severity = determineSeverityFromText(text, finding)
+      
+      findings.push({
+        name: finding.charAt(0).toUpperCase() + finding.slice(1),
+        bodyPart: mapping.bodyPart,
+        severity,
+        coordinates: mapping.coordinates,
+        description: `${systemType} finding`,
+        duration: 'Current examination'
+      })
+    }
+  })
+  
+  return findings
+}
+
+// Helper function to determine severity from text context
+function determineSeverityFromText(text: string, finding: string): 'mild' | 'moderate' | 'severe' {
+  const lowerText = text.toLowerCase()
+  const findingContext = extractContextAroundFinding(lowerText, finding)
+  
+  if (findingContext.includes('severe') || findingContext.includes('acute') || findingContext.includes('significant')) {
+    return 'severe'
+  }
+  
+  if (findingContext.includes('moderate') || findingContext.includes('notable') || findingContext.includes('marked')) {
+    return 'moderate'
+  }
+  
+  return 'mild'
+}
+
+// Helper function to extract context around a finding
+function extractContextAroundFinding(text: string, finding: string): string {
+  const index = text.indexOf(finding)
+  if (index === -1) return ''
+  
+  const start = Math.max(0, index - 50)
+  const end = Math.min(text.length, index + finding.length + 50)
+  return text.substring(start, end)
+}
+
+// Helper function to determine patient gender for diagram rendering
+function determinePatientGender(gender?: string): 'male' | 'female' {
+  if (!gender) return 'male'
+  
+  const lowerGender = gender.toLowerCase()
+  if (lowerGender.includes('female') || lowerGender.includes('woman') || lowerGender === 'f') {
+    return 'female'
+  }
+  
+  return 'male' // Default to male
 }
 
 export type { CleanMedicalNote }

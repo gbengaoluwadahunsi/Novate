@@ -1267,26 +1267,27 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         medicalNote: {
           chiefComplaint: medicalNote?.chiefComplaint || 
                         (transcriptionData as any)?.chiefComplaint ||
-                        'Patient presenting with symptoms as described in audio recording',
+                        '[To be extracted from transcript]',
           historyOfPresentIllness: medicalNote?.historyOfPresentIllness ||
                                  (medicalNote as any)?.historyOfPresentIllness ||
                                  (transcriptionData as any)?.historyOfPresentIllness ||
-                                 (transcriptionData as any)?.historyOfPresentIllness ||
-                                 'Patient history and symptom progression as documented in audio',
+                                 '[To be extracted from transcript]',
           diagnosis: medicalNote?.diagnosis ||
                     (medicalNote as any)?.assessmentAndDiagnosis ||
                     (transcriptionData as any)?.diagnosis ||
                     (transcriptionData as any)?.assessmentAndDiagnosis ||
-                    'Clinical assessment and diagnostic impression',
+                    '[To be determined based on transcript analysis]',
           treatmentPlan: medicalNote?.treatmentPlan ||
                         (medicalNote as any)?.managementPlan ||
                         (transcriptionData as any)?.managementPlan ||
                         (transcriptionData as any)?.treatmentPlan ||
-                        'Treatment plan and recommendations as discussed',
+                        '[To be determined based on transcript analysis]',
+          // Add raw transcript for reference and validation
+          rawTranscript: ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '',
         },
-        transcript: 'Transcription completed',
-        language: 'en',
-        processingTime: '0s'
+        transcript: ('transcript' in transcriptionData ? transcriptionData.transcript : '') || 'No transcript available',
+        language: transcriptionData.language || 'en',
+        processingTime: transcriptionData.processingTime || '0s'
       };
 
       // Call the completion handler with the note data

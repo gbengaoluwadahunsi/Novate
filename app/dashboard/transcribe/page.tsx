@@ -16,7 +16,7 @@ import AudioUpload from "@/components/audio-upload"
 import { useToast } from "@/hooks/use-toast"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { createMedicalNote } from "@/store/features/notesSlice"
-// import { DebugAuth } from "@/components/debug-auth"
+
 
 interface QueuedRecording {
   id: string
@@ -186,6 +186,8 @@ export default function TranscribePage() {
         treatmentPlan: medicalNote.treatmentPlan || data.managementPlan || '',
         noteType: 'consultation' as const,
         audioJobId: data.audioJobId,
+        // Preserve original transcript to prevent hallucination
+        originalTranscript: data.transcript || data.rawTranscript || '',
       };
 
       // Note data prepared for creation

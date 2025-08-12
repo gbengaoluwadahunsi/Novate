@@ -96,6 +96,58 @@ export class VoiceInputService {
   async processEditInstruction(transcription: string): Promise<EditInstruction[]> {
     const instructions: EditInstruction[] = []
     const text = transcription.toLowerCase()
+    const lowerText = text
+
+    // Patient Information Processing (should be at top level)
+    if (lowerText.includes('gender') || lowerText.includes('sex')) {
+      // Handle gender changes
+      const genderMatch = text.match(/(?:change|update|set)\s+(?:gender|sex)\s+to\s+(male|female)/i)
+      if (genderMatch) {
+        instructions.push({
+          field: 'patientGender',
+          section: 'Patient Information',
+          newValue: genderMatch[1].toLowerCase() === 'male' ? 'Male' : 'Female',
+          action: 'replace',
+          confidence: 0.9
+        })
+      }
+    } else if (lowerText.includes('age') || lowerText.includes('years old')) {
+      // Handle age changes
+      const ageMatch = text.match(/(?:change|update|set|the age of the patient is)\s+(?:age\s+)?(?:to\s+)?(\d+)/i)
+      if (ageMatch) {
+        instructions.push({
+          field: 'patientAge',
+          section: 'Patient Information',
+          newValue: ageMatch[1],
+          action: 'replace',
+          confidence: 0.9
+        })
+      }
+    } else if (lowerText.includes('patient id') || lowerText.includes('id')) {
+      // Handle patient ID changes
+      const idMatch = text.match(/(?:change|update|set)\s+(?:patient\s+)?id\s+(?:to\s+)?(\w+)/i)
+      if (idMatch) {
+        instructions.push({
+          field: 'patientId',
+          section: 'Patient Information',
+          newValue: idMatch[1],
+          action: 'replace',
+          confidence: 0.9
+        })
+      }
+    } else if (lowerText.includes('name')) {
+      // Handle name changes
+      const nameMatch = text.match(/(?:change|update|set)\s+name\s+(?:to\s+)?([a-zA-Z\s]+)/i)
+      if (nameMatch) {
+        instructions.push({
+          field: 'patientName',
+          section: 'Patient Information',
+          newValue: nameMatch[1].trim(),
+          action: 'replace',
+          confidence: 0.9
+        })
+      }
+    }
 
     // Vital Signs Processing
     if (text.includes('blood pressure') || text.includes('bp')) {
@@ -229,67 +281,41 @@ export class VoiceInputService {
     // Physical Examination specific patterns
     if (text.includes('head') && (text.includes('normal') || text.includes('abnormal'))) {
       instructions.push({
-        field: 'GEI.Head.Head1',
+        field: 'generalExamination',
         section: 'General Examination',
         newValue: text.includes('normal') ? 'Normal head examination' : text,
-        action: 'replace',
+        action: 'append',
         confidence: 0.8
       })
     }
 
     if (text.includes('face') && (text.includes('normal') || text.includes('abnormal'))) {
       instructions.push({
-        field: 'GEI.Face.Face1',
+        field: 'generalExamination',
         section: 'General Examination',
         newValue: text.includes('normal') ? 'Normal facial examination' : text,
-        action: 'replace',
+        action: 'append',
         confidence: 0.8
       })
     }
 
     if (text.includes('eyes') || text.includes('eye')) {
       const eyeText = text.includes('normal') ? 'Normal eye examination' : text
-      if (text.includes('right eye') || text.includes('right')) {
-        instructions.push({
-          field: 'GEI.Eyes.Eye1',
-          section: 'General Examination',
-          newValue: eyeText,
-          action: 'replace',
-          confidence: 0.8
-        })
-      } else if (text.includes('left eye') || text.includes('left')) {
-        instructions.push({
-          field: 'GEI.Eyes.Eye2',
-          section: 'General Examination',
-          newValue: eyeText,
-          action: 'replace',
-          confidence: 0.8
-        })
-      } else {
-        // Both eyes
-        instructions.push({
-          field: 'GEI.Eyes.Eye1',
-          section: 'General Examination',
-          newValue: eyeText,
-          action: 'replace',
-          confidence: 0.8
-        })
-        instructions.push({
-          field: 'GEI.Eyes.Eye2',
-          section: 'General Examination',
-          newValue: eyeText,
-          action: 'replace',
-          confidence: 0.8
-        })
-      }
+      instructions.push({
+        field: 'generalExamination',
+        section: 'General Examination',
+        newValue: eyeText,
+        action: 'append',
+        confidence: 0.8
+      })
     }
 
     if (text.includes('neck') && (text.includes('normal') || text.includes('abnormal') || text.includes('palpable'))) {
       instructions.push({
-        field: 'GEI.Neck.Neck1',
+        field: 'generalExamination',
         section: 'General Examination',
         newValue: text.includes('normal') ? 'Normal neck examination' : text,
-        action: 'replace',
+        action: 'append',
         confidence: 0.8
       })
     }
@@ -298,7 +324,7 @@ export class VoiceInputService {
       const heartMatch = text.match(/(?:heart|cardiac)\s+(.+?)(?:\.|$|,)/)
       if (heartMatch) {
         instructions.push({
-          field: 'CVSRespExamination.Chest.A',
+          field: 'cardiovascularExamination',
           section: 'Cardiovascular Examination',
           newValue: heartMatch[1].trim(),
           action: 'replace',
@@ -311,7 +337,7 @@ export class VoiceInputService {
       const lungMatch = text.match(/(?:lungs?|respiratory)\s+(.+?)(?:\.|$|,)/)
       if (lungMatch) {
         instructions.push({
-          field: 'CVSRespExamination.Chest.P',
+          field: 'respiratoryExamination',
           section: 'Respiratory Examination',
           newValue: lungMatch[1].trim(),
           action: 'replace',
@@ -324,7 +350,7 @@ export class VoiceInputService {
       const abdomenMatch = text.match(/(?:abdomen|abdominal)\s+(.+?)(?:\.|$|,)/)
       if (abdomenMatch) {
         instructions.push({
-          field: 'AbdominalInguinalExamination.Stomach',
+          field: 'abdominalExamination',
           section: 'Abdominal Examination',
           newValue: abdomenMatch[1].trim(),
           action: 'replace',
@@ -356,50 +382,50 @@ export class VoiceInputService {
           action: 'append',
           confidence: 0.7
         })
-      } else if (lowerText.includes('examination') || lowerText.includes('exam')) {
-        // Try to determine which examination section
-        if (lowerText.includes('head') || lowerText.includes('face') || lowerText.includes('eye') || lowerText.includes('neck')) {
-          instructions.push({
-            field: 'GEI.Head.Head1',
-            section: 'General Examination',
-            newValue: transcription,
-            action: 'append',
-            confidence: 0.7
-          })
-        } else if (lowerText.includes('heart') || lowerText.includes('cardiac') || lowerText.includes('chest')) {
-          instructions.push({
-            field: 'CVSRespExamination.Chest.A',
-            section: 'Cardiovascular Examination',
-            newValue: transcription,
-            action: 'append',
-            confidence: 0.7
-          })
-        } else if (lowerText.includes('lung') || lowerText.includes('respiratory') || lowerText.includes('breath')) {
-          instructions.push({
-            field: 'CVSRespExamination.Chest.P',
-            section: 'Respiratory Examination',
-            newValue: transcription,
-            action: 'append',
-            confidence: 0.7
-          })
-        } else if (lowerText.includes('abdomen') || lowerText.includes('stomach') || lowerText.includes('belly')) {
-          instructions.push({
-            field: 'AbdominalInguinalExamination.Stomach',
-            section: 'Abdominal Examination',
-            newValue: transcription,
-            action: 'append',
-            confidence: 0.7
-          })
-        } else {
-          // General examination fallback
-          instructions.push({
-            field: 'GEI.Head.Head1',
-            section: 'General Examination',
-            newValue: transcription,
-            action: 'append',
-            confidence: 0.6
-          })
-        }
+              } else if (lowerText.includes('examination') || lowerText.includes('exam')) {
+          // Try to determine which examination section
+          if (lowerText.includes('head') || lowerText.includes('face') || lowerText.includes('eye') || lowerText.includes('neck')) {
+            instructions.push({
+              field: 'generalExamination',
+              section: 'General Examination',
+              newValue: transcription,
+              action: 'append',
+              confidence: 0.7
+            })
+          } else if (lowerText.includes('heart') || lowerText.includes('cardiac') || lowerText.includes('chest')) {
+            instructions.push({
+              field: 'cardiovascularExamination',
+              section: 'Cardiovascular Examination',
+              newValue: transcription,
+              action: 'append',
+              confidence: 0.7
+            })
+          } else if (lowerText.includes('lung') || lowerText.includes('respiratory') || lowerText.includes('breath')) {
+            instructions.push({
+              field: 'respiratoryExamination',
+              section: 'Respiratory Examination',
+              newValue: transcription,
+              action: 'append',
+              confidence: 0.7
+            })
+          } else if (lowerText.includes('abdomen') || lowerText.includes('stomach') || lowerText.includes('belly')) {
+            instructions.push({
+              field: 'abdominalExamination',
+              section: 'Abdominal Examination',
+              newValue: transcription,
+              action: 'append',
+              confidence: 0.7
+            })
+          } else {
+            // General examination fallback
+            instructions.push({
+              field: 'generalExamination',
+              section: 'General Examination',
+              newValue: transcription,
+              action: 'append',
+              confidence: 0.6
+            })
+          }
       } else if (lowerText.includes('plan') || lowerText.includes('treatment')) {
         instructions.push({
           field: 'plan',

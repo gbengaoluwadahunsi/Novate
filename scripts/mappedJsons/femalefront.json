@@ -1,0 +1,260 @@
+{
+    "timestamp": "2025-08-12T04:50:07.898Z",
+    "total_images": 1,
+    "mapped_images": 1,
+    "coordinates_by_image": {
+      "femalefront.png": {
+        "image_name": "femalefront.png",
+        "image_type": "malefront",
+        "total_regions": 41,
+        "coordinates": {
+          "head": {
+            "x": 396,
+            "y": 9,
+            "width": 50,
+            "height": 50
+          },
+          "face": {
+            "x": 402,
+            "y": 75,
+            "width": 50,
+            "height": 50
+          },
+          "nose": {
+            "x": 399,
+            "y": 114,
+            "width": 50,
+            "height": 50
+          },
+          "eyes": {
+            "x": 372,
+            "y": 81,
+            "width": 50,
+            "height": 50
+          },
+          "left_eye": {
+            "x": 426,
+            "y": 78,
+            "width": 50,
+            "height": 50
+          },
+          "right_eye": {
+            "x": 366,
+            "y": 81,
+            "width": 50,
+            "height": 50
+          },
+          "mouth": {
+            "x": 396,
+            "y": 147,
+            "width": 50,
+            "height": 50
+          },
+          "left_ear": {
+            "x": 465,
+            "y": 93,
+            "width": 50,
+            "height": 50
+          },
+          "right_ear": {
+            "x": 330,
+            "y": 96,
+            "width": 50,
+            "height": 50
+          },
+          "neck": {
+            "x": 396,
+            "y": 185,
+            "width": 50,
+            "height": 50
+          },
+          "chest": {
+            "x": 399,
+            "y": 293,
+            "width": 50,
+            "height": 50
+          },
+          "heart": {
+            "x": 471,
+            "y": 338,
+            "width": 50,
+            "height": 50
+          },
+          "lungs": {
+            "x": 330,
+            "y": 275,
+            "width": 50,
+            "height": 50
+          },
+          "left_lung": {
+            "x": 462,
+            "y": 269,
+            "width": 50,
+            "height": 50
+          },
+          "right_lung": {
+            "x": 339,
+            "y": 275,
+            "width": 50,
+            "height": 50
+          },
+          "left_shoulder": {
+            "x": 482,
+            "y": 209,
+            "width": 50,
+            "height": 50
+          },
+          "right_shoulder": {
+            "x": 309,
+            "y": 209,
+            "width": 50,
+            "height": 50
+          },
+          "left_arm": {
+            "x": 533,
+            "y": 356,
+            "width": 50,
+            "height": 50
+          },
+          "right_arm": {
+            "x": 265,
+            "y": 353,
+            "width": 50,
+            "height": 50
+          },
+          "left_forearm": {
+            "x": 560,
+            "y": 493,
+            "width": 50,
+            "height": 50
+          },
+          "right_forearm": {
+            "x": 235,
+            "y": 496,
+            "width": 50,
+            "height": 50
+          },
+          "left_wrist": {
+            "x": 587,
+            "y": 591,
+            "width": 50,
+            "height": 50
+          },
+          "right_wrist": {
+            "x": 211,
+            "y": 600,
+            "width": 50,
+            "height": 50
+          },
+          "left_hand": {
+            "x": 602,
+            "y": 645,
+            "width": 50,
+            "height": 50
+          },
+          "right_hand": {
+            "x": 190,
+            "y": 645,
+            "width": 50,
+            "height": 50
+          },
+          "abdomen": {
+            "x": 399,
+            "y": 442,
+            "width": 50,
+            "height": 50
+          },
+          "stomach": {
+            "x": 420,
+            "y": 379,
+            "width": 50,
+            "height": 50
+          },
+          "liver": {
+            "x": 336,
+            "y": 391,
+            "width": 50,
+            "height": 50
+          },
+          "pelvis": {
+            "x": 402,
+            "y": 568,
+            "width": 50,
+            "height": 50
+          },
+          "left_hip": {
+            "x": 494,
+            "y": 469,
+            "width": 50,
+            "height": 50
+          },
+          "right_hip": {
+            "x": 306,
+            "y": 469,
+            "width": 50,
+            "height": 50
+          },
+          "left_thigh": {
+            "x": 462,
+            "y": 714,
+            "width": 50,
+            "height": 50
+          },
+          "right_thigh": {
+            "x": 327,
+            "y": 717,
+            "width": 50,
+            "height": 50
+          },
+          "left_knee": {
+            "x": 462,
+            "y": 875,
+            "width": 50,
+            "height": 50
+          },
+          "right_knee": {
+            "x": 324,
+            "y": 872,
+            "width": 50,
+            "height": 50
+          },
+          "left_shin": {
+            "x": 447,
+            "y": 1015,
+            "width": 50,
+            "height": 50
+          },
+          "right_shin": {
+            "x": 351,
+            "y": 1006,
+            "width": 50,
+            "height": 50
+          },
+          "left_ankle": {
+            "x": 447,
+            "y": 1111,
+            "width": 50,
+            "height": 50
+          },
+          "right_ankle": {
+            "x": 354,
+            "y": 1117,
+            "width": 50,
+            "height": 50
+          },
+          "left_foot": {
+            "x": 476,
+            "y": 1153,
+            "width": 50,
+            "height": 50
+          },
+          "right_foot": {
+            "x": 318,
+            "y": 1156,
+            "width": 50,
+            "height": 50
+          }
+        }
+      }
+    }
+  }

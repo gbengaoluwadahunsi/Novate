@@ -75,6 +75,10 @@ interface SimpleMedicalNote {
   signature: string // Base64 string
   stamp: string // Base64 string
   letterhead?: string // Base64 string - optional letterhead template
+  
+  // Transcript for validation
+  originalTranscript?: string
+  transcript?: string
 }
 
 const createEmptyNote = (): SimpleMedicalNote => ({
@@ -125,7 +129,9 @@ const createEmptyNote = (): SimpleMedicalNote => ({
   generatedOn: new Date().toLocaleString(),
   signature: '',
   stamp: '',
-  letterhead: undefined
+  letterhead: undefined,
+  originalTranscript: '',
+  transcript: ''
 })
 
 interface SimpleMedicalNoteEditorProps {

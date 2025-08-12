@@ -24,20 +24,10 @@ import {
 } from 'lucide-react'
 import { SimpleMedicalNote } from './simple-medical-note-editor'
 import { voiceInputService, EditInstruction } from '@/lib/voice-input-service'
-import {
-  ProfessionalMaleBodyFront,
-  ProfessionalFemaleBodyFront,
-  ProfessionalMaleBodyBack,
-  ProfessionalFemaleBodyBack,
-  ProfessionalMaleBodySide,
-  ProfessionalFemaleBodySide,
-  ProfessionalChestDiagram,
-  ProfessionalAbdominalDiagram,
-  DynamicBodyFront,
-  DynamicBodyBack,
-  DynamicBodySide
-} from '@/components/examination/professional-anatomical-diagrams'
-import DynamicMedicalDiagram, { convertExaminationDataToFindings } from '@/components/examination/dynamic-medical-diagram'
+import NovateMedicalDiagram, { SymptomData } from '@/components/medical-diagram/novate-medical-diagram'
+import IntelligentMedicalDiagrams from '@/components/medical-diagram/intelligent-medical-diagrams'
+
+
 
 interface DocumentStyleNoteViewerProps {
   note: SimpleMedicalNote
@@ -213,12 +203,24 @@ export default function DocumentStyleNoteViewer({
       
       // For other objects, try to format them nicely
       try {
-        return Object.entries(value)
+        const formatted = Object.entries(value)
           .filter(([_, v]) => v !== null && v !== undefined && v !== '')
           .map(([key, val]) => `${key}: ${val}`)
-          .join('\n') || 'Not recorded'
+          .join('\n')
+        return formatted || 'Not recorded'
       } catch (e) {
-        return JSON.stringify(value)
+        // If it's a JSON string that was parsed, try to extract the content
+        if (typeof value === 'object' && value !== null) {
+          try {
+            return Object.entries(value)
+              .filter(([_, v]) => v !== null && v !== undefined && v !== '')
+              .map(([key, val]) => `${key}: ${val}`)
+              .join('\n')
+          } catch {
+            return 'Not recorded'
+          }
+        }
+        return 'Not recorded'
       }
     }
     
@@ -229,30 +231,31 @@ export default function DocumentStyleNoteViewer({
   return (
     <div className="max-w-5xl mx-auto bg-white shadow-lg">
       {/* Document Header */}
-      <div className="border-b bg-gray-50 px-6 py-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Medical Consultation Note</h1>
+      <div className="border-b bg-gray-50 px-4 sm:px-6 py-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">Medical Consultation Note</h1>
             <p className="text-sm text-gray-600">Generated on {note.generatedOn}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:gap-2 w-full sm:w-auto">
             {versions.length > 0 && (
-              <Button variant="outline" size="sm" onClick={onVersionHistory}>
+              <Button variant="outline" size="sm" onClick={onVersionHistory} className="w-full sm:w-auto">
                 <Clock className="h-4 w-4 mr-2" />
-                Version History ({versions.length})
+                <span className="hidden sm:inline">Version History ({versions.length})</span>
+                <span className="sm:hidden">History ({versions.length})</span>
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={onExportPDF}>
+            <Button variant="outline" size="sm" onClick={onExportPDF} className="w-full sm:w-auto">
               <Download className="h-4 w-4 mr-2" />
               Export PDF
             </Button>
             <Button 
               onClick={() => setIsEditMode(true)}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
               size="sm"
             >
               <Edit3 className="h-4 w-4 mr-2" />
-              Edit Note
+              Edit
             </Button>
           </div>
         </div>
@@ -261,7 +264,16 @@ export default function DocumentStyleNoteViewer({
       {/* Document Content - Medical Note */}
       <div className="p-8 space-y-8 bg-white" style={{ fontFamily: 'Georgia, serif' }}>
 
-        {/* Patient Information section removed per user feedback */}
+        {/* Patient Information */}
+        <section className="border-b pb-4">
+          <h2 className="text-lg font-semibold mb-3 text-blue-900">Patient Information</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div><strong>Name:</strong> {formatFieldValue(note.patientName)}</div>
+            <div><strong>Age:</strong> {formatFieldValue(note.patientAge)}</div>
+            <div><strong>Gender:</strong> {formatFieldValue(note.patientGender)}</div>
+            <div><strong>Patient ID:</strong> {formatFieldValue(note.patientId)}</div>
+          </div>
+        </section>
 
         {/* Vital Signs */}
         <section className="border-b pb-4">
@@ -367,184 +379,63 @@ export default function DocumentStyleNoteViewer({
           </section>
         )}
 
-        {/* Physical Examination */}
+                {/* Physical Examination with Intelligent Visual Diagrams */}
         <section className="border-b pb-6">
           <h2 className="text-lg font-semibold mb-4 text-blue-900">Physical Examination</h2>
           
-          {/* Text-based examination findings */}
-          <div className="space-y-3 text-sm mb-6">
-            {note.generalExamination && (
-              <div>
-                <strong>General Examination:</strong>
-                <p className="mt-1 leading-relaxed whitespace-pre-wrap">{formatFieldValue(note.generalExamination)}</p>
-              </div>
-            )}
-            {note.cardiovascularExamination && (
-              <div>
-                <strong>Cardiovascular:</strong>
-                <p className="mt-1 leading-relaxed whitespace-pre-wrap">{formatFieldValue(note.cardiovascularExamination)}</p>
-              </div>
-            )}
-            {note.respiratoryExamination && (
-              <div>
-                <strong>Respiratory:</strong>
-                <p className="mt-1 leading-relaxed whitespace-pre-wrap">{formatFieldValue(note.respiratoryExamination)}</p>
-              </div>
-            )}
-            {note.abdominalExamination && (
-              <div>
-                <strong>Abdominal:</strong>
-                <p className="mt-1 leading-relaxed whitespace-pre-wrap">{formatFieldValue(note.abdominalExamination)}</p>
-              </div>
-            )}
-            {note.otherSystemsExamination && (
-              <div>
-                <strong>Other Systems:</strong>
-                <p className="mt-1 leading-relaxed whitespace-pre-wrap">{formatFieldValue(note.otherSystemsExamination)}</p>
-              </div>
-            )}
-          </div>
-
-          {/* Dynamic Anatomical Diagrams Section */}
-          {(note.generalExamination || note.cardiovascularExamination || note.respiratoryExamination || note.abdominalExamination) && (
-            <div className="mt-6">
-              <h3 className="text-md font-medium mb-4 text-gray-800 flex items-center gap-2">
-                <Activity className="h-4 w-4" />
-                Physical Examination Diagrams
-              </h3>
-              
-              {(() => {
-                // Create mock examination data based on the text findings
-                const mockExaminationData = {
-                  GEI: {
-                    Head: { Head1: note.generalExamination?.includes('head') || note.generalExamination?.includes('Head') ? 'Normal head examination, no abnormalities noted' : '' },
-                    Face: { Face1: note.generalExamination?.includes('face') || note.generalExamination?.includes('Face') ? 'Symmetrical face, no facial droop' : '' },
-                    Eyes: { 
-                      Eye1: note.generalExamination?.includes('eye') || note.generalExamination?.includes('Eye') || note.generalExamination?.includes('PERRLA') ? 'Right eye: PERRLA, no discharge' : '',
-                      Eye2: note.generalExamination?.includes('eye') || note.generalExamination?.includes('Eye') || note.generalExamination?.includes('PERRLA') ? 'Left eye: PERRLA, no discharge' : ''
-                    },
-                    Neck: { Neck1: note.generalExamination?.includes('neck') || note.generalExamination?.includes('Neck') ? 'Neck supple, no lymphadenopathy' : '' },
-                    Shoulders: { 
-                      Shoulder1: { 
-                        1: note.generalExamination?.includes('shoulder') || note.generalExamination?.includes('range of motion') ? 'Right shoulder: Full range of motion' : '',
-                        2: note.generalExamination?.includes('shoulder') || note.generalExamination?.includes('range of motion') ? 'Left shoulder: Full range of motion' : ''
-                      }
-                    },
-                    Arms: { 
-                      Arm1: { 
-                        1: note.generalExamination?.includes('arm') || note.generalExamination?.includes('extremit') ? 'Right arm: Normal strength and sensation' : '',
-                        2: note.generalExamination?.includes('arm') || note.generalExamination?.includes('extremit') ? 'Left arm: Normal strength and sensation' : ''
-                      },
-                      Hand1: { 
-                        1: note.generalExamination?.includes('hand') || note.generalExamination?.includes('grip') ? 'Right hand: Normal grip strength' : '',
-                        2: note.generalExamination?.includes('hand') || note.generalExamination?.includes('grip') ? 'Left hand: Normal grip strength' : ''
-                      }
-                    },
-                    Legs: { 
-                      Thigh1: { 
-                        1: note.generalExamination?.includes('thigh') || note.generalExamination?.includes('leg') || note.generalExamination?.includes('lower extremit') ? 'Right thigh: Normal muscle tone' : '',
-                        2: note.generalExamination?.includes('thigh') || note.generalExamination?.includes('leg') || note.generalExamination?.includes('lower extremit') ? 'Left thigh: Normal muscle tone' : ''
-                      },
-                      Knee1: { 
-                        1: note.generalExamination?.includes('knee') || note.generalExamination?.includes('swelling') || note.generalExamination?.includes('tender') ? 'Right knee: No swelling or tenderness' : '',
-                        2: note.generalExamination?.includes('knee') || note.generalExamination?.includes('swelling') || note.generalExamination?.includes('tender') ? 'Left knee: No swelling or tenderness' : ''
-                      },
-                      Feet1: { 
-                        1: note.generalExamination?.includes('foot') || note.generalExamination?.includes('feet') || note.generalExamination?.includes('circulation') ? 'Right foot: Normal sensation, good circulation' : '',
-                        2: note.generalExamination?.includes('foot') || note.generalExamination?.includes('feet') || note.generalExamination?.includes('circulation') ? 'Left foot: Normal sensation, good circulation' : ''
-                      }
-                    }
-                  },
-                  CVSRespExamination: {
-                    Chest: {
-                      A: note.cardiovascularExamination?.includes('heart') || note.cardiovascularExamination?.includes('S1') || note.cardiovascularExamination?.includes('aortic') ? 'Heart sounds: S1, S2 normal, no murmurs' : '',
-                      P: note.respiratoryExamination?.includes('lung') || note.respiratoryExamination?.includes('pulmonary') || note.respiratoryExamination?.includes('clear') ? 'Lung sounds: Clear to auscultation bilaterally' : '',
-                      T: note.cardiovascularExamination?.includes('tricuspid') || note.cardiovascularExamination?.includes('heart') ? 'Tricuspid area: Normal heart sounds' : '',
-                      M: note.cardiovascularExamination?.includes('mitral') || note.cardiovascularExamination?.includes('heart') ? 'Mitral area: Normal heart sounds' : '',
-                      JVP: note.cardiovascularExamination?.includes('JVP') || note.cardiovascularExamination?.includes('jugular') ? 'JVP not elevated' : '',
-                      G: note.respiratoryExamination?.includes('air entry') || note.respiratoryExamination?.includes('breath') ? 'Good air entry' : '',
-                      G2: note.respiratoryExamination?.includes('adventitious') || note.respiratoryExamination?.includes('clear') ? 'No adventitious sounds' : '',
-                      G3_1: note.respiratoryExamination?.includes('left') || note.respiratoryExamination?.includes('lobe') ? 'Left lower lobe clear' : '',
-                      G3_2: note.respiratoryExamination?.includes('right') || note.respiratoryExamination?.includes('lobe') ? 'Right lower lobe clear' : ''
-                    }
-                  },
-                  AbdominalInguinalExamination: {
-                    Stomach: note.abdominalExamination?.includes('soft') || note.abdominalExamination?.includes('tender') || note.abdominalExamination?.includes('stomach') ? 'Soft, non-tender, no masses palpated' : '',
-                    Liver: note.abdominalExamination?.includes('liver') || note.abdominalExamination?.includes('hepat') || note.abdominalExamination?.includes('enlarged') ? 'Liver not enlarged, no tenderness' : '',
-                    Spleen: note.abdominalExamination?.includes('spleen') || note.abdominalExamination?.includes('palpable') ? 'Spleen not palpable' : '',
-                    Umbilicus: note.abdominalExamination?.includes('umbilicus') || note.abdominalExamination?.includes('hernia') ? 'Normal umbilicus, no hernias' : '',
-                    Bladder: note.abdominalExamination?.includes('bladder') || note.abdominalExamination?.includes('palpable') ? 'Bladder not palpable when empty' : '',
-                    RF: note.abdominalExamination?.includes('flank') || note.abdominalExamination?.includes('right') ? 'Right flank: No tenderness' : '',
-                    LF: note.abdominalExamination?.includes('flank') || note.abdominalExamination?.includes('left') ? 'Left flank: No tenderness' : '',
-                    Appendix_RIF: note.abdominalExamination?.includes('RIF') || note.abdominalExamination?.includes('appendix') || note.abdominalExamination?.includes('McBurney') ? 'RIF: No tenderness, negative McBurney\'s point' : '',
-                    LIF: note.abdominalExamination?.includes('LIF') || note.abdominalExamination?.includes('left') ? 'LIF: Soft, non-tender' : '',
-                    Scrotum: note.abdominalExamination?.includes('scrotum') || note.abdominalExamination?.includes('genital') ? 'Normal examination, no masses' : '',
-                    Inguinal: {
-                      '1_1': note.abdominalExamination?.includes('inguinal') || note.abdominalExamination?.includes('hernia') ? 'Right inguinal: No hernias palpated' : '',
-                      '1_2': note.abdominalExamination?.includes('inguinal') || note.abdominalExamination?.includes('hernia') ? 'Left inguinal: No hernias palpated' : ''
-                    }
-                  }
-                }
-
-                // Convert to findings format
-                const findings = convertExaminationDataToFindings(mockExaminationData)
-                
-                return (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* General Examination - Front View */}
-                    {note.generalExamination && findings.general.length > 0 && (
-                      <DynamicMedicalDiagram
-                        diagramComponent={() => <DynamicBodyFront gender={note.patientGender} />}
-                        findings={findings.general}
-                        title="General Examination - Front View"
-                        maxWidth="max-w-lg"
-                      />
-                    )}
-
-                    {/* Back View */}
-                    {note.generalExamination && (
-                      <DynamicMedicalDiagram
-                        diagramComponent={() => <DynamicBodyBack gender={note.patientGender} />}
-                        findings={[]} // Back view findings would go here
-                        title="General Examination - Back View"
-                        maxWidth="max-w-lg"
-                      />
-                    )}
-
-                    {/* Side View */}
-                    {note.generalExamination && (
-                      <DynamicMedicalDiagram
-                        diagramComponent={() => <DynamicBodySide gender={note.patientGender} />}
-                        findings={[]} // Side view findings would go here
-                        title="General Examination - Side View"
-                        maxWidth="max-w-lg"
-                      />
-                    )}
-
-                    {/* Cardiovascular & Respiratory */}
-                    {(note.cardiovascularExamination || note.respiratoryExamination) && (findings.cardiovascular.length > 0 || findings.respiratory.length > 0) && (
-                      <DynamicMedicalDiagram
-                        diagramComponent={ProfessionalChestDiagram}
-                        findings={[...findings.cardiovascular, ...findings.respiratory]}
-                        title="Cardiovascular & Respiratory Examination"
-                        maxWidth="max-w-lg"
-                      />
-                    )}
-
-                    {/* Abdominal Examination */}
-                    {note.abdominalExamination && findings.abdominal.length > 0 && (
-                      <DynamicMedicalDiagram
-                        diagramComponent={ProfessionalAbdominalDiagram}
-                        findings={findings.abdominal}
-                        title="Abdominal & Inguinal Examination"
-                        maxWidth="max-w-lg"
-                      />
-                    )}
+          {/* Intelligent Medical Diagrams - Auto-selects relevant views */}
+          <div className="space-y-6">
+            <IntelligentMedicalDiagrams
+              examinationData={{
+                generalExamination: note.generalExamination,
+                cardiovascularExamination: note.cardiovascularExamination,
+                respiratoryExamination: note.respiratoryExamination,
+                abdominalExamination: note.abdominalExamination,
+                otherSystemsExamination: note.otherSystemsExamination,
+                chiefComplaint: note.chiefComplaint,
+                historyOfPresentingIllness: note.historyOfPresentingIllness
+              }}
+              patientGender={determinePatientGender(note.patientGender)}
+              className="max-w-6xl mx-auto"
+            />
+            
+            {/* Text summary below diagrams for reference */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="font-medium mb-3 text-gray-700">Examination Summary</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                {note.generalExamination && (
+                  <div>
+                    <strong className="text-blue-600">General:</strong>
+                    <p className="mt-1 text-gray-600">{formatFieldValue(note.generalExamination)}</p>
                   </div>
-                )
-              })()}
+                )}
+                {note.cardiovascularExamination && (
+                  <div>
+                    <strong className="text-red-600">Cardiovascular:</strong>
+                    <p className="mt-1 text-gray-600">{formatFieldValue(note.cardiovascularExamination)}</p>
+                  </div>
+                )}
+                {note.respiratoryExamination && (
+                  <div>
+                    <strong className="text-green-600">Respiratory:</strong>
+                    <p className="mt-1 text-gray-600">{formatFieldValue(note.respiratoryExamination)}</p>
+                  </div>
+                )}
+                {note.abdominalExamination && (
+                  <div>
+                    <strong className="text-orange-600">Abdominal:</strong>
+                    <p className="mt-1 text-gray-600">{formatFieldValue(note.abdominalExamination)}</p>
+                  </div>
+                )}
+                {note.otherSystemsExamination && (
+                  <div>
+                    <strong className="text-purple-600">Other Systems:</strong>
+                    <p className="mt-1 text-gray-600">{formatFieldValue(note.otherSystemsExamination)}</p>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </section>
 
         {/* Investigations */}
@@ -631,13 +522,33 @@ export default function DocumentStyleNoteViewer({
                 </div>
               </div>
 
-              {/* Professional Footer */}
-              <div className="text-xs text-gray-500 text-center pt-2 border-t border-gray-100">
-                This medical note was generated electronically and is valid with digital authorization
-              </div>
+              
             </div>
           </div>
         </section>
+
+        {/* Original Transcript Section - For Validation & Transparency */}
+        {(note.originalTranscript || note.transcript) && (
+          <section className="border-t pt-6 mt-8">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Volume2 className="h-5 w-5 text-blue-600" />
+                <h3 className="text-base font-semibold text-gray-800">Original Audio Transcript</h3>
+                <Badge variant="outline" className="text-xs">
+                  For Validation
+                </Badge>
+              </div>
+              <div className="text-xs text-gray-600 mb-3">
+                This is the original transcript from the audio recording to ensure accuracy and prevent hallucination.
+              </div>
+              <div className="bg-white border rounded-lg p-4 max-h-48 overflow-y-auto">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap text-gray-800">
+                  {note.originalTranscript || note.transcript || 'No transcript available'}
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Edit Dialog */}
@@ -742,4 +653,136 @@ export default function DocumentStyleNoteViewer({
       </Dialog>
     </div>
   )
+}
+
+// Helper function to extract symptoms from medical note for diagram visualization
+function extractSymptomsFromNote(note: SimpleMedicalNote): SymptomData[] {
+  const symptoms: SymptomData[] = []
+  
+  // Extract from general examination
+  if (note.generalExamination) {
+    const findings = extractFindingsFromText(note.generalExamination, 'general')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from cardiovascular examination
+  if (note.cardiovascularExamination) {
+    const findings = extractFindingsFromText(note.cardiovascularExamination, 'cardiovascular')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from respiratory examination
+  if (note.respiratoryExamination) {
+    const findings = extractFindingsFromText(note.respiratoryExamination, 'respiratory')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from abdominal examination
+  if (note.abdominalExamination) {
+    const findings = extractFindingsFromText(note.abdominalExamination, 'abdominal')
+    symptoms.push(...findings)
+  }
+  
+  // Extract from chief complaint and history
+  if (note.chiefComplaint) {
+    const findings = extractFindingsFromText(note.chiefComplaint, 'chief_complaint')
+    symptoms.push(...findings)
+  }
+  
+  return symptoms
+}
+
+// Helper function to extract findings from examination text
+function extractFindingsFromText(text: string, systemType: string): SymptomData[] {
+  const findings: SymptomData[] = []
+  const lowerText = text.toLowerCase()
+  
+  // Common medical findings and their body part mappings
+  const findingsMap: Record<string, { bodyPart: string; coordinates: { x: number; y: number } }> = {
+    // Cardiovascular findings
+    'murmur': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    'heart sounds': { bodyPart: 'chest', coordinates: { x: 0.48, y: 0.35 } },
+    'irregular rhythm': { bodyPart: 'chest', coordinates: { x: 0.52, y: 0.35 } },
+    'chest pain': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    'palpitations': { bodyPart: 'chest', coordinates: { x: 0.5, y: 0.35 } },
+    
+    // Respiratory findings
+    'breath sounds': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'wheezing': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'crackles': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'shortness of breath': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    'cough': { bodyPart: 'chest', coordinates: { x: 0.45, y: 0.32 } },
+    
+    // Abdominal findings
+    'abdominal pain': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'tenderness': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'distension': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'bowel sounds': { bodyPart: 'abdomen', coordinates: { x: 0.5, y: 0.55 } },
+    'hepatomegaly': { bodyPart: 'abdomen', coordinates: { x: 0.52, y: 0.52 } },
+    'splenomegaly': { bodyPart: 'abdomen', coordinates: { x: 0.48, y: 0.52 } },
+    
+    // General findings
+    'swelling': { bodyPart: 'lower_extremity', coordinates: { x: 0.5, y: 0.8 } },
+    'edema': { bodyPart: 'lower_extremity', coordinates: { x: 0.5, y: 0.8 } },
+    'headache': { bodyPart: 'head', coordinates: { x: 0.5, y: 0.15 } },
+    'neck pain': { bodyPart: 'head', coordinates: { x: 0.5, y: 0.25 } },
+    'back pain': { bodyPart: 'general', coordinates: { x: 0.5, y: 0.5 } },
+    'fatigue': { bodyPart: 'general', coordinates: { x: 0.5, y: 0.5 } }
+  }
+  
+  // Search for findings in the text
+  Object.entries(findingsMap).forEach(([finding, mapping]) => {
+    if (lowerText.includes(finding)) {
+      const severity = determineSeverityFromText(text, finding)
+      
+      findings.push({
+        name: finding.charAt(0).toUpperCase() + finding.slice(1),
+        bodyPart: mapping.bodyPart,
+        severity,
+        coordinates: mapping.coordinates,
+        description: `${systemType} examination finding`,
+        duration: 'Current examination'
+      })
+    }
+  })
+  
+  return findings
+}
+
+// Helper function to determine severity from text context
+function determineSeverityFromText(text: string, finding: string): 'mild' | 'moderate' | 'severe' {
+  const lowerText = text.toLowerCase()
+  const findingContext = extractContextAroundFinding(lowerText, finding)
+  
+  if (findingContext.includes('severe') || findingContext.includes('acute') || findingContext.includes('significant')) {
+    return 'severe'
+  }
+  
+  if (findingContext.includes('moderate') || findingContext.includes('notable') || findingContext.includes('marked')) {
+    return 'moderate'
+  }
+  
+  return 'mild'
+}
+
+// Helper function to extract context around a finding
+function extractContextAroundFinding(text: string, finding: string): string {
+  const index = text.indexOf(finding)
+  if (index === -1) return ''
+  
+  const start = Math.max(0, index - 50)
+  const end = Math.min(text.length, index + finding.length + 50)
+  return text.substring(start, end)
+}
+
+// Helper function to determine patient gender for diagram rendering
+function determinePatientGender(gender?: string): 'male' | 'female' {
+  if (!gender) return 'male'
+  
+  const lowerGender = gender.toLowerCase()
+  if (lowerGender.includes('female') || lowerGender.includes('woman') || lowerGender === 'f') {
+    return 'female'
+  }
+  
+  return 'male' // Default to male
 }

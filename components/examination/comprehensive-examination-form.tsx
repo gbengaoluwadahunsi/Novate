@@ -1,38 +1,41 @@
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
+import React, { useState, useEffect } from 'react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Separator } from '@/components/ui/separator'
 import { 
-  Activity, 
-  Heart, 
-  Stethoscope, 
   User, 
-  Eye, 
-  HeartHandshake,
-  Save,
-  Clock
-} from "lucide-react"
-import { ExaminationTemplate, createEmptyExaminationTemplate } from "@/types/examination"
-import AnatomicalDiagram from "./anatomical-diagram"
-import CVSRespiratoryDiagram from "./cvs-respiratory-diagram"
-import AbdominalDiagram from "./abdominal-diagram"
+  Heart, 
+  Activity, 
+  Save, 
+  RotateCw, 
+  Download, 
+  Stethoscope,
+  Eye,
+  Brain,
+  Wind
+} from 'lucide-react'
+import { ExaminationTemplate, createEmptyExaminationTemplate } from '@/types/examination'
+import NovateMedicalDiagram, { MedicalDiagramData, SymptomData } from '@/components/medical-diagram/novate-medical-diagram'
+
+interface PatientInfo {
+  name: string
+  age: string
+  sex: string
+  id: string
+}
 
 interface ComprehensiveExaminationFormProps {
   initialData?: ExaminationTemplate
-  onSave: (data: ExaminationTemplate) => void
-  patientInfo?: {
-    name: string
-    age: string
-    sex: string
-    id: string
-  }
+  onSave: (examination: ExaminationTemplate) => void
+  patientInfo: PatientInfo
 }
 
 export default function ComprehensiveExaminationForm({
@@ -40,512 +43,373 @@ export default function ComprehensiveExaminationForm({
   onSave,
   patientInfo
 }: ComprehensiveExaminationFormProps) {
+  
   const [examinationData, setExaminationData] = useState<ExaminationTemplate>(
     initialData || createEmptyExaminationTemplate()
   )
+  
+  const [activeTab, setActiveTab] = useState("general")
+  const [medicalDiagramData, setMedicalDiagramData] = useState<MedicalDiagramData | null>(null)
+  const [selectedSymptom, setSelectedSymptom] = useState<SymptomData | null>(null)
 
-  // Auto-populate patient info if provided
-  useState(() => {
-    if (patientInfo) {
-      setExaminationData(prev => ({
-        ...prev,
-        GeneralExamination: {
-          ...prev.GeneralExamination,
-          PatientInfo: {
-            ...prev.GeneralExamination.PatientInfo,
-            Name: patientInfo.name,
-            Age: patientInfo.age,
-            Sex: patientInfo.sex,
-            ID: patientInfo.id
-          }
-        },
-        CVSRespExamination: {
-          ...prev.CVSRespExamination,
-          PatientInfo: {
-            ...prev.CVSRespExamination.PatientInfo,
-            Name: patientInfo.name,
-            Age: patientInfo.age,
-            Sex: patientInfo.sex,
-            ID: patientInfo.id
-          }
-        }
-      }))
-    }
-  })
-
-  const updateVitalSigns = (field: keyof typeof examinationData.VitalSigns, value: string | object) => {
-    setExaminationData(prev => ({
-      ...prev,
-      VitalSigns: {
-        ...prev.VitalSigns,
-        [field]: value
-      }
-    }))
-  }
-
-  const updateGeneralExamination = (section: keyof typeof examinationData.GeneralExamination, field: string, value: string) => {
-    setExaminationData(prev => ({
-      ...prev,
-      GeneralExamination: {
-        ...prev.GeneralExamination,
-        [section]: {
-          ...prev.GeneralExamination[section],
-          [field]: value
-        }
-      }
-    }))
-  }
-
-  const updateGEI = (bodyPart: keyof typeof examinationData.GEI, field: string, value: string) => {
-    setExaminationData(prev => ({
-      ...prev,
-      GEI: {
-        ...prev.GEI,
-        [bodyPart]: {
-          ...prev.GEI[bodyPart],
-          [field]: value
-        }
-      }
-    }))
-  }
-
-  const updateCVSResp = (section: string, field: string, value: string) => {
-    if (section === 'PatientInfo') {
-      setExaminationData(prev => ({
-        ...prev,
-        CVSRespExamination: {
-          ...prev.CVSRespExamination,
-          PatientInfo: {
-            ...prev.CVSRespExamination.PatientInfo,
-            [field]: value
-          }
-        }
-      }))
-    } else if (section === 'Chest') {
-      setExaminationData(prev => ({
-        ...prev,
-        CVSRespExamination: {
-          ...prev.CVSRespExamination,
-          Chest: {
-            ...prev.CVSRespExamination.Chest,
-            [field]: value
-          }
-        }
-      }))
-    } else if (section === 'Percussion' || section === 'Auscultation') {
-      setExaminationData(prev => {
-        const currentSection = prev.CVSRespExamination.Chest[section as keyof typeof prev.CVSRespExamination.Chest]
-        const sectionData = typeof currentSection === 'object' && currentSection !== null ? currentSection : {}
-        
-        return {
-          ...prev,
-          CVSRespExamination: {
-            ...prev.CVSRespExamination,
-            Chest: {
-              ...prev.CVSRespExamination.Chest,
-              [section]: {
-                ...sectionData,
-                [field]: value
-              }
-            }
-          }
-        }
-      })
-    }
-  }
-
-  const updateAbdominalExamination = (field: keyof typeof examinationData.AbdominalInguinalExamination, value: string | object) => {
-    setExaminationData(prev => ({
-      ...prev,
-      AbdominalInguinalExamination: {
-        ...prev.AbdominalInguinalExamination,
-        [field]: value
-      }
-    }))
-  }
-
-  // Helper function for CVS/Respiratory examination updates
-  const updateCVSField = (fieldPath: string, value: string) => {
-    const pathParts = fieldPath.split('.')
+  // Convert examination findings to medical diagram data
+  const convertToMedicalDiagramData = (): MedicalDiagramData => {
+    const symptoms: SymptomData[] = []
     
-    if (pathParts.length === 2) {
-      const [section, field] = pathParts
-      setExaminationData(prev => {
-        const currentSection = prev.CVSRespExamination[section as keyof typeof prev.CVSRespExamination]
-        const sectionData = typeof currentSection === 'object' && currentSection !== null ? currentSection : {}
-        
-        return {
-          ...prev,
-          CVSRespExamination: {
-            ...prev.CVSRespExamination,
-            [section]: {
-              ...sectionData,
-              [field]: value
-            }
+    // Extract symptoms from different examination sections
+    const extractSymptoms = (section: any, sectionName: string) => {
+      if (typeof section === 'object' && section !== null) {
+        Object.entries(section).forEach(([key, value]) => {
+          if (typeof value === 'string' && value.trim() && value !== 'Normal' && value !== 'No abnormality detected') {
+            // Simple heuristic to map findings to body parts
+            const bodyPart = mapFindingToBodyPart(key, sectionName)
+            const severity = determineSeverity(value)
+            const coordinates = getBodyPartCoordinates(bodyPart)
+            
+            symptoms.push({
+              name: `${key}: ${value}`,
+              bodyPart,
+              severity,
+              coordinates,
+              description: `${sectionName} - ${key}`,
+              duration: 'Current examination'
+            })
           }
-        }
-      })
-    }
-  }
-
-  // Helper function for Abdominal examination updates
-  const updateAbdominalField = (field: string, value: string) => {
-    setExaminationData(prev => ({
-      ...prev,
-      AbdominalInguinalExamination: {
-        ...prev.AbdominalInguinalExamination,
-        [field]: value
-      }
-    }))
-  }
-
-  // Helper functions for anatomical diagram
-  const getGEIFindings = (): Record<string, string> => {
-    const findings: Record<string, string> = {}
-    
-    // Flatten all GEI sections into a single object
-    Object.entries(examinationData.GEI).forEach(([section, fields]) => {
-      if (typeof fields === 'object' && fields !== null) {
-        Object.entries(fields).forEach(([key, value]) => {
-          findings[key] = value as string
         })
       }
-    })
-    
-    return findings
+    }
+
+    // Extract from different examination sections
+    if (examinationData.GeneralExamination) {
+      extractSymptoms(examinationData.GeneralExamination, 'General Examination')
+    }
+    if (examinationData.CVSRespExamination) {
+      extractSymptoms(examinationData.CVSRespExamination, 'Cardiovascular & Respiratory')
+    }
+
+    if (examinationData.AbdominalInguinalExamination) {
+      extractSymptoms(examinationData.AbdominalInguinalExamination, 'Abdominal & Inguinal')
+    }
+    if (examinationData.GEI) {
+      extractSymptoms(examinationData.GEI, 'General Examination Inspection')
+    }
+
+    return {
+      symptoms,
+      patientInfo: {
+        age: parseInt(patientInfo.age) || 0,
+        gender: patientInfo.sex.toLowerCase() === 'female' ? 'female' : 'male',
+        conditions: []
+      }
+    }
   }
 
-  const updateGEIFinding = (regionId: string, finding: string) => {
-    // Find which section this region belongs to
-    let targetSection: string | null = null
+  // Helper function to map findings to body parts
+  const mapFindingToBodyPart = (finding: string, section: string): string => {
+    const findingLower = finding.toLowerCase()
     
-    Object.entries(examinationData.GEI).forEach(([section, fields]) => {
-      if (typeof fields === 'object' && fields !== null) {
-        if (regionId in fields) {
-          targetSection = section
+    // Cardiovascular mappings
+    if (section.includes('Cardiovascular') || findingLower.includes('heart') || findingLower.includes('cardiac')) {
+      return 'chest'
+    }
+    
+    // Respiratory mappings
+    if (section.includes('Respiratory') || findingLower.includes('lung') || findingLower.includes('breath')) {
+      return 'chest'
+    }
+    
+    // Abdominal mappings
+    if (section.includes('Abdominal') || findingLower.includes('abdomen') || findingLower.includes('stomach')) {
+      return 'abdomen'
+    }
+    
+    // Neurological mappings
+    if (section.includes('Neurological') || findingLower.includes('neuro') || findingLower.includes('reflex')) {
+      return 'head'
+    }
+    
+    // Head and neck
+    if (findingLower.includes('head') || findingLower.includes('neck') || findingLower.includes('throat')) {
+      return 'head'
+    }
+    
+    // Extremities
+    if (findingLower.includes('arm') || findingLower.includes('hand') || findingLower.includes('finger')) {
+      return 'upper_extremity'
+    }
+    
+    if (findingLower.includes('leg') || findingLower.includes('foot') || findingLower.includes('toe')) {
+      return 'lower_extremity'
+    }
+    
+    return 'general'
+  }
+
+  // Helper function to determine severity
+  const determineSeverity = (finding: string): 'mild' | 'moderate' | 'severe' => {
+    const findingLower = finding.toLowerCase()
+    
+    if (findingLower.includes('severe') || findingLower.includes('acute') || findingLower.includes('significant')) {
+      return 'severe'
+    }
+    
+    if (findingLower.includes('moderate') || findingLower.includes('notable') || findingLower.includes('marked')) {
+      return 'moderate'
+    }
+    
+    return 'mild'
+  }
+
+  // Helper function to get coordinates for body parts
+  const getBodyPartCoordinates = (bodyPart: string): { x: number; y: number } => {
+    const coordinates: Record<string, { x: number; y: number }> = {
+      head: { x: 0.5, y: 0.15 },
+      neck: { x: 0.5, y: 0.25 },
+      chest: { x: 0.5, y: 0.35 },
+      abdomen: { x: 0.5, y: 0.55 },
+      upper_extremity: { x: 0.25, y: 0.4 },
+      lower_extremity: { x: 0.5, y: 0.75 },
+      general: { x: 0.5, y: 0.5 }
+    }
+    
+    return coordinates[bodyPart] || coordinates.general
+  }
+
+  // Update medical diagram data when examination data changes
+  useEffect(() => {
+    const diagramData = convertToMedicalDiagramData()
+    setMedicalDiagramData(diagramData)
+  }, [examinationData, patientInfo])
+
+  // Helper function to update nested examination data
+  const updateExaminationField = (section: keyof ExaminationTemplate, field: string, value: string) => {
+    setExaminationData(prev => {
+      const currentSection = prev[section] as Record<string, any> || {}
+      return {
+        ...prev,
+        [section]: {
+          ...currentSection,
+          [field]: value
         }
       }
     })
-    
-    if (targetSection) {
-      setExaminationData(prev => {
-        const sectionKey = targetSection as keyof typeof prev.GEI
-        const currentSection = prev.GEI[sectionKey]
-        const sectionData = typeof currentSection === 'object' && currentSection !== null ? currentSection : {}
-        
-        return {
-          ...prev,
-          GEI: {
-            ...prev.GEI,
-            [sectionKey]: {
-              ...sectionData,
-              [regionId]: finding
-            }
-          }
-        }
-      })
-    }
   }
 
   const handleSave = () => {
-    onSave({
-      ...examinationData,
-      GeneratedOn: new Date().toLocaleString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      }).replace(/,/g, '/').replace(/ /g, '/')
-    })
+    onSave(examinationData)
+  }
+
+  const handleSymptomClick = (symptom: SymptomData) => {
+    setSelectedSymptom(symptom)
+    // You could also navigate to the relevant examination section here
+  }
+
+  const renderExaminationSection = (
+    title: string,
+    sectionKey: keyof ExaminationTemplate,
+    fields: Array<{ key: string; label: string; type?: 'input' | 'textarea' | 'select'; options?: string[] }>
+  ) => {
+    const sectionData = examinationData[sectionKey] as any
+    
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">{title}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {fields.map(field => (
+            <div key={field.key}>
+              <Label htmlFor={`${sectionKey}-${field.key}`}>{field.label}</Label>
+              {field.type === 'textarea' ? (
+                <Textarea
+                  id={`${sectionKey}-${field.key}`}
+                  value={sectionData?.[field.key] || ''}
+                  onChange={(e) => updateExaminationField(sectionKey, field.key, e.target.value)}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                  rows={3}
+                />
+              ) : field.type === 'select' ? (
+                <Select
+                  value={sectionData?.[field.key] || ''}
+                  onValueChange={(value) => updateExaminationField(sectionKey, field.key, value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {field.options?.map(option => (
+                      <SelectItem key={option} value={option}>{option}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Input
+                  id={`${sectionKey}-${field.key}`}
+                  value={sectionData?.[field.key] || ''}
+                  onChange={(e) => updateExaminationField(sectionKey, field.key, e.target.value)}
+                  placeholder={`Enter ${field.label.toLowerCase()}`}
+                />
+              )}
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
-    <Card className="w-full max-w-6xl mx-auto">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
-            <CardTitle>Comprehensive Physical Examination</CardTitle>
+    <div className="max-w-7xl mx-auto space-y-6">
+      {/* Patient Info Header */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="w-5 h-5" />
+            Patient Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <Label>Name</Label>
+              <p className="font-medium">{patientInfo.name}</p>
+            </div>
+            <div>
+              <Label>Age</Label>
+              <p className="font-medium">{patientInfo.age}</p>
+            </div>
+            <div>
+              <Label>Sex</Label>
+              <p className="font-medium">{patientInfo.sex}</p>
+            </div>
+            <div>
+              <Label>Patient ID</Label>
+              <p className="font-medium">{patientInfo.id}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Clock className="h-3 w-3" />
-              {new Date().toLocaleDateString()}
-            </Badge>
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Medical Diagram Visualization */}
+        <div className="lg:col-span-1">
+          <NovateMedicalDiagram
+            data={medicalDiagramData || { symptoms: [], patientInfo: { age: 0, gender: 'male' } }}
+            gender={patientInfo.sex.toLowerCase() === 'female' ? 'female' : 'male'}
+            onSymptomClick={handleSymptomClick}
+            showControls={true}
+          />
+          
+          {selectedSymptom && (
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle className="text-sm">Selected Finding</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <p><strong>Finding:</strong> {selectedSymptom.name}</p>
+                  <p><strong>Location:</strong> {selectedSymptom.bodyPart}</p>
+                  <p><strong>Severity:</strong> 
+                    <Badge 
+                      variant="outline" 
+                      className={`ml-2 ${
+                        selectedSymptom.severity === 'severe' ? 'bg-red-100 text-red-800' :
+                        selectedSymptom.severity === 'moderate' ? 'bg-orange-100 text-orange-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}
+                    >
+                      {selectedSymptom.severity}
+                    </Badge>
+                  </p>
+                  {selectedSymptom.description && (
+                    <p><strong>Description:</strong> {selectedSymptom.description}</p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+
+        {/* Examination Form */}
+        <div className="lg:col-span-1">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="general">General</TabsTrigger>
+              <TabsTrigger value="cardio">Cardio/Resp</TabsTrigger>
+              <TabsTrigger value="abdomen">Abdomen</TabsTrigger>
+              <TabsTrigger value="neuro">Inspection</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="general" className="space-y-4">
+              {renderExaminationSection(
+                "General Examination",
+                "GeneralExamination",
+                [
+                  { key: "appearance", label: "General Appearance", type: "textarea" },
+                  { key: "consciousness", label: "Consciousness Level", type: "select", options: ["Alert", "Drowsy", "Confused", "Unconscious"] },
+                  { key: "orientation", label: "Orientation", type: "input" },
+                  { key: "distress", label: "Signs of Distress", type: "textarea" },
+                  { key: "hygiene", label: "Hygiene", type: "select", options: ["Good", "Fair", "Poor"] },
+                  { key: "nutrition", label: "Nutritional Status", type: "select", options: ["Well-nourished", "Malnourished", "Obese"] }
+                ]
+              )}
+            </TabsContent>
+
+            <TabsContent value="cardio" className="space-y-4">
+              {renderExaminationSection(
+                "Cardiovascular & Respiratory System",
+                "CVSRespExamination",
+                [
+                  { key: "inspection", label: "Inspection", type: "textarea" },
+                  { key: "palpation", label: "Palpation", type: "textarea" },
+                  { key: "auscultation", label: "Auscultation", type: "textarea" },
+                  { key: "heartSounds", label: "Heart Sounds", type: "input" },
+                  { key: "murmurs", label: "Murmurs", type: "input" },
+                  { key: "peripheralPulses", label: "Peripheral Pulses", type: "textarea" }
+                ]
+              )}
+            </TabsContent>
+
+
+
+            <TabsContent value="abdomen" className="space-y-4">
+              {renderExaminationSection(
+                "Abdominal & Inguinal Examination",
+                "AbdominalInguinalExamination",
+                [
+                  { key: "inspection", label: "Inspection", type: "textarea" },
+                  { key: "auscultation", label: "Auscultation", type: "textarea" },
+                  { key: "palpation", label: "Palpation", type: "textarea" },
+                  { key: "percussion", label: "Percussion", type: "textarea" },
+                  { key: "organomegaly", label: "Organomegaly", type: "input" },
+                  { key: "bowelSounds", label: "Bowel Sounds", type: "input" }
+                ]
+              )}
+            </TabsContent>
+
+            <TabsContent value="neuro" className="space-y-4">
+              {renderExaminationSection(
+                "General Examination Inspection",
+                "GEI",
+                [
+                  { key: "mentalStatus", label: "Mental Status", type: "textarea" },
+                  { key: "cranialNerves", label: "Cranial Nerves", type: "textarea" },
+                  { key: "motorSystem", label: "Motor System", type: "textarea" },
+                  { key: "sensorySystem", label: "Sensory System", type: "textarea" },
+                  { key: "reflexes", label: "Reflexes", type: "textarea" },
+                  { key: "coordination", label: "Coordination", type: "input" }
+                ]
+              )}
+            </TabsContent>
+          </Tabs>
+
+          <div className="mt-6 flex justify-end">
             <Button onClick={handleSave} className="flex items-center gap-2">
-              <Save className="h-4 w-4" />
+              <Save className="w-4 h-4" />
               Save Examination
             </Button>
           </div>
         </div>
-      </CardHeader>
-
-      <CardContent>
-        <Tabs defaultValue="vitals" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="vitals" className="flex items-center gap-2">
-              <Activity className="h-4 w-4" />
-              Vital Signs
-            </TabsTrigger>
-            <TabsTrigger value="general" className="flex items-center gap-2">
-              <User className="h-4 w-4" />
-              General
-            </TabsTrigger>
-            <TabsTrigger value="inspection" className="flex items-center gap-2">
-              <Eye className="h-4 w-4" />
-              Inspection
-            </TabsTrigger>
-            <TabsTrigger value="cvs-resp" className="flex items-center gap-2">
-              <Heart className="h-4 w-4" />
-              CVS/Resp
-            </TabsTrigger>
-            <TabsTrigger value="abdominal" className="flex items-center gap-2">
-              <HeartHandshake className="h-4 w-4" />
-              Abdominal
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Vital Signs Tab */}
-          <TabsContent value="vitals" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Vital Signs</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="takenOn">Taken On</Label>
-                    <Input
-                      id="takenOn"
-                      value={examinationData.VitalSigns.TakenOn}
-                      onChange={(e) => updateVitalSigns('TakenOn', e.target.value)}
-                      placeholder="Date and time"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="recordedBy">Recorded By</Label>
-                    <Input
-                      id="recordedBy"
-                      value={examinationData.VitalSigns.RecordedBy}
-                      onChange={(e) => updateVitalSigns('RecordedBy', e.target.value)}
-                      placeholder="Staff member name"
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="grid grid-cols-4 gap-4">
-                  <div>
-                    <Label htmlFor="temp">Temperature</Label>
-                    <Input
-                      id="temp"
-                      value={examinationData.VitalSigns.Temp}
-                      onChange={(e) => updateVitalSigns('Temp', e.target.value)}
-                      placeholder="37.5°C"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="pr">Pulse Rate</Label>
-                    <Input
-                      id="pr"
-                      value={examinationData.VitalSigns.PR}
-                      onChange={(e) => updateVitalSigns('PR', e.target.value)}
-                      placeholder="102"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="rr">Respiratory Rate</Label>
-                    <Input
-                      id="rr"
-                      value={examinationData.VitalSigns.RR}
-                      onChange={(e) => updateVitalSigns('RR', e.target.value)}
-                      placeholder="22"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="bp">Blood Pressure</Label>
-                    <Input
-                      id="bp"
-                      value={examinationData.VitalSigns.BP}
-                      onChange={(e) => updateVitalSigns('BP', e.target.value)}
-                      placeholder="130/90"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="spo2">Oxygen Saturation</Label>
-                    <Input
-                      id="spo2"
-                      value={examinationData.VitalSigns.OxygenSaturationSpO2}
-                      onChange={(e) => updateVitalSigns('OxygenSaturationSpO2', e.target.value)}
-                      placeholder="95% on RA"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="weight">Body Weight</Label>
-                    <Input
-                      id="weight"
-                      value={examinationData.VitalSigns.BodyWeight}
-                      onChange={(e) => updateVitalSigns('BodyWeight', e.target.value)}
-                      placeholder="Weight: 75 kg"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="height">Height</Label>
-                    <Input
-                      id="height"
-                      value={examinationData.VitalSigns.Height}
-                      onChange={(e) => updateVitalSigns('Height', e.target.value)}
-                      placeholder="Height: 170 cm"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="bmi">BMI Value</Label>
-                    <Input
-                      id="bmi"
-                      value={examinationData.VitalSigns.BMI.Value}
-                      onChange={(e) => updateVitalSigns('BMI', { 
-                        ...examinationData.VitalSigns.BMI, 
-                        Value: e.target.value 
-                      })}
-                      placeholder="BMI: 26"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="bmiStatus">BMI Status</Label>
-                    <Input
-                      id="bmiStatus"
-                      value={examinationData.VitalSigns.BMI.Status}
-                      onChange={(e) => updateVitalSigns('BMI', { 
-                        ...examinationData.VitalSigns.BMI, 
-                        Status: e.target.value 
-                      })}
-                      placeholder="BMI status: Overweight"
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* General Examination Tab */}
-          <TabsContent value="general" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">General Examination</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="chaperone">Chaperone</Label>
-                    <Input
-                      id="chaperone"
-                      value={examinationData.GeneralExamination.PatientInfo.Chaperone}
-                      onChange={(e) => updateGeneralExamination('PatientInfo', 'Chaperone', e.target.value)}
-                      placeholder="Staff member name"
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                  <h4 className="font-medium">Clinical Observations</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="consciousness">Consciousness Level</Label>
-                      <Input
-                        id="consciousness"
-                        value={examinationData.GeneralExamination.Observations.ConsciousnessLevel}
-                        onChange={(e) => updateGeneralExamination('Observations', 'ConsciousnessLevel', e.target.value)}
-                        placeholder="Conscious - Awake, alert, orientated"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="pain">Wellness/Pain</Label>
-                      <Input
-                        id="pain"
-                        value={examinationData.GeneralExamination.Observations.WellnessPain}
-                        onChange={(e) => updateGeneralExamination('Observations', 'WellnessPain', e.target.value)}
-                        placeholder="In Pain, Pain Scale: 7"
-                      />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="hydration">Hydration Status</Label>
-                      <Input
-                        id="hydration"
-                        value={examinationData.GeneralExamination.Observations.HydrationStatus}
-                        onChange={(e) => updateGeneralExamination('Observations', 'HydrationStatus', e.target.value)}
-                        placeholder="Well hydrated, active"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="gait">Gait and Posture</Label>
-                      <Input
-                        id="gait"
-                        value={examinationData.GeneralExamination.Observations.GaitAndPosture}
-                        onChange={(e) => updateGeneralExamination('Observations', 'GaitAndPosture', e.target.value)}
-                        placeholder="Normal gait"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Physical Inspection Tab - Gender-Specific Anatomical Diagram */}
-          <TabsContent value="inspection" className="space-y-6">
-            <AnatomicalDiagram
-              gender={patientInfo?.sex || 'Male'}
-              examinationFindings={getGEIFindings()}
-              onFindingChange={updateGEIFinding}
-              patientInfo={patientInfo ? {
-                name: patientInfo.name,
-                age: patientInfo.age,
-                id: patientInfo.id
-              } : undefined}
-            />
-          </TabsContent>
-
-          {/* CVS/Respiratory Tab - Interactive Chest Diagram */}
-          <TabsContent value="cvs-resp" className="space-y-6">
-            <CVSRespiratoryDiagram
-              examinationData={examinationData.CVSRespExamination}
-              onFieldChange={updateCVSField}
-              patientInfo={patientInfo ? {
-                name: patientInfo.name,
-                age: patientInfo.age,
-                id: patientInfo.id
-              } : undefined}
-            />
-          </TabsContent>
-
-          {/* Abdominal Examination Tab - Interactive Abdominal Diagram */}
-          <TabsContent value="abdominal" className="space-y-6">
-            <AbdominalDiagram
-              examinationData={examinationData.AbdominalInguinalExamination}
-              onFieldChange={updateAbdominalField}
-              patientInfo={patientInfo ? {
-                name: patientInfo.name,
-                age: patientInfo.age,
-                id: patientInfo.id
-              } : undefined}
-            />
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
-} 
+}
