@@ -1,0 +1,15 @@
+/* Test CSS to verify CSS loading */
+.test-red {
+  background-color: red;
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+}
+
+.test-blue {
+  background-color: blue;
+  color: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
