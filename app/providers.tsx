@@ -55,6 +55,10 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 export function Providers({ children }: { children: React.ReactNode }) {
   const store = getStore()
   
+  if (!store) {
+    return <div>Loading...</div>
+  }
+  
   return (
     <ErrorBoundary>
       <Provider store={store}>

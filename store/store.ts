@@ -5,9 +5,6 @@ import authReducer from './features/authSlice'
 import notesReducer from './features/notesSlice'
 import userReducer from './features/userSlice'
 
-// Ensure we're on the client side before creating the store
-let store: ReturnType<typeof configureStore> | undefined
-
 export const createStore = () => {
   return configureStore({
     reducer: {
@@ -24,6 +21,8 @@ export const createStore = () => {
 }
 
 // Create store only on client side
+let store: ReturnType<typeof createStore> | undefined
+
 if (typeof window !== 'undefined' && !store) {
   store = createStore()
 }

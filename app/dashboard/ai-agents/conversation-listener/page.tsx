@@ -9,7 +9,7 @@ import {
   Settings,
   Volume2,
   VolumeX,
-  AudioWaveformIcon as Waveform,
+  Activity,
   FileText,
   Check,
   AlertCircle,
@@ -353,7 +353,7 @@ export default function ConversationListenerPage() {
                 ) : isProcessing ? (
                   <>
                     <div className="h-24 w-24 bg-blue-100 rounded-full flex items-center justify-center mb-6">
-                      <Waveform className="h-12 w-12 text-blue-600" />
+                      <Activity className="h-12 w-12 text-blue-600" />
                     </div>
                     <h3 className="text-xl font-medium mb-2">Processing Conversation</h3>
                     <p className="text-muted-foreground mb-4">Please wait while we analyze your conversation</p>
@@ -443,7 +443,7 @@ export default function ConversationListenerPage() {
                     ) : (
                       <div className="h-full flex flex-col items-center justify-center text-center">
                         <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                          <Waveform className="h-8 w-8 text-muted-foreground" />
+                          <Activity className="h-8 w-8 text-muted-foreground" />
                         </div>
                         <h3 className="text-lg font-medium mb-2">No transcript yet</h3>
                         <p className="text-muted-foreground max-w-md">
