@@ -104,7 +104,7 @@ export default function LanguagesPage() {
           }
         }
       } catch (error) {
-        console.error('Failed to load languages:', error)
+        // Failed to load languages
         // Fallback to basic languages
         const fallbackLanguages: Language[] = [
           { code: 'en-US', name: 'English (US)', flag: '🇺🇸', progress: 100 },

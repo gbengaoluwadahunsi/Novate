@@ -90,18 +90,12 @@ export default function Dashboard() {
             .slice(0, 5);
             
           setRecentNotes(sortedRecentNotes);
-          
-          console.log('🚨 DASHBOARD TOTAL COUNT DEDUPLICATION:', {
-            originalCount: allNotes.length,
-            deduplicatedCount: totalDeduplicatedCount,
-            duplicatesRemoved: allNotes.length - totalDeduplicatedCount
-          });
         }
         
         setTotalNotesCount(totalDeduplicatedCount);
         
       } catch (e) {
-        console.error('Error fetching notes:', e);
+        // Error fetching notes
         setError('Failed to load notes');
         setRecentNotes([]);
         setTotalNotesCount(0);

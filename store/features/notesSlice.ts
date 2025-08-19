@@ -124,31 +124,15 @@ export const createMedicalNote = createAsyncThunk(
         doctorRegistrationNo: currentUser?.registrationNo || currentUser?.registrationNumber || ''
       }
       
-      console.log('👨‍⚕️ Creating medical note:', {
-        patient: `${noteData.patientName} (${noteData.patientAge}y, ${noteData.patientGender})`,
-        doctor: noteDataWithDoctor.doctorName,
-        complaint: noteData.chiefComplaint?.slice(0, 40) + '...'
-      });
-      
       const response = await apiClient.createMedicalNote(noteDataWithDoctor)
       if (response.success) {
-        console.log('✅ Redux: Medical note created successfully:', {
-          noteId: response.data?.id,
-          patientName: response.data?.patientName
-        });
         
-        // Log diagnosis consistency in response
-        console.log('🔬 REDUX RESPONSE DIAGNOSIS:', {
-          timestamp: new Date().toISOString(),
-          responseHasDiagnosis: !!response.data?.diagnosis,
-          responseDiagnosis: response.data?.diagnosis,
-          responseAssessment: response.data?.assessmentAndDiagnosis,
-          fullResponseKeys: response.data ? Object.keys(response.data) : []
-        });
+        
+
         
         return response.data
       } else {
-        console.error('🔥 Redux: Note creation failed:', response.error);
+        // Redux: Note creation failed
         return rejectWithValue(response.error || 'Failed to create medical note')
       }
     } catch (error) {
@@ -281,11 +265,11 @@ const notesSlice = createSlice({
           if (existingNoteIndex === -1) {
             // Note doesn't exist, add it to the beginning
             state.medicalNotes.unshift(action.payload)
-            console.log('✅ New note added to Redux state:', action.payload.id);
+    
           } else {
             // Note already exists, update it instead
             state.medicalNotes[existingNoteIndex] = action.payload
-            console.log('⚠️ Note already existed in Redux state, updated instead:', action.payload.id);
+    
           }
           
           state.currentNote = action.payload

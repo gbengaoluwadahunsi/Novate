@@ -1,146 +1,36 @@
 {
-    "timestamp": "2025-08-12T04:28:24.958Z",
-    "total_images": 1,
-    "mapped_images": 1,
-    "coordinates_by_image": {
-      "malerightside.png": {
-        "image_name": "malerightside.png",
-        "image_type": "malerightside",
-        "total_regions": 22,
-        "coordinates": {
-          "head": {
-            "x": 378,
-            "y": 72,
-            "width": 50,
-            "height": 50
-          },
-          "face": {
-            "x": 417,
-            "y": 150,
-            "width": 50,
-            "height": 50
-          },
-          "nose": {
-            "x": 450,
-            "y": 153,
-            "width": 50,
-            "height": 50
-          },
-          "right_eye": {
-            "x": 426,
-            "y": 129,
-            "width": 50,
-            "height": 50
-          },
-          "right_ear": {
-            "x": 363,
-            "y": 153,
-            "width": 50,
-            "height": 50
-          },
-          "mouth": {
-            "x": 435,
-            "y": 182,
-            "width": 50,
-            "height": 50
-          },
-          "neck": {
-            "x": 366,
-            "y": 227,
-            "width": 50,
-            "height": 50
-          },
-          "chest": {
-            "x": 417,
-            "y": 323,
-            "width": 50,
-            "height": 50
-          },
-          "back": {
-            "x": 294,
-            "y": 344,
-            "width": 50,
-            "height": 50
-          },
-          "abdomen": {
-            "x": 435,
-            "y": 451,
-            "width": 50,
-            "height": 50
-          },
-          "spine": {
-            "x": 291,
-            "y": 394,
-            "width": 50,
-            "height": 50
-          },
-          "right_shoulder": {
-            "x": 348,
-            "y": 308,
-            "width": 50,
-            "height": 50
-          },
-          "right_elbow": {
-            "x": 342,
-            "y": 454,
-            "width": 50,
-            "height": 50
-          },
-          "right_arm": {
-            "x": 348,
-            "y": 379,
-            "width": 50,
-            "height": 50
-          },
-          "right_forearm": {
-            "x": 378,
-            "y": 523,
-            "width": 50,
-            "height": 50
-          },
-          "right_wrist": {
-            "x": 417,
-            "y": 582,
-            "width": 50,
-            "height": 50
-          },
-          "right_hand": {
-            "x": 432,
-            "y": 621,
-            "width": 50,
-            "height": 50
-          },
-          "right_thigh": {
-            "x": 387,
-            "y": 714,
-            "width": 50,
-            "height": 50
-          },
-          "right_knee": {
-            "x": 399,
-            "y": 797,
-            "width": 50,
-            "height": 50
-          },
-          "right_calf": {
-            "x": 321,
-            "y": 869,
-            "width": 50,
-            "height": 50
-          },
-          "right_ankle": {
-            "x": 351,
-            "y": 1027,
-            "width": 50,
-            "height": 50
-          },
-          "right_foot": {
-            "x": 426,
-            "y": 1054,
-            "width": 50,
-            "height": 50
-          }
-        }
+  "timestamp": "2025-08-12T04:28:24.958Z",
+  "total_images": 1,
+  "mapped_images": 1,
+  "coordinates_by_image": {
+    "rightside.png": {
+      "image_name": "malerightside.png",
+      "image_type": "malerightside",
+      "total_regions": 22,
+      "coordinates": {
+        "head": { "x": 378, "y": 72, "width": 50, "height": 50 },
+        "face": { "x": 417, "y": 150, "width": 50, "height": 50 },
+        "nose": { "x": 450, "y": 153, "width": 50, "height": 50 },
+        "right_eye": { "x": 426, "y": 129, "width": 50, "height": 50 },
+        "right_ear": { "x": 363, "y": 153, "width": 50, "height": 50 },
+        "mouth": { "x": 435, "y": 182, "width": 50, "height": 50 },
+        "neck": { "x": 366, "y": 227, "width": 50, "height": 50 },
+        "chest": { "x": 417, "y": 323, "width": 50, "height": 50 },
+        "back": { "x": 294, "y": 344, "width": 50, "height": 50 },
+        "abdomen": { "x": 435, "y": 451, "width": 50, "height": 50 },
+        "spine": { "x": 291, "y": 394, "width": 50, "height": 50 },
+        "right_shoulder": { "x": 348, "y": 308, "width": 50, "height": 50 },
+        "right_elbow": { "x": 342, "y": 454, "width": 50, "height": 50 },
+        "right_arm": { "x": 348, "y": 379, "width": 50, "height": 50 },
+        "right_forearm": { "x": 378, "y": 523, "width": 50, "height": 50 },
+        "right_wrist": { "x": 417, "y": 582, "width": 50, "height": 50 },
+        "right_hand": { "x": 432, "y": 621, "width": 50, "height": 50 },
+        "right_thigh": { "x": 387, "y": 714, "width": 50, "height": 50 },
+        "right_knee": { "x": 399, "y": 797, "width": 50, "height": 50 },
+        "right_calf": { "x": 321, "y": 869, "width": 50, "height": 50 },
+        "right_ankle": { "x": 351, "y": 1027, "width": 50, "height": 50 },
+        "right_foot": { "x": 426, "y": 1054, "width": 50, "height": 50 }
       }
     }
   }
+}

@@ -43,11 +43,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon', type: 'image/png' },
       { url: '/novateLogo-removebg-preview.png', type: 'image/png' },
     ],
-    apple: '/novateLogo-removebg-preview.png',
-    shortcut: '/favicon.ico',
+    apple: '/apple-icon',
+    shortcut: '/icon',
   },
   openGraph: {
     title: "NovateScribe - AI-Powered Medical Documentation & Voice Transcription",
@@ -100,11 +100,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         
-        {/* Favicon Configuration */}
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/novateLogo-removebg-preview.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/novateLogo-removebg-preview.png" />
-        <link rel="shortcut icon" href="/favicon.ico" />
+        {/* Favicon Configuration - Handled by Next.js icon routes */}
         
         {/* PWA Configuration */}
         <link rel="manifest" href="/manifest.json" />

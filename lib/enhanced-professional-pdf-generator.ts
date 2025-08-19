@@ -1,13 +1,13 @@
 // Enhanced Professional Medical Note PDF Generator - Exact Template Match
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
+import { MedicalNoteComprehensive } from '@/types/medical-note-comprehensive'
 
 export interface ProfessionalMedicalNote {
   // Patient Information
   patientName: string
   patientAge: string
   patientGender: string
-  patientId: string
   chaperone?: string
   
   // Vital Signs
@@ -15,6 +15,7 @@ export interface ProfessionalMedicalNote {
   pulseRate?: string
   respiratoryRate?: string
   bloodPressure?: string
+  glucose?: string
   spo2?: string
   weight?: string
   height?: string
@@ -61,6 +62,9 @@ export interface ProfessionalMedicalNote {
   signature?: string
   stamp?: string
   letterhead?: string
+  
+  // ICD-11 Codes
+  selectedICD11Codes?: any
 }
 
 class EnhancedTemplatePDFGenerator {
@@ -87,7 +91,7 @@ class EnhancedTemplatePDFGenerator {
           undefined, 'NONE', 0
         )
       } catch (error) {
-        console.warn('Failed to apply letterhead background:', error)
+        // Failed to apply letterhead background
       }
     }
   }
@@ -262,233 +266,91 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // PAGE 1: Patient Information & Medical History
-  private addPage1_PatientInfoAndHistory(note: ProfessionalMedicalNote): void {
-    this.addProfessionalHeader()
+  private addPage1_PatientInfoAndHistory(note: MedicalNoteComprehensive): void {
+    this.addProfessionalHeader();
     
     // Title
-    this.doc.setFontSize(18)
-    this.doc.setFont('helvetica', 'bold')
-    this.doc.text('Medical Notes', 20, this.currentY)
-    this.currentY += 15
+    this.doc.setFontSize(18);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text('Medical Notes', 20, this.currentY);
+    this.currentY += 15;
     
-    // Skip Patient Information section - removed per user feedback
+    // Patient Information
+    if (note.patientInformation) {
+        this.addSectionHeader('Patient Information');
+        this.addLabeledContent('Name', note.patientInformation.name, true);
+        this.addLabeledContent('Age', note.patientInformation.age.toString(), true);
+        this.addLabeledContent('Gender', note.patientInformation.gender, true);
+        this.currentY += 5;
+    }
     
     // Chief Complaint
-    this.addSectionHeader('Chief Complaint')
-    this.addContent(note.chiefComplaint)
+    this.addSectionHeader('Chief Complaint');
+    this.addContent(note.chiefComplaint);
     
     // History of Presenting Illness
-    this.addSectionHeader('History of Presenting Illness')
-    this.addContent(note.historyOfPresentingIllness)
+    this.addSectionHeader('History of Presenting Illness');
+    this.addContent(note.historyOfPresentingIllness);
     
-    this.checkPageBreak()
+    this.checkPageBreak();
     
-    // Past Medical History - only show if there's data
-    const hasPastHistory = this.hasContent(note.medicalConditions) || 
-                          this.hasContent(note.surgeries) || 
-                          this.hasContent(note.hospitalizations)
-    
-    if (hasPastHistory) {
-      this.addSectionHeader('Past Medical History')
-      this.addLabeledContent('Medical Conditions', note.medicalConditions || '')
-      this.addLabeledContent('Surgeries', note.surgeries || '')
-      this.addLabeledContent('Hospitalizations', note.hospitalizations || '')
-      this.checkPageBreak()
+    // Past Medical History
+    this.addSectionHeader('Past Medical History');
+    if (note.pastMedicalHistory) {
+      this.addLabeledContent('Medical Conditions', note.pastMedicalHistory);
     }
     
-    // Drug History and Allergies - only show if there's data
-    const hasDrugHistory = this.hasContent(note.medications) || this.hasContent(note.allergies)
-    if (hasDrugHistory) {
-      this.addSectionHeader('Drug History and Allergies')
-      this.addLabeledContent('Current Medications', note.medications || '')
-      this.addLabeledContent('Known Allergies', note.allergies || '')
+    // Drug History and Allergies
+    this.addSectionHeader('Drug History and Allergies');
+    if (note.medication) {
+      this.addLabeledContent('Current Medications', note.medication);
+    }
+    if (note.allergies) {
+      this.addLabeledContent('Known Allergies', note.allergies);
     }
     
-    // Social History - only show if there's data
-    const hasSocialHistory = this.hasContent(note.smoking) || 
-                            this.hasContent(note.alcohol) || 
-                            this.hasContent(note.occupationLivingSituation)
+    // Social History
+    this.addSectionHeader('Social History');
+    this.addContent(note.socialHistory);
     
-    if (hasSocialHistory) {
-      this.addSectionHeader('Social History')
-      this.addLabeledContent('Smoking', note.smoking || '', true)
-      this.addLabeledContent('Alcohol', note.alcohol || '', true)
-      this.addLabeledContent('Occupation/Living', note.occupationLivingSituation || '')
-    }
-    
-    // Family History - only show if there's data
-    if (this.hasContent(note.familyHistory)) {
-      this.addSectionHeader('Family History')
-      this.addContent(note.familyHistory!)
-    }
+    // Family History
+    this.addSectionHeader('Family History');
+    this.addContent(note.familyHistory);
   }
 
   // PAGE 2: Review of Systems (Structured) - only show if there's data
-  private addPage2_ReviewOfSystems(note: ProfessionalMedicalNote): void {
+  private addPage2_ReviewOfSystems(note: MedicalNoteComprehensive): void {
     // Only create this page if there's systems review data
-    if (!this.hasContent(note.systemsReview)) return
+    if (!this.hasContent(note.reviewOfSystems)) return;
     
-    this.doc.addPage()
-    this.addProfessionalHeader()
+    this.doc.addPage();
+    this.addProfessionalHeader();
     
-    this.addSectionHeader('Review of Systems', 16)
+    this.addSectionHeader('Review of Systems', 16);
     
     // Show structured systems review content
-    this.addContent(note.systemsReview!)
-    
-    // You can optionally add checkboxes if you want a structured format
-    // For now, we'll just show the actual review content since that's what we have data for
+    this.addContent(note.reviewOfSystems);
   }
 
   // PAGE 3: Physical Examination with Body Diagrams
-  private addPage3_PhysicalExaminationDiagrams(note: ProfessionalMedicalNote): void {
-    this.doc.addPage()
-    this.addProfessionalHeader()
+  private addPage3_PhysicalExaminationDiagrams(note: MedicalNoteComprehensive): void {
+    this.doc.addPage();
+    this.addProfessionalHeader();
     
-    this.addSectionHeader('Physical Examination', 16)
+    this.addSectionHeader('Physical Examination', 16);
     
-    // Vital Signs - only show if there's data
-    const hasVitals = this.hasContent(note.temperature) || this.hasContent(note.pulseRate) || 
-                     this.hasContent(note.respiratoryRate) || this.hasContent(note.bloodPressure) ||
-                     this.hasContent(note.spo2) || this.hasContent(note.weight) || 
-                     this.hasContent(note.height) || this.hasContent(note.bmi)
+    // Check if there's examination data
+    const hasExaminationData = this.hasContent(note.examinationData);
     
-    if (hasVitals) {
-      this.addSectionHeader('Vital Signs', 12)
-      
-      // Create a dynamic table-like structure for vital signs
-      const vitalY = this.currentY
-      let currentVitalY = vitalY
-      
-      this.doc.setFont('helvetica', 'bold')
-      this.doc.setFontSize(9)
-      
-      // Left column vitals
-      if (this.hasContent(note.temperature)) {
-        this.doc.text('Temperature:', 20, currentVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.temperature!, 75, currentVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        currentVitalY += 10
-      }
-      
-      if (this.hasContent(note.pulseRate)) {
-        this.doc.text('Pulse Rate:', 20, currentVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.pulseRate!, 75, currentVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        currentVitalY += 10
-      }
-      
-      if (this.hasContent(note.respiratoryRate)) {
-        this.doc.text('Respiratory Rate:', 20, currentVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.respiratoryRate!, 75, currentVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        currentVitalY += 10
-      }
-      
-      if (this.hasContent(note.bloodPressure)) {
-        this.doc.text('Blood Pressure:', 20, currentVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.bloodPressure!, 75, currentVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        currentVitalY += 10
-      }
-      
-      // Right column vitals
-      let rightVitalY = vitalY
-      
-      if (this.hasContent(note.spo2)) {
-        this.doc.text('SpO2:', 110, rightVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.spo2!, 140, rightVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        rightVitalY += 10
-      }
-      
-      if (this.hasContent(note.weight)) {
-        this.doc.text('Weight:', 110, rightVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.weight!, 140, rightVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        rightVitalY += 10
-      }
-      
-      if (this.hasContent(note.height)) {
-        this.doc.text('Height:', 110, rightVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.height!, 140, rightVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        rightVitalY += 10
-      }
-      
-      if (this.hasContent(note.bmi)) {
-        this.doc.text('BMI:', 110, rightVitalY)
-        this.doc.setFont('helvetica', 'normal')
-        this.doc.text(note.bmi!, 140, rightVitalY)
-        this.doc.setFont('helvetica', 'bold')
-        rightVitalY += 10
-      }
-      
-      this.currentY = Math.max(currentVitalY, rightVitalY) + 10
-    }
-    
-    // General Examination - only show if there's data
-    if (this.hasContent(note.generalExamination)) {
-      this.addSectionHeader('General Examination', 12)
-      this.addContent(note.generalExamination!)
-      
-              // Body Diagrams Section - only if there are general examination findings
-        const findings = this.extractAnatomicalFindings(note)
-        if (findings.general.length > 0) {
-          this.checkPageBreak(80)
-          this.addSectionHeader('Medical Body Diagrams', 12)
-          
-          // Enhanced diagram section with Novate MedViz integration
-          const diagramY = this.currentY + 10
-          const diagramSize = 25
-          const spacing = 45
-          
-          // Add note about diagram integration
-          this.doc.setFontSize(8)
-          this.doc.setFont('helvetica', 'italic')
-          this.doc.text('Generated using Novate MedViz - Advanced Medical Visualization', 30, diagramY)
-          
-          // Front view with enhanced labeling
-          this.addEnhancedBodyDiagram(30, diagramY + 10, diagramSize, 'Front View', findings.general)
-          
-          // Back view with enhanced labeling
-          this.addEnhancedBodyDiagram(30 + spacing, diagramY + 10, diagramSize, 'Back View', findings.general)
-          
-          // Side view with enhanced labeling
-          this.addEnhancedBodyDiagram(30 + spacing * 2, diagramY + 10, diagramSize, 'Side View', findings.general)
-          
-          // Add detailed findings summary below diagrams
-          let labelY = diagramY + diagramSize + 25
-          this.doc.setFontSize(8)
-          this.doc.setFont('helvetica', 'bold')
-          this.doc.text('Anatomical Findings Summary:', 30, labelY)
-          labelY += 8
-          
-          this.doc.setFont('helvetica', 'normal')
-          this.doc.setFontSize(7)
-          
-          findings.general.forEach((finding: any, index: number) => {
-            const severity = this.determineFindingSeverity(finding.value)
-            const severityColor = severity === 'severe' ? [255, 0, 0] : severity === 'moderate' ? [255, 165, 0] : [0, 128, 0]
-            
-            // Add colored indicator for severity
-            this.doc.setFillColor(severityColor[0], severityColor[1], severityColor[2])
-            this.doc.circle(28, labelY - 1, 1, 'F')
-            
-            this.doc.setTextColor(0, 0, 0)
-            this.doc.text(`${finding.label}: ${finding.value}`, 30, labelY)
-            labelY += 6
-          })
-          
-          this.currentY = labelY + 10
-        }
+    if (hasExaminationData) {
+      // Show structured examination content
+      this.addContent(note.examinationData);
+    } else {
+      // Show explicit message that no examination was conducted
+      this.doc.setFont('helvetica', 'normal');
+      this.doc.setFontSize(10);
+      this.doc.text('No physical examination was conducted during this consultation.', 20, this.currentY + 10);
+      this.doc.text('Physical examination findings would be documented here if performed.', 20, this.currentY + 20);
     }
   }
 
@@ -571,7 +433,7 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // PAGE 6: Investigation, Assessment, Plan & Signature
-  private addPage6_AssessmentAndPlan(note: ProfessionalMedicalNote): void {
+  private addPage6_AssessmentAndPlan(note: MedicalNoteComprehensive): void {
     this.doc.addPage()
     this.addProfessionalHeader()
     
@@ -610,13 +472,9 @@ class EnhancedTemplatePDFGenerator {
     // Doctor details in left column
     this.doc.setFont('helvetica', 'normal')
     this.doc.setFontSize(9)
-    this.doc.text(`Doctor: ${note.doctorName}`, 20, this.currentY + 15)
-    
-    if (this.hasContent(note.doctorRegistrationNo)) {
-      this.doc.text(`Registration No: ${note.doctorRegistrationNo!}`, 20, this.currentY + 22)
-    }
-    
-    this.doc.text(`Generated on: ${note.generatedOn}`, 20, this.currentY + 29)
+    this.doc.text(`Doctor: Dr. [Name]`, 20, this.currentY + 15)
+    this.doc.text(`Registration No: [Registration Number]`, 20, this.currentY + 22)
+    this.doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 20, this.currentY + 29)
     
     // Signature section in right column
     this.doc.setFont('helvetica', 'bold')
@@ -627,18 +485,10 @@ class EnhancedTemplatePDFGenerator {
     this.doc.setLineWidth(0.3)
     this.doc.rect(110, this.currentY + 15, 40, 20)
     
-    // Add signature image if available
-    if (this.hasContent(note.signature)) {
-      try {
-        this.doc.addImage(note.signature!, 'PNG', 112, this.currentY + 17, 36, 16)
-      } catch (error) {
-        console.warn('Failed to add signature:', error)
-      }
-    } else {
-      this.doc.setFont('helvetica', 'normal')
-      this.doc.setFontSize(6)
-      this.doc.text('No signature', 125, this.currentY + 25)
-    }
+    // Add placeholder for signature
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(6)
+    this.doc.text('Signature', 125, this.currentY + 25)
     
     // Stamp section
     this.doc.setFont('helvetica', 'bold')
@@ -648,20 +498,10 @@ class EnhancedTemplatePDFGenerator {
     // Stamp border box
     this.doc.rect(155, this.currentY + 15, 25, 20)
     
-    // Add stamp if available
-    if (this.hasContent(note.stamp)) {
-      try {
-        this.doc.addImage(note.stamp!, 'PNG', 157, this.currentY + 17, 21, 16)
-      } catch (error) {
-        console.warn('Failed to add stamp:', error)
-      }
-    } else {
-      this.doc.setFont('helvetica', 'normal')
-      this.doc.setFontSize(6)
-      this.doc.text('No stamp', 163, this.currentY + 25)
-    }
-    
-
+    // Add placeholder for stamp
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(6)
+    this.doc.text('Stamp', 163, this.currentY + 25)
   }
 
   // Helper methods for diagrams
@@ -785,16 +625,22 @@ class EnhancedTemplatePDFGenerator {
     this.doc.text('Abdominal Examination', x + width/2 - this.doc.getTextWidth('Abdominal Examination')/2, y + height + 10)
   }
 
-  generatePDF(note: ProfessionalMedicalNote): jsPDF {
-    // Generate all 6 pages in professional template order
+  public generateEnhancedProfessionalMedicalNotePDF(note: MedicalNoteComprehensive): jsPDF {
+    this.doc = new jsPDF()
+    this.pageWidth = this.doc.internal.pageSize.getWidth()
+    this.pageHeight = this.doc.internal.pageSize.getHeight()
+    
+    // Generate all pages
     this.addPage1_PatientInfoAndHistory(note)
     this.addPage2_ReviewOfSystems(note)
     this.addPage3_PhysicalExaminationDiagrams(note)
-    this.addPage4_CardiovascularRespiratory(note)
-    this.addPage5_AbdominalExamination(note)
     this.addPage6_AssessmentAndPlan(note)
     
     return this.doc
+  }
+
+  public generatePDF(note: MedicalNoteComprehensive): jsPDF {
+    return this.generateEnhancedProfessionalMedicalNotePDF(note)
   }
 
   // Helper method to add enhanced body diagrams with Novate MedViz integration
@@ -835,27 +681,84 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // Helper method to determine finding severity
-  private determineFindingSeverity(findingValue: string): 'mild' | 'moderate' | 'severe' {
-    const value = findingValue.toLowerCase()
-    
-    if (value.includes('severe') || value.includes('acute') || value.includes('critical') || value.includes('significant')) {
-      return 'severe'
-    }
-    
-    if (value.includes('moderate') || value.includes('notable') || value.includes('marked') || value.includes('prominent')) {
-      return 'moderate'
-    }
-    
-    return 'mild'
+  private determineFindingSeverity(findingValue: string): string {
+    return 'finding'
   }
 }
 
-export function generateEnhancedProfessionalMedicalNotePDF(note: ProfessionalMedicalNote): void {
+export function generateEnhancedProfessionalMedicalNotePDF(note: MedicalNoteComprehensive): void {
   const generator = new EnhancedTemplatePDFGenerator(note.letterhead)
   const pdf = generator.generatePDF(note)
   
   // Safely handle patient name for filename
-  const patientName = typeof note.patientName === 'string' ? note.patientName : 'Unknown_Patient'
+  const patientName = typeof note.patientInformation.name === 'string' ? note.patientInformation.name : 'Unknown_Patient'
+  const safePatientName = patientName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
+  const dateStr = new Date().toISOString().split('T')[0]
+  
+  pdf.save(`Medical_Note_${safePatientName}_${dateStr}.pdf`)
+}
+
+// New function to handle ProfessionalMedicalNote interface with multi-page support
+export function generateProfessionalMedicalNotePDF(note: ProfessionalMedicalNote, letterhead?: string): void {
+  const generator = new EnhancedTemplatePDFGenerator(letterhead)
+  
+  // Convert ProfessionalMedicalNote to MedicalNoteComprehensive
+  const comprehensiveNote: MedicalNoteComprehensive = {
+    id: '',
+    patientInformation: {
+      name: note.patientName || '',
+      age: parseInt(note.patientAge) || 0,
+      gender: (note.patientGender as 'male' | 'female') || 'male',
+      contactNumber: '',
+      email: '',
+      address: '',
+      emergencyContact: {
+        name: '',
+        relationship: '',
+        contactNumber: ''
+      }
+    },
+    chiefComplaint: note.chiefComplaint || '',
+    historyOfPresentingIllness: note.historyOfPresentingIllness || '',
+    pastMedicalHistory: note.medicalConditions || '',
+    medication: note.medications || '',
+    allergies: note.allergies || '',
+    socialHistory: [
+      note.smoking,
+      note.alcohol,
+      note.recreationalDrugs,
+      note.occupationLivingSituation,
+      note.travel,
+      note.sexual,
+      note.eatingOut
+    ].filter(Boolean).join(', '),
+    familyHistory: note.familyHistory || '',
+    reviewOfSystems: note.systemsReview || '',
+    examinationData: {
+      generalExamination: '',
+      cardiovascularExamination: '',
+      respiratoryExamination: '',
+      abdominalExamination: '',
+      otherSystemsExamination: ''
+    },
+    investigations: note.investigations || '',
+    assessment: note.assessment || '',
+    plan: note.plan || '',
+    icd11Codes: note.selectedICD11Codes || { primary: [], secondary: [] },
+    doctorInformation: {
+      name: note.doctorName || '',
+      registrationNumber: note.doctorRegistrationNo || '',
+      signature: note.signature || '',
+      stamp: note.stamp || ''
+    },
+    generatedOn: note.generatedOn || new Date().toISOString(),
+    letterhead: letterhead
+  }
+  
+  const pdf = generator.generatePDF(comprehensiveNote)
+  
+  // Safely handle patient name for filename
+  const patientName = note.patientName || 'Unknown_Patient'
   const safePatientName = patientName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '')
   const dateStr = new Date().toISOString().split('T')[0]
   

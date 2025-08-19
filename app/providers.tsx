@@ -3,7 +3,7 @@
 import { getStore } from '@/store/store'
 import { Provider } from 'react-redux'
 import { ThemeProvider } from '@/components/theme-provider'
-import { Toaster } from '@/components/ui/toaster'
+import { Toaster } from '@/components/ui/sonner'
 import ErrorBoundary from '@/components/error-boundary'
 import { useEffect, useState } from 'react'
 import { useAppDispatch } from '@/store/hooks'
@@ -35,11 +35,11 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
               await dispatch(verifyToken()).unwrap()
             } catch (error) {
               // If token verification fails, the slice will set status to unauthenticated
-              console.log('Token verification failed on startup:', error)
+      
             }
           }
         } catch (error) {
-          console.warn('Failed to access localStorage during auth initialization:', error)
+  
         }
       }
       // Mark auth check as completed after verification attempt

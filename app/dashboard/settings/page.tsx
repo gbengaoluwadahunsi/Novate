@@ -55,6 +55,7 @@ export default function SettingsPage() {
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
   const [stampPreview, setStampPreview] = useState<string | null>(null)
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null)
+  const [letterheadFileName, setLetterheadFileName] = useState<string>('')
 
   // Load user data when component mounts
   useEffect(() => {
@@ -78,6 +79,17 @@ export default function SettingsPage() {
       setSignaturePreview((user as any)?.doctorSignature || null)
       setStampPreview((user as any)?.doctorStamp || null)
       setLetterheadPreview((user as any)?.letterhead || null)
+      
+      // Also load from localStorage for letterhead functionality
+      const savedLetterhead = localStorage.getItem('doctorLetterhead')
+      const savedLetterheadFileName = localStorage.getItem('doctorLetterheadFileName')
+      if (savedLetterhead) {
+        setLetterheadFile(savedLetterhead)
+        setLetterheadPreview(savedLetterhead)
+        if (savedLetterheadFileName) {
+          setLetterheadFileName(savedLetterheadFileName)
+        }
+      }
     }
   }, [dispatch, user])
 
@@ -100,6 +112,17 @@ export default function SettingsPage() {
       setSignaturePreview((user as any)?.doctorSignature || null)
       setStampPreview((user as any)?.doctorStamp || null)
       setLetterheadPreview((user as any)?.letterhead || null)
+      
+      // Also load from localStorage for letterhead functionality
+      const savedLetterhead = localStorage.getItem('doctorLetterhead')
+      const savedLetterheadFileName = localStorage.getItem('doctorLetterheadFileName')
+      if (savedLetterhead) {
+        setLetterheadFile(savedLetterhead)
+        setLetterheadPreview(savedLetterhead)
+        if (savedLetterheadFileName) {
+          setLetterheadFileName(savedLetterheadFileName)
+        }
+      }
     }
   }, [user])
 
@@ -181,16 +204,26 @@ export default function SettingsPage() {
       if (file.size > 10 * 1024 * 1024) { // 10MB limit for letterhead (larger than signature/stamp)
         toast({
           title: "File too large",
-          description: "Please select an image smaller than 10MB.",
+          description: "Please select a file smaller than 10MB.",
           variant: "destructive",
         })
         return
       }
 
-      if (!file.type.startsWith('image/')) {
+      // Accept PDF, Word documents, and images
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/msword', // .doc
+        'image/png',
+        'image/jpeg',
+        'image/jpg'
+      ]
+
+      if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Invalid file type",
-          description: "Please select an image file (PNG, JPG, etc).",
+          description: "Please select a PDF, Word document, or image file (.pdf, .doc, .docx, .png, .jpg).",
           variant: "destructive",
         })
         return
@@ -201,6 +234,7 @@ export default function SettingsPage() {
         const result = e.target?.result as string
         setLetterheadPreview(result)
         setLetterheadFile(result)
+        setLetterheadFileName(file.name)
       }
       reader.readAsDataURL(file)
     }
@@ -228,6 +262,7 @@ export default function SettingsPage() {
   const removeLetterhead = () => {
     setLetterheadFile(null)
     setLetterheadPreview(null)
+    setLetterheadFileName('')
     if (letterheadInputRef.current) {
       letterheadInputRef.current.value = ''
     }
@@ -255,6 +290,20 @@ export default function SettingsPage() {
     try {
       // Import apiClient dynamically to avoid SSR issues
       const { apiClient } = await import('@/lib/api-client')
+      
+      // Save to localStorage for letterhead functionality
+      if (letterheadFile) {
+        localStorage.setItem('doctorLetterhead', letterheadFile)
+        if (letterheadFileName) {
+          localStorage.setItem('doctorLetterheadFileName', letterheadFileName)
+        }
+      }
+      if (signatureFile) {
+        localStorage.setItem('doctorSignature', signatureFile)
+      }
+      if (stampFile) {
+        localStorage.setItem('doctorStamp', stampFile)
+      }
       
       // Prepare profile data including signature, stamp, and letterhead
       const profileData = {
@@ -284,7 +333,7 @@ export default function SettingsPage() {
         throw new Error(response.error || 'Failed to save settings')
       }
     } catch (error) {
-      console.error('Error saving settings:', error)
+      // Error saving settings
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
@@ -575,25 +624,46 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="letterhead-upload">Letterhead Template</Label>
-                  <p className="text-sm text-muted-foreground">Upload your official letterhead to use as PDF template</p>
+                  <p className="text-sm text-muted-foreground">Upload your official letterhead (PDF or Word document) to use as template</p>
                   <div className="flex items-center gap-2">
                     {letterheadPreview ? (
-                      <div className="relative w-32 h-20 border rounded-lg overflow-hidden">
-                        <Image
-                          src={letterheadPreview}
-                          alt="Letterhead Template"
-                          layout="fill"
-                          objectFit="cover"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={removeLetterhead}
-                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <>
+                        <div className="relative w-32 h-20 border rounded-lg overflow-hidden">
+                          {letterheadPreview.startsWith('data:image/') ? (
+                            <Image
+                              src={letterheadPreview}
+                              alt="Letterhead Template"
+                              layout="fill"
+                              objectFit="cover"
+                            />
+                          ) : letterheadPreview.startsWith('data:application/pdf') ? (
+                            <div className="w-full h-full bg-blue-50 flex items-center justify-center">
+                              <div className="text-center">
+                                <FileImage className="h-8 w-8 text-blue-500 mx-auto mb-1" />
+                                <p className="text-xs text-blue-600 font-medium">PDF</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="w-full h-full bg-green-50 flex items-center justify-center">
+                              <div className="text-center">
+                                <FileImage className="h-8 w-8 text-green-500 mx-auto mb-1" />
+                                <p className="text-xs text-green-600 font-medium">Word</p>
+                              </div>
+                            </div>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={removeLetterhead}
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        {letterheadFileName && (
+                          <p className="text-xs text-gray-500 text-center mt-1">{letterheadFileName}</p>
+                        )}
+                      </>
                     ) : (
                       <Button
                         variant="outline"
@@ -606,7 +676,7 @@ export default function SettingsPage() {
                     )}
                     <Input
                       type="file"
-                      accept="image/*"
+                      accept=".pdf,.doc,.docx,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       ref={letterheadInputRef}
                       onChange={handleLetterheadUpload}
                       className="hidden"

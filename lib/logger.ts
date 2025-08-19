@@ -41,7 +41,7 @@ class Logger {
     
     // Only log to console in development
     if (this.isDevelopment) {
-      console.log(`[DEBUG] ${entry.timestamp}: ${entry.message}`, data || '');
+      // [DEBUG] ${entry.timestamp}: ${entry.message}
     }
   }
 
@@ -50,7 +50,7 @@ class Logger {
     
     // Only log to console in development
     if (this.isDevelopment) {
-      console.log(`[INFO] ${entry.timestamp}: ${entry.message}`, data || '');
+      // [INFO] ${entry.timestamp}: ${entry.message}
     }
   }
 
@@ -59,7 +59,7 @@ class Logger {
     
     // Always log warnings (but can be configured)
     if (this.isDevelopment) {
-      console.warn(`[WARN] ${entry.timestamp}: ${entry.message}`, data || '');
+      // [WARN] ${entry.timestamp}: ${entry.message}
     }
   }
 
@@ -68,11 +68,7 @@ class Logger {
     
     // Only log errors in development for security
     if (this.isDevelopment) {
-      console.error(`[ERROR] ${entry.timestamp}: ${entry.message}`, {
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
-        data
-      });
+      // [ERROR] ${entry.timestamp}: ${entry.message}
     }
 
     // In production, send to monitoring service instead of console
@@ -95,22 +91,22 @@ class Logger {
   // Production-safe console methods that are automatically disabled
   prodLog(message: string, data?: any) {
     if (this.isDevelopment) {
-      console.log(message, data);
+      // console.log(message, data);
     }
   }
 
   prodWarn(message: string, data?: any) {
     if (this.isDevelopment) {
-      console.warn(message, data);
+      // console.warn(message, data);
     }
   }
 
   prodError(message: string, error?: any) {
     // Always log errors, but format appropriately for production
     if (this.isDevelopment) {
-      console.error(message, error);
+      // console.error(message, error);
     } else {
-      console.error(message); // Don't expose sensitive error details in production
+      // console.error(message); // Don't expose sensitive error details in production
     }
   }
 }

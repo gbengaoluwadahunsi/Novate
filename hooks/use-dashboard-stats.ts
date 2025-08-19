@@ -119,10 +119,10 @@ export function usePublicDashboardStats(): UseDashboardStatsReturn {
 
         // Log warning if we had to sanitize negative values
         if (response.data.timeSavedPercentage < 0) {
-          console.warn('⚠️ API returned negative timeSavedPercentage:', response.data.timeSavedPercentage, 'Using fallback:', sanitizedData.timeSavedPercentage)
+          // API returned negative timeSavedPercentage
         }
         if (response.data.accuracy < 0) {
-          console.warn('⚠️ API returned negative accuracy:', response.data.accuracy, 'Using fallback:', sanitizedData.accuracy)
+          // API returned negative accuracy
         }
 
         setStats(sanitizedData)
@@ -130,7 +130,7 @@ export function usePublicDashboardStats(): UseDashboardStatsReturn {
         throw new Error('Invalid response format from public dashboard stats API')
       }
     } catch (err) {
-      console.error('❌ Failed to fetch public dashboard stats:', err)
+              // Failed to fetch public dashboard stats
       setError(err instanceof Error ? err.message : 'Failed to fetch public dashboard statistics')
       setStats(FALLBACK_STATS)
     } finally {

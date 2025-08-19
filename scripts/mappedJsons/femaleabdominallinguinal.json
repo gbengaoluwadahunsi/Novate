@@ -1,0 +1,242 @@
+{
+  "timestamp": "2025-08-18T06:12:07.108Z",
+  "total_images": 1,
+  "mapped_images": 1,
+  "coordinates_by_image": {
+    "abdominalinguinal.png": {
+      "image_name": "femaleabdominallinguinal.png",
+      "image_type": "abdominal",
+      "total_regions": 38,
+      "coordinates": {
+        "right_hypochondriac_region": {
+          "x": 209,
+          "y": 322,
+          "width": 50,
+          "height": 50
+        },
+        "epigastric_region": {
+          "x": 404,
+          "y": 326,
+          "width": 50,
+          "height": 50
+        },
+        "left_hypochondriac_region": {
+          "x": 592,
+          "y": 328,
+          "width": 50,
+          "height": 50
+        },
+        "right_lumbar_region": {
+          "x": 208,
+          "y": 496,
+          "width": 50,
+          "height": 50
+        },
+        "umbilical_region": {
+          "x": 398,
+          "y": 486,
+          "width": 50,
+          "height": 50
+        },
+        "left_lumbar_region": {
+          "x": 587,
+          "y": 500,
+          "width": 50,
+          "height": 50
+        },
+        "right_iliac_fossa": {
+          "x": 206,
+          "y": 671,
+          "width": 50,
+          "height": 50
+        },
+        "hypogastric_region": {
+          "x": 392,
+          "y": 694,
+          "width": 50,
+          "height": 50
+        },
+        "left_iliac_fossa": {
+          "x": 583,
+          "y": 666,
+          "width": 50,
+          "height": 50
+        },
+        "right_upper_quadrant": {
+          "x": 283,
+          "y": 397,
+          "width": 50,
+          "height": 50
+        },
+        "left_upper_quadrant": {
+          "x": 506,
+          "y": 400,
+          "width": 50,
+          "height": 50
+        },
+        "right_lower_quadrant": {
+          "x": 289,
+          "y": 580,
+          "width": 50,
+          "height": 50
+        },
+        "left_lower_quadrant": {
+          "x": 506,
+          "y": 582,
+          "width": 50,
+          "height": 50
+        },
+        "liver_palpation_right_costal_margin": {
+          "x": 262,
+          "y": 261,
+          "width": 50,
+          "height": 50
+        },
+        "liver_percussion_midclavicular_line": {
+          "x": 257,
+          "y": 217,
+          "width": 50,
+          "height": 50
+        },
+        "spleen_palpation_left_costal_margin": {
+          "x": 547,
+          "y": 274,
+          "width": 50,
+          "height": 50
+        },
+        "spleen_traube_space_percussion": {
+          "x": 613,
+          "y": 238,
+          "width": 50,
+          "height": 50
+        },
+        "kidney_ballotment_right": {
+          "x": 123,
+          "y": 476,
+          "width": 50,
+          "height": 50
+        },
+        "kidney_ballotment_left": {
+          "x": 668,
+          "y": 470,
+          "width": 50,
+          "height": 50
+        },
+        "abdominal_aorta_pulsation_above_umbilicus": {
+          "x": 394,
+          "y": 538,
+          "width": 50,
+          "height": 50
+        },
+        "mcburney_point_appendicitis": {
+          "x": 249,
+          "y": 631,
+          "width": 50,
+          "height": 50
+        },
+        "murphy_sign_cholecystitis": {
+          "x": 236,
+          "y": 353,
+          "width": 50,
+          "height": 50
+        },
+        "rovsing_sign_appendicitis": {
+          "x": 200,
+          "y": 627,
+          "width": 50,
+          "height": 50
+        },
+        "rebound_tenderness_point": {
+          "x": 394,
+          "y": 434,
+          "width": 50,
+          "height": 50
+        },
+        "shifting_dullness_right_flank": {
+          "x": 136,
+          "y": 427,
+          "width": 50,
+          "height": 50
+        },
+        "shifting_dullness_left_flank": {
+          "x": 662,
+          "y": 419,
+          "width": 50,
+          "height": 50
+        },
+        "fluid_thrill_test_point": {
+          "x": 340,
+          "y": 434,
+          "width": 50,
+          "height": 50
+        },
+        "bowel_sounds_right_umbilicus": {
+          "x": 342,
+          "y": 580,
+          "width": 50,
+          "height": 50
+        },
+        "bowel_sounds_left_umbilicus": {
+          "x": 451,
+          "y": 583,
+          "width": 50,
+          "height": 50
+        },
+        "arterial_bruits_above_umbilicus": {
+          "x": 396,
+          "y": 536,
+          "width": 50,
+          "height": 50
+        },
+        "renal_artery_bruits_lateral_umbilicus": {
+          "x": 506,
+          "y": 583,
+          "width": 50,
+          "height": 50
+        },
+        "hepatic_bruits_over_liver": {
+          "x": 217,
+          "y": 240,
+          "width": 50,
+          "height": 50
+        },
+        "venous_hum_over_liver": {
+          "x": 219,
+          "y": 212,
+          "width": 50,
+          "height": 50
+        },
+        "xiphisternum": {
+          "x": 404,
+          "y": 236,
+          "width": 50,
+          "height": 50
+        },
+        "symphysis_pubis": {
+          "x": 404,
+          "y": 961,
+          "width": 50,
+          "height": 50
+        },
+        "umbilicus": {
+          "x": 392,
+          "y": 586,
+          "width": 50,
+          "height": 50
+        },
+        "right_costal_margin": {
+          "x": 213,
+          "y": 282,
+          "width": 50,
+          "height": 50
+        },
+        "left_costal_margin": {
+          "x": 591,
+          "y": 282,
+          "width": 50,
+          "height": 50
+        }
+      }
+    }
+  }
+}

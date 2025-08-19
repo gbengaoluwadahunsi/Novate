@@ -39,7 +39,7 @@ export async function fetchSupportedLanguages(): Promise<Language[]> {
     // Backend response invalid, using fallback languages
   } catch (error) {
     // Failed to load languages from backend, using fallback list
-    console.warn('Failed to fetch supported languages from API, using fallback:', error)
+    // Failed to fetch supported languages from API, using fallback
   }
   
   // Return fallback languages if API call fails

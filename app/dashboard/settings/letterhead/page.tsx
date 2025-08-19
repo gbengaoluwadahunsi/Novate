@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,6 +25,8 @@ interface LetterheadSettings {
   organizationName: string
   organizationType: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE'
   letterheadImage: string | null // Base64 encoded
+  letterheadFileName?: string // Store the original filename
+  letterheadFileType?: string // Store the file type
   isActive: boolean
   createdAt: string
   lastModified: string
@@ -46,6 +48,35 @@ export default function LetterheadSettingsPage() {
 
   const [isPreviewMode, setIsPreviewMode] = useState(false)
 
+  // Load existing letterhead from localStorage on component mount
+  useEffect(() => {
+    const savedLetterhead = localStorage.getItem('doctorLetterhead')
+    const savedFileName = localStorage.getItem('doctorLetterheadFileName')
+    const savedFileType = localStorage.getItem('doctorLetterheadFileType')
+    const savedSettings = localStorage.getItem('letterheadSettings')
+    
+    if (savedLetterhead) {
+      setLetterheadSettings(prev => ({
+        ...prev,
+        letterheadImage: savedLetterhead,
+        letterheadFileName: savedFileName || undefined,
+        letterheadFileType: savedFileType || undefined
+      }))
+    }
+    
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings)
+        setLetterheadSettings(prev => ({
+          ...prev,
+          ...parsedSettings
+        }))
+      } catch (error) {
+        // Error parsing saved letterhead settings
+      }
+    }
+  }, [])
+
   const handleLetterheadUpload = () => {
     fileInputRef.current?.click()
   }
@@ -53,11 +84,17 @@ export default function LetterheadSettingsPage() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
+      // Validate file type - accept PDF and Word documents only
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/msword' // .doc
+      ]
+
+      if (!allowedTypes.includes(file.type)) {
         toast({
           title: 'Invalid File Type',
-          description: 'Please upload an image file (PNG, JPG, GIF, etc.)',
+          description: 'Please upload a PDF or Word document (.pdf, .doc, .docx)',
           variant: 'destructive'
         })
         return
@@ -67,7 +104,7 @@ export default function LetterheadSettingsPage() {
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: 'File Too Large',
-          description: 'Please upload an image smaller than 10MB',
+          description: 'Please upload a file smaller than 10MB',
           variant: 'destructive'
         })
         return
@@ -80,11 +117,13 @@ export default function LetterheadSettingsPage() {
         setLetterheadSettings(prev => ({
           ...prev,
           letterheadImage: base64String,
+          letterheadFileName: file.name,
+          letterheadFileType: file.type,
           lastModified: new Date().toISOString()
         }))
         toast({
           title: 'Letterhead Uploaded',
-          description: 'Organization letterhead has been uploaded successfully',
+          description: `Organization letterhead (${file.name}) has been uploaded successfully`,
         })
       }
       reader.readAsDataURL(file)
@@ -95,11 +134,15 @@ export default function LetterheadSettingsPage() {
     setLetterheadSettings(prev => ({
       ...prev,
       letterheadImage: null,
+      letterheadFileName: undefined,
+      letterheadFileType: undefined,
       lastModified: new Date().toISOString()
     }))
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
+    // Also remove from localStorage
+    localStorage.removeItem('doctorLetterhead')
     toast({
       title: 'Letterhead Removed',
       description: 'Organization letterhead has been removed',
@@ -107,8 +150,18 @@ export default function LetterheadSettingsPage() {
   }
 
   const handleSaveSettings = () => {
-    // Here you would typically save to your backend/database
-    // For now, we'll simulate saving to localStorage
+    // Save letterhead image to localStorage for use in PDF generation
+    if (letterheadSettings.letterheadImage) {
+      localStorage.setItem('doctorLetterhead', letterheadSettings.letterheadImage)
+      if (letterheadSettings.letterheadFileName) {
+        localStorage.setItem('doctorLetterheadFileName', letterheadSettings.letterheadFileName)
+      }
+      if (letterheadSettings.letterheadFileType) {
+        localStorage.setItem('doctorLetterheadFileType', letterheadSettings.letterheadFileType)
+      }
+    }
+    
+    // Also save the full settings
     localStorage.setItem('letterheadSettings', JSON.stringify({
       ...letterheadSettings,
       id: letterheadSettings.id || `lh_${Date.now()}`,
@@ -224,19 +277,33 @@ export default function LetterheadSettingsPage() {
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 min-h-[200px] flex flex-col items-center justify-center bg-gray-50">
               {letterheadSettings.letterheadImage ? (
                 <div className="w-full h-full flex items-center justify-center">
-                  <img 
-                    src={letterheadSettings.letterheadImage} 
-                    alt="Organization Letterhead" 
-                    className="max-w-full max-h-full object-contain"
-                    style={{ maxHeight: '150px' }}
-                  />
+                  {letterheadSettings.letterheadImage.startsWith('data:image/') ? (
+                    <img 
+                      src={letterheadSettings.letterheadImage} 
+                      alt="Organization Letterhead" 
+                      className="max-w-full max-h-full object-contain"
+                      style={{ maxHeight: '150px' }}
+                    />
+                  ) : letterheadSettings.letterheadImage.startsWith('data:application/pdf') ? (
+                    <div className="text-center space-y-2">
+                      <FileImage className="h-12 w-12 text-blue-500 mx-auto" />
+                      <p className="text-sm font-medium text-blue-600">PDF Letterhead</p>
+                      <p className="text-xs text-gray-500">{letterheadSettings.letterheadFileName || 'PDF document uploaded successfully'}</p>
+                    </div>
+                  ) : (
+                    <div className="text-center space-y-2">
+                      <FileImage className="h-12 w-12 text-green-500 mx-auto" />
+                      <p className="text-sm font-medium text-green-600">Word Document</p>
+                      <p className="text-xs text-gray-500">{letterheadSettings.letterheadFileName || 'Word document uploaded successfully'}</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-center space-y-2">
                   <FileImage className="h-12 w-12 text-gray-400 mx-auto" />
                   <p className="text-sm text-gray-500">Upload your organization letterhead</p>
                   <p className="text-xs text-gray-400">
-                    PNG, JPG, GIF up to 10MB. Recommended size: 1200x300px
+                    PDF or Word documents (.pdf, .doc, .docx) up to 10MB. The first page will be used as your letterhead template.
                   </p>
                 </div>
               )}
@@ -246,7 +313,7 @@ export default function LetterheadSettingsPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               onChange={handleFileChange}
               className="hidden"
             />
@@ -416,11 +483,12 @@ export default function LetterheadSettingsPage() {
             <div>
               <h4 className="font-semibold mb-2">💡 Recommended Specifications</h4>
               <ul className="list-disc list-inside text-gray-600 space-y-1">
-                <li>Image format: PNG (preferred) or JPG</li>
-                <li>Recommended size: 1200x300 pixels</li>
+                <li>Document format: PDF (preferred) or Word (.doc, .docx)</li>
+                <li>Recommended page size: A4 or Letter format</li>
                 <li>Maximum file size: 10MB</li>
                 <li>Include organization name, logo, contact information</li>
-                <li>Ensure text is readable when scaled down</li>
+                <li>Ensure text and graphics are clear and professional</li>
+                <li>First page will be used as the letterhead template</li>
               </ul>
             </div>
           </div>

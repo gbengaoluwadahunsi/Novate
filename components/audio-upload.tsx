@@ -178,9 +178,12 @@ const extractChiefComplaint = (segments: any[]): string => {
 const extractHistory = (segments: any[]): string => {
   const fullText = segments.map(s => s.text).join(' ').toLowerCase();
   
-  // Look for history indicators in English
+  // Enhanced history indicators in English
   const indicators = [
-    'history', 'started', 'began', 'first noticed', 'for the past', 'since', 'duration'
+    'history', 'started', 'began', 'first noticed', 'for the past', 'since', 'duration',
+    'complaining of', 'experiencing', 'feeling', 'suffering from', 'having',
+    'developed', 'occurred', 'appeared', 'manifested', 'presented with',
+    'chief complaint', 'main problem', 'primary concern', 'reason for visit'
   ];
   
   for (const indicator of indicators) {
@@ -188,16 +191,18 @@ const extractHistory = (segments: any[]): string => {
     if (index !== -1) {
       const afterIndicator = fullText.substring(index).trim();
       const sentences = afterIndicator.split(/[.!?]/);
-      if (sentences[0] && sentences[0].length > 15) {
+      if (sentences[0] && sentences[0].length > 10) {
         return sentences[0].trim();
       }
     }
   }
   
-  // Look for Malay/Indonesian history indicators
+  // Enhanced Malay/Indonesian history indicators
   const malayIndicators = [
     'riwayat', 'mulai', 'bermula', 'sejak', 'sudah', 'pernah',
-    'sejarah penyakit', 'bila mula', 'kapan mulai'
+    'sejarah penyakit', 'bila mula', 'kapan mulai', 'mengalami',
+    'merasa', 'menderita', 'keluhan', 'masalah', 'gejala',
+    'keluhan utama', 'masalah utama', 'alasan kunjungan'
   ];
   
   for (const indicator of malayIndicators) {
@@ -205,9 +210,25 @@ const extractHistory = (segments: any[]): string => {
     if (index !== -1) {
       const afterIndicator = fullText.substring(index).trim();
       const sentences = afterIndicator.split(/[.!?]/);
-      if (sentences[0] && sentences[0].length > 10) {
+      if (sentences[0] && sentences[0].length > 8) {
         return sentences[0].trim();
       }
+    }
+  }
+  
+  // Fallback: try to extract any sentence that seems like history
+  const sentences = fullText.split(/[.!?]/);
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (trimmed.length > 20 && (
+      trimmed.includes('patient') || 
+      trimmed.includes('has been') || 
+      trimmed.includes('for') ||
+      trimmed.includes('since') ||
+      trimmed.includes('mengalami') ||
+      trimmed.includes('sudah')
+    )) {
+      return trimmed;
     }
   }
   
@@ -857,7 +878,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     const requestId = `${audioFile.name}-${audioFile.size}-${Date.now()}`;
     
     if (isTranscribing) {
-      console.log('🚨 DUPLICATE REQUEST BLOCKED: Already transcribing, ignoring duplicate call');
+  
       toast({
         title: "Processing in Progress",
         description: "Please wait for the current transcription to complete.",
@@ -867,7 +888,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     }
     
     if (lastRequestRef.current === `${audioFile.name}-${audioFile.size}`) {
-      console.log('🚨 DUPLICATE REQUEST BLOCKED: Same file already processed recently');
+  
       return;
     }
     
@@ -886,7 +907,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       lastRequestRef.current = null;
     }, 30000);
     
-    console.log('🎙️ TRANSCRIPTION STARTED - Request ID:', requestId);
+
     
     if (!audioFile) {
       setIsTranscribing(false);
@@ -1025,15 +1046,15 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             if (response.success) {
               // If we have real data, use it; otherwise pass basic data that will create a note
                             const fallbackData = {
-                patientName: 'Patient',
-                diagnosis: 'Assessment completed',
+                patientName: '',
+                diagnosis: '',
                 patientInfo: undefined,
                 patientInformation: undefined,
                 medicalNote: {
-                  chiefComplaint: 'Transcription completed successfully',
-                  historyOfPresentIllness: 'Patient history documented during consultation',
-                  diagnosis: 'Assessment completed',
-                  treatmentPlan: 'Please review and update as needed'
+                  chiefComplaint: '',
+                  historyOfPresentIllness: '',
+                                  diagnosis: '',
+                treatmentPlan: ''
                 },
                 transcript: 'Transcription completed',
                 language: 'en',
@@ -1141,7 +1162,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         lastRequestRef.current = null;
       }, 2000);
       
-      console.log('🎙️ TRANSCRIPTION COMPLETED - Deduplication flags reset');
+  
     }
   };
 
@@ -1282,6 +1303,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                         (transcriptionData as any)?.managementPlan ||
                         (transcriptionData as any)?.treatmentPlan ||
                         '[To be determined based on transcript analysis]',
+          // Add ICD-11 codes (will be generated asynchronously)
+          icd11Codes: null,
           // Add raw transcript for reference and validation
           rawTranscript: ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '',
         },
@@ -1292,6 +1315,58 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
       // Call the completion handler with the note data
       onTranscriptionComplete(noteData);
+
+      // Generate ICD-11 codes asynchronously (non-blocking)
+      const diagnosisText = medicalNote?.diagnosis ||
+                    (medicalNote as any)?.assessmentAndDiagnosis ||
+                    (transcriptionData as any)?.diagnosis ||
+                    (transcriptionData as any)?.assessmentAndDiagnosis ||
+                    '';
+      
+      const symptomsText = medicalNote?.chiefComplaint || 
+                        (transcriptionData as any)?.chiefComplaint ||
+                        '';
+
+      if (diagnosisText || symptomsText) {
+        // Generate ICD codes in background without blocking the UI
+        setTimeout(async () => {
+          try {
+            logger.info('🔍 Generating simple ICD-11 codes in background...');
+            const icdResponse = await fetch('/api/simple-icd11', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                diagnosis: diagnosisText,
+                symptoms: symptomsText,
+                chiefComplaint: symptomsText
+              })
+            });
+
+            if (icdResponse.ok) {
+              const icdData = await icdResponse.json();
+              if (icdData.success && icdData.codes) {
+                logger.info('✅ Simple ICD-11 codes generated successfully:', {
+                  primaryCount: icdData.codes.primary?.length || 0,
+                  secondaryCount: icdData.codes.secondary?.length || 0,
+                  suggestionsCount: icdData.codes.suggestions?.length || 0
+                });
+                
+                // Show success notification
+                toast({
+                  title: "ICD-11 Codes Generated (ChatGPT)",
+                  description: `Found ${icdData.codes.primary?.length || 0} primary and ${icdData.codes.secondary?.length || 0} secondary codes using AI`,
+                  variant: "default",
+                });
+              }
+            }
+          } catch (icdError) {
+            logger.error('Background simple ICD-11 coding error:', icdError);
+            // Silent failure - don't disrupt user experience
+          }
+        }, 1000); // Small delay to avoid overwhelming the API
+      }
       
       // Clear patient information form after successful transcription (optional)
       // setPatientName('');

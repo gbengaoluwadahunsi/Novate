@@ -1,6 +1,6 @@
 "use client"
 
-import { logger } from './logger'
+
 
 // API Client for NovateScribe Backend Integration
 // Updated to match comprehensive backend API documentation
@@ -19,15 +19,9 @@ const getBackendUrl = () => {
   // Use environment variable override if provided, otherwise use environment-based URL
   const finalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || environmentUrl;
   
-  logger.debug('Backend URL Selection', {
-    nodeEnv: process.env.NODE_ENV,
-    isDevelopment,
-    environmentUrl,
-    envOverride: process.env.NEXT_PUBLIC_BACKEND_URL,
-    finalUrl,
-    isClient: typeof window !== 'undefined',
-    userAgent: typeof window !== 'undefined' ? window.navigator?.userAgent?.slice(0, 50) : 'server'
-  });
+  // Backend URL Selection
+  
+  return finalUrl;
   
   return finalUrl;
 };
@@ -35,12 +29,7 @@ const getBackendUrl = () => {
 const API_BASE_URL = getBackendUrl();
 
 // Log the backend URL and environment info
-logger.info('API Client initialization', {
-  backendUrl: API_BASE_URL,
-  nodeEnv: process.env.NODE_ENV,
-  envBackendUrl: process.env.NEXT_PUBLIC_BACKEND_URL,
-  isDevelopment: process.env.NODE_ENV === 'development'
-});
+// API Client initialization
 
 interface ApiResponse<T = any> {
   success: boolean;
@@ -114,6 +103,7 @@ interface MedicalNote {
   followUpInstructions?: string;
   additionalNotes?: string;
   prescriptions?: Prescription[];
+  icd11Codes?: ICD11MedicalCodes; // ICD-11 coding information
   noteType: 'consultation' | 'follow-up' | 'assessment' | null;
   audioJobId?: string;
   timeSaved?: number | null;
@@ -133,6 +123,36 @@ interface Prescription {
   medication: string;
   dosage: string;
   frequency: string;
+}
+
+interface ICD11MedicalCodes {
+  primary: Array<{
+    code: string;
+    title: string;
+    definition?: string;
+    uri: string;
+    confidence?: number;
+    matchType: 'exact' | 'partial' | 'synonym' | 'related';
+  }>;
+  secondary: Array<{
+    code: string;
+    title: string;
+    definition?: string;
+    uri: string;
+    confidence?: number;
+    matchType: 'exact' | 'partial' | 'synonym' | 'related';
+  }>;
+  suggestions: Array<{
+    code: string;
+    title: string;
+    definition?: string;
+    uri: string;
+    confidence?: number;
+    matchType: 'exact' | 'partial' | 'synonym' | 'related';
+  }>;
+  extractedTerms: string[];
+  processingTime: number;
+  lastUpdated: string;
 }
 
 interface Organization {
@@ -343,11 +363,7 @@ class ApiClient {
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
-    logger.debug('ApiClient constructor', {
-      baseUrl: this.baseUrl,
-      inputBaseUrl: baseUrl,
-      API_BASE_URL: API_BASE_URL
-    });
+    // ApiClient constructor
     this.loadToken();
   }
 
@@ -414,37 +430,21 @@ class ApiClient {
       // Critical debugging: Check if URL is absolute
       const isAbsolute = fullUrl.startsWith('http://') || fullUrl.startsWith('https://');
       
-      logger.debug('Request Details', {
-        originalBaseUrl: this.baseUrl,
-        cleanBaseUrl,
-        originalEndpoint: endpoint,
-        cleanEndpoint,
-        finalUrl: fullUrl,
-        isAbsolute: isAbsolute,
-        method: options.method || 'GET'
-      });
+      // Request Details
       
       if (!isAbsolute) {
-        logger.error('CRITICAL ERROR: URL is not absolute!', fullUrl);
-        logger.error('This will be treated as relative by the browser and hit Next.js API routes!');
-        logger.error('Expected: https://api.novatescribe.com/medical-notes');
-        logger.error('Actual:', fullUrl);
+        // CRITICAL ERROR: URL is not absolute!
         
         // Force absolute URL as a fallback
         const fallbackUrl = fullUrl.startsWith('/') 
           ? `https://api.novatescribe.com${fullUrl}`
           : fullUrl;
-        logger.debug('Using fallback URL:', fallbackUrl);
+        // Using fallback URL
         // Use the fallback URL instead
         fullUrl = fallbackUrl;
       }
 
-      logger.debug('About to make fetch request', {
-        url: fullUrl,
-        method: options.method || 'GET',
-        hasAuth: headers.has('Authorization'),
-        timestamp: new Date().toISOString()
-      });
+      // About to make fetch request
       
       const response = await fetch(fullUrl, {
         ...options,
@@ -452,12 +452,7 @@ class ApiClient {
         signal: controller.signal,
       });
       
-      logger.debug('Fetch response received', {
-        url: response.url, // This shows the actual URL that was hit
-        status: response.status,
-        statusText: response.statusText,
-        timestamp: new Date().toISOString()
-      });
+      // Fetch response received
 
       clearTimeout(timeoutId);
 
@@ -478,15 +473,7 @@ class ApiClient {
 
       // Special logging for DELETE operations
       if (options.method === 'DELETE') {
-        logger.debug('DELETE response details', {
-          status: response.status,
-          ok: response.ok,
-          statusText: response.statusText,
-          responseData: data,
-          hasError: !!data.error,
-          hasMessage: !!data.message,
-          hasSuccess: !!data.success
-        });
+        // DELETE response details
       }
 
       // Handle successful response
@@ -513,20 +500,10 @@ class ApiClient {
           const responseClone = response.clone();
           responseText = await responseClone.text();
         } catch (cloneError) {
-          logger.warn('Could not clone response for logging:', cloneError instanceof Error ? cloneError.message : 'Unknown error');
+          // Could not clone response for logging
         }
 
-        logger.error('API Client: 400 Bad Request Details', {
-          endpoint,
-          status: response.status,
-          errorMessage: error.error,
-          errorDetails: error.details,
-          responseText,
-          // Show request body for medical notes operations
-          ...(endpoint.includes('medical-notes') && { 
-            requestBody: options.body && typeof options.body === 'string' ? JSON.parse(options.body) : 'Non-JSON body'
-          })
-        });
+        // API Client: 400 Bad Request Details
       }
 
       // Retry on specific error conditions
@@ -893,18 +870,18 @@ class ApiClient {
         visitDate: noteData.visitDate || new Date().toISOString().split('T')[0]
       },
       chiefComplaint: noteData.chiefComplaint || 'Patient presenting for medical consultation',
-      historyOfPresentingIllness: noteData.historyOfPresentIllness || 'Patient history documented during consultation',
-      pastMedicalHistory: 'No significant past medical history documented', 
-      socialHistory: 'No significant social history documented',  
-      systemReview: 'Systems review completed during examination',
-      physicalExamination: noteData.physicalExamination || 'Physical examination performed as clinically indicated',
-      assessmentAndDiagnosis: noteData.diagnosis || 'Clinical assessment completed',
+              historyOfPresentingIllness: noteData.historyOfPresentIllness || '',
+              pastMedicalHistory: '', 
+              socialHistory: '',  
+              systemReview: '',
+              physicalExamination: noteData.physicalExamination || '',
+              assessmentAndDiagnosis: noteData.diagnosis || '',
       managementPlan: {
-        investigations: 'Investigations ordered as clinically indicated',
-        treatmentAdministered: 'Treatment provided during consultation',
-        medicationsPrescribed: noteData.treatmentPlan || noteData.managementPlan || 'Medications prescribed as indicated',
-        patientEducation: 'Patient counseled regarding condition and treatment',
-        followUp: 'Follow-up arranged as clinically appropriate'
+                  investigations: '',
+                  treatmentAdministered: '',
+                  medicationsPrescribed: noteData.treatmentPlan || noteData.managementPlan || '',
+                  patientEducation: '',
+                  followUp: ''
       },
       medicalCertificate: 'Medical certificate issued if clinically indicated',
       doctorDetails: {
@@ -918,37 +895,85 @@ class ApiClient {
       audioDuration: 0 // Add if available
     };
 
-    logger.debug('Creating medical note for patient', {
-      patientName: backendData.patientInformation.name,
-      doctorName: backendData.doctorDetails.name,
-      noteType: backendData.noteType
-    });
+    // Creating medical note for patient
 
     // Log the complete request body for debugging validation issues
-    logger.info('🚀 MEDICAL NOTE REQUEST BODY:', {
-      timestamp: new Date().toISOString(),
-      patientInformation: backendData.patientInformation,
-      chiefComplaint: backendData.chiefComplaint,
-      assessmentAndDiagnosis: backendData.assessmentAndDiagnosis,
-      managementPlan: backendData.managementPlan,
-      doctorDetails: backendData.doctorDetails,
-      noteType: backendData.noteType
-    });
 
     // Log diagnosis data for consistency tracking
-    logger.debug('API DIAGNOSIS DATA', {
-      timestamp: new Date().toISOString(),
-      inputDiagnosis: noteData.diagnosis,
-      backendDiagnosis: backendData.assessmentAndDiagnosis,
-      hasInputDiagnosis: !!noteData.diagnosis,
-      hasBackendDiagnosis: !!backendData.assessmentAndDiagnosis,
-      diagnosisLength: backendData.assessmentAndDiagnosis?.length || 0
-    });
+
+    // Generate ICD-11 codes automatically if we have medical content
+    let icd11Codes = null;
+    const hasMedicalContent = noteData.chiefComplaint || noteData.diagnosis || noteData.historyOfPresentIllness;
+    
+    if (hasMedicalContent) {
+      try {
+        // Auto-generating ICD-11 codes for medical note
+        
+        const icd11Response = await this.generateICD11Codes({
+          diagnosis: noteData.diagnosis || '',
+          symptoms: '', // Will be populated from system review if available
+          chiefComplaint: noteData.chiefComplaint || '',
+          assessment: noteData.diagnosis || ''
+        });
+
+        if (icd11Response.success && icd11Response.data) {
+          icd11Codes = icd11Response.data;
+          // ICD-11 codes auto-generated
+        } else {
+          // Failed to auto-generate ICD-11 codes
+        }
+      } catch (error) {
+        // Error auto-generating ICD-11 codes
+        // Continue with note creation even if ICD-11 generation fails
+      }
+    }
+    
+    // Add ICD-11 codes to the backend data if generated
+    if (icd11Codes) {
+      (backendData as any).icd11Codes = icd11Codes;
+    }
     
     return this.request('/medical-notes', {
       method: 'POST',
       body: JSON.stringify(backendData),
     });
+  }
+
+  /**
+   * Generate ICD-11 codes based on medical content (using simple ChatGPT-based service)
+   */
+  async generateICD11Codes(medicalData: {
+    diagnosis?: string;
+    symptoms?: string;
+    chiefComplaint?: string;
+    assessment?: string;
+  }): Promise<ApiResponse<ICD11MedicalCodes>> {
+    try {
+      const response = await this.request<ICD11MedicalCodes>('/api/simple-icd11', {
+        method: 'POST',
+        body: JSON.stringify(medicalData),
+      });
+
+      if (response.success && response.data) {
+        // ICD-11 codes generated successfully
+      }
+
+      return response;
+    } catch (error) {
+      // Error generating ICD-11 codes
+      return {
+        success: false,
+        error: 'Failed to generate ICD-11 codes',
+        data: {
+          primary: [],
+          secondary: [],
+          suggestions: [],
+          extractedTerms: [],
+          processingTime: 0,
+          lastUpdated: new Date().toISOString()
+        }
+      };
+    }
   }
 
   async getMedicalNotes(params?: {
@@ -988,7 +1013,7 @@ class ApiClient {
 
       // Transform nested backend structure to flat frontend structure for each note
       if (transformedResponse.success && transformedResponse.data?.notes) {
-        logger.debug('Transforming notes data structure...');
+
         
         transformedResponse.data.notes = transformedResponse.data.notes.map((backendNote: any) => {
           const transformedNote: MedicalNote = {
@@ -1034,15 +1059,7 @@ class ApiClient {
           return transformedNote;
         });
         
-        logger.debug('Transformed notes', { 
-          count: transformedResponse.data.notes.length,
-          message: 'notes processed'
-        });
-        logger.debug('Sample transformed note', {
-          patientName: transformedResponse.data.notes[0]?.patientName,
-          patientAge: transformedResponse.data.notes[0]?.patientAge,
-          chiefComplaint: transformedResponse.data.notes[0]?.chiefComplaint
-        });
+
       }
 
       return transformedResponse;
@@ -1065,21 +1082,19 @@ class ApiClient {
 
   async getMedicalNote(noteId: string): Promise<ApiResponse<MedicalNote>> {
     try {
-      logger.debug('Calling getMedicalNote with noteId', noteId);
-      logger.debug('Base URL', this.baseUrl);
-      logger.debug('Full endpoint', `${this.baseUrl}/medical-notes/${noteId}`);
+
       
       // Use the new medical-notes endpoint as per backend API documentation
       const response = await this.request<MedicalNote>(`/medical-notes/${noteId}`);
       
-      logger.debug('getMedicalNote response', response);
+
       
-      if (response.success && response.data) {
-        // Transform nested backend structure to flat frontend structure
-        const backendData = response.data as any;
-        
-        logger.debug('Raw backend data', backendData);
-        
+              if (response.success && response.data) {
+          // Transform nested backend structure to flat frontend structure
+          const backendData = response.data as any;
+
+
+
         const transformedData: MedicalNote = {
           ...backendData,
           // Map nested patientInformation to flat fields
@@ -1120,21 +1135,17 @@ class ApiClient {
           doctorRegistrationNo: backendData.doctorDetails?.registrationNo || backendData.doctorRegistrationNo || ''
         };
         
-        logger.debug('Transformed data', {
-          patientName: transformedData.patientName,
-          patientAge: transformedData.patientAge,
-          patientGender: transformedData.patientGender,
-          chiefComplaint: transformedData.chiefComplaint,
-          diagnosis: transformedData.diagnosis,
-          treatmentPlan: transformedData.treatmentPlan
-        });
+        // Log transformation details
+        // Final response data processed
         
         response.data = transformedData as any;
+        
+        // Final response data processed
       }
-      
+
       return response;
     } catch (error) {
-      logger.error('getMedicalNote error', error);
+      // Error fetching medical note
       return {
         success: false,
         error: 'Failed to fetch medical note',
@@ -1144,6 +1155,32 @@ class ApiClient {
   }
 
   async updateMedicalNote(noteId: string, noteData: Partial<MedicalNote>): Promise<ApiResponse<MedicalNote>> {
+    // Generate ICD-11 codes automatically if medical content has changed
+    const hasMedicalContent = noteData.chiefComplaint || noteData.assessmentAndDiagnosis || noteData.systemReview;
+    const needsICD11Update = hasMedicalContent && !noteData.icd11Codes;
+    
+    if (needsICD11Update) {
+      try {
+        // Auto-generating ICD-11 codes for updated medical note
+        
+        const icd11Response = await this.generateICD11Codes({
+          diagnosis: noteData.assessmentAndDiagnosis || '',
+          symptoms: noteData.systemReview || '',
+          chiefComplaint: noteData.chiefComplaint || '',
+          assessment: noteData.assessmentAndDiagnosis || ''
+        });
+
+        if (icd11Response.success && icd11Response.data) {
+          noteData.icd11Codes = icd11Response.data;
+        } else {
+          // Failed to auto-generate ICD-11 codes for update
+        }
+      } catch (error) {
+        // Error auto-generating ICD-11 codes for update
+        // Continue with note update even if ICD-11 generation fails
+      }
+    }
+    
     return this.request(`/medical-notes/${noteId}`, {
       method: 'PUT',
       body: JSON.stringify(noteData),
@@ -1151,23 +1188,14 @@ class ApiClient {
   }
 
   async deleteMedicalNote(noteId: string): Promise<ApiResponse> {
-    logger.debug('Delete Debug', {
-      noteId,
-      hasToken: !!this.token,
-      tokenLength: this.token?.length
-    });
-    
     // Debug: Let's see what's in the token
     let userId = null;
     if (this.token) {
       try {
         const payload = JSON.parse(atob(this.token.split('.')[1]));
-        logger.debug('Token payload for delete', payload);
-        logger.debug('Available fields', Object.keys(payload));
-        logger.debug('UserId from token', payload.userId);
         userId = payload.userId;
       } catch (error) {
-        logger.warn('Could not decode token for debugging', error);
+        // Could not decode token for debugging
       }
     }
     
@@ -1175,28 +1203,13 @@ class ApiClient {
     const endpoint = userId 
       ? `/medical-notes/${noteId}?userId=${userId}`
       : `/medical-notes/${noteId}`;
-    
-    if (userId) {
-      logger.debug('Adding userId to query parameter as fallback', userId);
-    }
-    
-    logger.debug('About to make delete request to', endpoint);
+
     const result = await this.request(endpoint, {
       method: 'DELETE',
     });
     
-    logger.debug('Raw delete API response', {
-      success: result.success,
-      error: result.error,
-      data: result.data,
-      message: result.message,
-      details: result.details
-    });
-    
     return result;
   }
-
-
 
   // ==========================================
   // PDF EXPORT METHODS
@@ -1319,12 +1332,6 @@ class ApiClient {
 
   async getNoteAuditTrail(noteId: string): Promise<ApiResponse<{ noteId: string; auditTrail: AuditTrailEntry[]; totalEntries: number }>> {
     const endpoint = `/medical-notes/${noteId}/audit-trail`;
-    logger.debug('Audit Trail API Call', {
-      endpoint,
-      fullUrl: `${this.baseUrl}${endpoint}`,
-      noteId,
-      baseUrl: this.baseUrl
-    });
     return this.request(endpoint);
   }
 
@@ -1448,7 +1455,7 @@ class ApiClient {
         message: 'Profile updated successfully'
       };
     } catch (error) {
-      logger.error('Error updating profile', error);
+      // Error updating profile
       return {
         success: false,
         error: 'Failed to update profile'
@@ -1597,17 +1604,13 @@ class ApiClient {
     timeSavedSeconds: number;
   }>> {
     try {
-      logger.debug('Fetching user dashboard stats...');
       const response = await this.request('/user-stats/dashboard', { 
-      method: 'GET', 
-      credentials: 'include' 
-    });
-      
-      logger.debug('Raw user dashboard stats response', response);
+        method: 'GET', 
+        credentials: 'include' 
+      });
       
       if (response.success && response.data) {
         const backendData = response.data as any;
-        logger.debug('Backend data structure', backendData);
         
         // Transform nested backend structure to flat frontend structure
         const transformedData = {
@@ -1616,8 +1619,6 @@ class ApiClient {
                            backendData.stats?.timeSavedSeconds || 
                            backendData.timeSavedSeconds || 0
         };
-        
-        logger.debug('Transformed user stats', transformedData);
         
         return {
           success: true,
@@ -1628,7 +1629,7 @@ class ApiClient {
       
       return response as ApiResponse<{ notesCreated: number; timeSavedSeconds: number }>;
     } catch (error) {
-      logger.error('Error fetching user dashboard stats', error);
+      // Error fetching user dashboard stats
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Failed to fetch user stats',

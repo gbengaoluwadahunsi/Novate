@@ -33,8 +33,8 @@ import { logger } from '@/lib/logger'
 import { PerformanceMonitor } from '@/lib/performance'
 import { debounce } from '@/lib/performance'
 import { useAppSelector } from '@/store/hooks'
-import { generateAndDownloadComprehensivePDF } from '@/lib/comprehensive-pdf-generator'
-import { ComprehensiveMedicalNote } from '@/types/medical-note-comprehensive'
+
+import { MedicalNoteComprehensive } from '@/types/medical-note-comprehensive'
 
 export default function NotesPage() {
   const router = useRouter()
@@ -602,41 +602,39 @@ export default function NotesPage() {
       const note = noteResponse.data
 
       // Convert to ComprehensiveMedicalNote format for the new PDF generator
-      const comprehensiveNote: ComprehensiveMedicalNote = {
+      const comprehensiveNote: MedicalNoteComprehensive = {
         id: note.id,
-        patientName: note.patientName || '',
-        patientAge: note.patientAge?.toString() || '',
-        patientGender: note.patientGender || 'Male',
-        visitDate: note.visitDate || new Date().toISOString().split('T')[0],
-        visitTime: note.visitTime || new Date().toTimeString().split(' ')[0],
-        noteType: note.noteType || 'consultation',
+        patientInformation: {
+          name: note.patientName || '',
+          age: parseInt(note.patientAge?.toString() || '0'),
+          gender: (note.patientGender || 'Male').toLowerCase() as 'male' | 'female'
+        },
         chiefComplaint: note.chiefComplaint || '',
         historyOfPresentingIllness: note.historyOfPresentingIllness || '',
         pastMedicalHistory: note.pastMedicalHistory || '',
-        systemReview: note.systemReview || '',
-        physicalExamination: note.physicalExamination || '',
-        diagnosis: note.diagnosis || '',
-        treatmentPlan: note.treatmentPlan || '',
-        managementPlan: note.managementPlan || '',
-        followUpInstructions: note.followUpInstructions || '',
-        additionalNotes: note.additionalNotes || '',
-        prescriptions: note.prescriptions || [],
-        comprehensiveExamination: (note as any).comprehensiveExamination,
-        doctorName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.name || 'Dr. [Name]',
-        doctorRegistrationNo: user?.registrationNo || '[Registration Number]',
-        doctorDepartment: user?.specialization || 'General Medicine',
-        doctorSignature: (user as any)?.doctorSignature || (note as any).doctorSignature || '',
-        doctorStamp: (user as any)?.doctorStamp || (note as any).doctorStamp || '',
-        letterhead: (note as any)?.letterhead || '',
-        dateOfIssue: new Date().toISOString().split('T')[0],
-        createdAt: note.createdAt,
-        updatedAt: note.updatedAt,
-        version: 1,
-        lastModified: new Date().toISOString()
+        medication: '',
+        allergies: '',
+        socialHistory: '',
+        familyHistory: '',
+        reviewOfSystems: note.systemReview || '',
+        examinationData: {
+          generalExamination: note.physicalExamination || '',
+          cardiovascularExamination: '',
+          respiratoryExamination: '',
+          abdominalExamination: '',
+          otherSystemsExamination: ''
+        },
+        investigations: note.managementPlan || '',
+        assessment: note.diagnosis || '',
+        plan: note.treatmentPlan || ''
       };
 
-      // Use the comprehensive PDF generator that follows new.pdf template
-      generateAndDownloadComprehensivePDF(comprehensiveNote, practiceInfo.organizationName);
+      // Use the unified PDF generator for consistent, well-organized PDFs
+      const { generateAndDownloadUnifiedPDF } = await import('@/lib/unified-pdf-generator');
+      generateAndDownloadUnifiedPDF(comprehensiveNote, {
+        organizationName: practiceInfo.organizationName,
+        includeICD11: true
+      });
 
       toast({
         title: 'PDF Downloaded',

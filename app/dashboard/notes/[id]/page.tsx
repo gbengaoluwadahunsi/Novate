@@ -10,12 +10,13 @@ import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { getUser } from '@/store/features/authSlice'
 import DocumentStyleNoteViewer from '@/components/medical-note/document-style-note-viewer'
 import NoteVersionHistory from '@/components/medical-note/note-version-history'
-import { SimpleMedicalNote } from '@/components/medical-note/simple-medical-note-editor'
-import { generateEnhancedProfessionalMedicalNotePDF, ProfessionalMedicalNote } from '@/lib/enhanced-professional-pdf-generator'
+import { CleanMedicalNote } from '@/components/medical-note/clean-medical-note-editor'
+import { generateProfessionalMedicalNotePDF, ProfessionalMedicalNote } from '@/lib/enhanced-professional-pdf-generator'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
 
 export default function NotePage() {
   const { user } = useAppSelector((state) => state.auth)
@@ -44,7 +45,12 @@ export default function NotePage() {
   const [stampPreview, setStampPreview] = useState<string | null>(null)
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null)
   const [isUploadLoading, setIsUploadLoading] = useState(false)
-    const [versions, setVersions] = useState<Array<{
+  
+  // File input state for proper display
+  const [signatureFileName, setSignatureFileName] = useState<string>('')
+  const [stampFileName, setStampFileName] = useState<string>('')
+  const [letterheadFileName, setLetterheadFileName] = useState<string>('')
+  const [versions, setVersions] = useState<Array<{
     version: number
     timestamp: string
     changes: string
@@ -67,6 +73,17 @@ export default function NotePage() {
       setStampPreview((user as any)?.doctorStamp || null)
       setLetterheadPreview((user as any)?.letterhead || null)
     }
+    
+    // Also load from localStorage for letterhead functionality
+    const savedLetterhead = localStorage.getItem('doctorLetterhead')
+    const savedLetterheadFileName = localStorage.getItem('doctorLetterheadFileName')
+    if (savedLetterhead) {
+      setLetterheadFile(savedLetterhead)
+      setLetterheadPreview(savedLetterhead)
+      if (savedLetterheadFileName) {
+        setLetterheadFileName(savedLetterheadFileName)
+      }
+    }
   }, [user])
 
   const fetchNote = async () => {
@@ -77,7 +94,7 @@ export default function NotePage() {
       const response = await apiClient.getMedicalNote(noteId)
       setNote(response.data || null)
     } catch (error) {
-      console.error('Error fetching note:', error)
+      // Error fetching note
       toast({
         title: 'Error',
         description: 'Failed to load medical note',
@@ -115,6 +132,7 @@ export default function NotePage() {
         const result = e.target?.result as string
         setSignaturePreview(result)
         setSignatureFile(result)
+        setSignatureFileName(file.name)
       }
       reader.readAsDataURL(file)
     }
@@ -147,6 +165,7 @@ export default function NotePage() {
         const result = e.target?.result as string
         setStampPreview(result)
         setStampFile(result)
+        setStampFileName(file.name)
       }
       reader.readAsDataURL(file)
     }
@@ -159,16 +178,26 @@ export default function NotePage() {
       if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "File too large",
-          description: "Please select an image smaller than 10MB.",
+          description: "Please select a file smaller than 10MB.",
           variant: "destructive",
         })
         return
       }
 
-      if (!file.type.startsWith('image/')) {
+      // Accept PDF and Word documents
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+        'application/msword', // .doc
+        'image/png',
+        'image/jpeg',
+        'image/jpg'
+      ]
+
+      if (!allowedTypes.includes(file.type)) {
         toast({
           title: "Invalid file type",
-          description: "Please select an image file (PNG, JPG, etc).",
+          description: "Please select a PDF, Word document, or image file.",
           variant: "destructive",
         })
         return
@@ -179,6 +208,7 @@ export default function NotePage() {
         const result = e.target?.result as string
         setLetterheadPreview(result)
         setLetterheadFile(result)
+        setLetterheadFileName(file.name)
       }
       reader.readAsDataURL(file)
     }
@@ -188,6 +218,20 @@ export default function NotePage() {
   const handleSaveUploads = async () => {
     setIsUploadLoading(true)
     try {
+      // Save to localStorage for letterhead functionality
+      if (letterheadFile) {
+        localStorage.setItem('doctorLetterhead', letterheadFile)
+        if (letterheadFileName) {
+          localStorage.setItem('doctorLetterheadFileName', letterheadFileName)
+        }
+      }
+      if (signatureFile) {
+        localStorage.setItem('doctorSignature', signatureFile)
+      }
+      if (stampFile) {
+        localStorage.setItem('doctorStamp', stampFile)
+      }
+      
       const profileData = {
         doctorSignature: signatureFile || undefined,
         doctorStamp: stampFile || undefined,
@@ -207,7 +251,7 @@ export default function NotePage() {
         throw new Error(response.error || 'Failed to save uploads')
       }
     } catch (error) {
-      console.error('Error saving uploads:', error)
+      // Error saving uploads
       toast({
         title: "Error",
         description: "Failed to save uploads. Please try again.",
@@ -218,7 +262,7 @@ export default function NotePage() {
     }
   }
 
-  const handleSave = async (updatedNote: SimpleMedicalNote, changeDescription: string) => {
+  const handleSave = async (updatedNote: CleanMedicalNote, changeDescription: string) => {
     if (!note || !updatedNote) return
 
     try {
@@ -234,68 +278,89 @@ export default function NotePage() {
         summary: `Updated medical note: ${changeDescription}`
       }
       
-      // Update the note via API
+      // 🔧 FIXED: Map to CORRECT Backend API Structure (as per API docs)
       const updatedMedicalNote = {
-        ...note,
-        patientName: updatedNote.patientName,
-        patientAge: updatedNote.patientAge ? parseInt(updatedNote.patientAge) : null,
-        patientGender: updatedNote.patientGender,
+        // Patient Information (nested structure as per API)
+        patientInformation: {
+          name: updatedNote.patientName,
+          age: updatedNote.patientAge,
+          gender: updatedNote.patientGender
+        },
+        
+        // Medical Content Fields (as per backend API)
         chiefComplaint: updatedNote.chiefComplaint,
         historyOfPresentingIllness: updatedNote.historyOfPresentingIllness,
-        systemReview: updatedNote.systemsReview,
-        diagnosis: updatedNote.assessment,
-        treatmentPlan: updatedNote.plan,
-        managementPlan: updatedNote.investigations,
-        additionalNotes: JSON.stringify(updatedNote)
+        pastMedicalHistory: '',
+        systemReview: updatedNote.systemsReview || '',
+        physicalExamination: updatedNote.physicalExamination || '',
+        assessmentAndDiagnosis: updatedNote.assessment,
+        
+        // Management Plan (nested structure as per API)
+        managementPlan: {
+          investigations: updatedNote.investigations || '',
+          treatmentAdministered: updatedNote.plan || '',
+          medicationsPrescribed: '',
+          patientEducation: '',
+          followUp: ''
+        },
+        
+        // Additional required fields
+        noteType: 'consultation' as const
       }
       
-      await apiClient.updateMedicalNote(noteId, updatedMedicalNote)
-      setNote(updatedMedicalNote)
+      // Save to backend
+      
+      const apiResponse = await apiClient.updateMedicalNote(noteId, updatedMedicalNote)
+      
+      // BACKEND SAVE RESPONSE
+      
+      // CRITICAL: Update local state with transformed response
+      if (apiResponse.success && apiResponse.data) {
+        setNote(apiResponse.data as MedicalNote)
+      }
       setVersions([...versions, newVersion])
+      
+      // Force a small delay to ensure state update is processed
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Note saved successfully
       
       toast({
         title: 'Note Updated',
         description: 'Medical note has been saved successfully'
       })
     } catch (error) {
-      console.error('Error saving note:', error)
+      // Error saving note
       toast({
         title: 'Save Error',
         description: 'Failed to save medical note. Please try again.',
         variant: 'destructive'
       })
+      throw error // Re-throw so component can handle error state
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async (useLetterhead?: boolean, letterheadImage?: string, selectedICD11Codes?: any) => {
     if (!note) return
 
+    // PDF Export triggered
+
     try {
-      // Convert to professional medical note format
+      // Use the enhanced professional PDF generator for proper multi-page handling
+      const { generateProfessionalMedicalNotePDF } = await import('@/lib/enhanced-professional-pdf-generator');
+      
+      // Convert CleanMedicalNote to ProfessionalMedicalNote for the enhanced generator
       const professionalNote: ProfessionalMedicalNote = {
-        // Patient Information
         patientName: note.patientName || '',
-        patientAge: note.patientAge?.toString() || '',
-        patientGender: note.patientGender || 'Male',
-        patientId: (note as any).patientId || '',
-        chaperone: '',
-        
-        // Vital Signs (populate from note if available)
+        patientAge: String(note.patientAge || ''),
+        patientGender: note.patientGender || '',
         temperature: '',
         pulseRate: '',
         respiratoryRate: '',
         bloodPressure: '',
-        spo2: '',
-        weight: '',
-        height: '',
-        bmi: '',
-        bmiStatus: '',
-        takenOn: '',
-        takenBy: '',
-        
-        // Medical Content
+        glucose: '',
         chiefComplaint: note.chiefComplaint || '',
         historyOfPresentingIllness: note.historyOfPresentingIllness || '',
         medicalConditions: '',
@@ -312,43 +377,105 @@ export default function NotePage() {
         eatingOut: '',
         familyHistory: '',
         systemsReview: note.systemReview || '',
-        
-        // Physical Examination
         generalExamination: '',
         cardiovascularExamination: '',
         respiratoryExamination: '',
         abdominalExamination: '',
         otherSystemsExamination: '',
         physicalExaminationFindings: {},
-        
-        // Assessment & Plan
-        investigations: note.managementPlan || '',
-        assessment: note.diagnosis || '',
-        plan: note.treatmentPlan || '',
-        
-        // Doctor Information
-        doctorName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.name || 'Dr. [Name]',
-        doctorRegistrationNo: user?.registrationNo || '[Registration Number]',
-        generatedOn: new Date().toLocaleString(),
-        signature: (user as any)?.doctorSignature || '',
-        stamp: (user as any)?.doctorStamp || '',
-        letterhead: (user as any)?.letterhead
-      }
+        investigations: '',
+        assessment: note.assessmentAndDiagnosis || '',
+        plan: note.managementPlan || '',
+        doctorName: note.doctorName || '',
+        doctorRegistrationNo: note.doctorRegistrationNo || '',
+        generatedOn: note.createdAt || new Date().toISOString(),
+        signature: '',
+        stamp: '',
+        letterhead: '',
+        // Include selected ICD-11 codes if provided
+        selectedICD11Codes: selectedICD11Codes || null
+      };
 
-      // Use the enhanced professional PDF generator that matches the template exactly
-      generateEnhancedProfessionalMedicalNotePDF(professionalNote)
+      // Generate PDF with proper multi-page handling and letterhead support
+      generateProfessionalMedicalNotePDF(professionalNote, useLetterhead && letterheadImage ? letterheadImage : undefined);
+
+      // PDF generation completed successfully with multi-page support
 
       toast({
         title: 'PDF Downloaded',
-        description: 'Professional medical note exported successfully'
-      })
+        description: 'Medical note exported successfully with multi-page support'
+      });
+      
     } catch (error) {
-      console.error('PDF generation error:', error)
-      toast({
-        title: 'Export Error',
-        description: 'Failed to generate PDF. Please try again.',
-        variant: 'destructive'
-      })
+      // PDF generation failed
+      
+      // Fallback to simple PDF generation if enhanced generator fails
+      try {
+        // Attempting fallback PDF generation
+        const { jsPDF } = await import('jspdf');
+        const doc = new jsPDF();
+        
+        // Simple fallback implementation with basic pagination
+        let currentY = 20;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 20;
+        const maxContentWidth = doc.internal.pageSize.getWidth() - (margin * 2);
+        
+        const addSectionWithPagination = (title: string, content: string) => {
+          // Check if we need a new page
+          if (currentY > pageHeight - 50) {
+            doc.addPage();
+            currentY = 20;
+          }
+          
+          // Section header
+          doc.setFontSize(12);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(30, 58, 138);
+          doc.text(title.toUpperCase(), margin, currentY);
+          currentY += 10;
+          
+          // Content
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(0, 0, 0);
+          
+          const lines = doc.splitTextToSize(content, maxContentWidth);
+          doc.text(lines, margin, currentY);
+          currentY += lines.length * 5 + 15;
+        };
+        
+        // Add all sections with pagination
+        addSectionWithPagination('Patient Information', `Name: ${note.patientName || 'Not recorded'}, Age: ${note.patientAge || 'Not recorded'}, Gender: ${note.patientGender || 'Not recorded'}`);
+        addSectionWithPagination('Chief Complaint', note.chiefComplaint || 'Not recorded');
+        addSectionWithPagination('History of Present Illness', note.historyOfPresentingIllness || 'Not recorded');
+        addSectionWithPagination('Review of Systems', note.systemReview || 'Not recorded');
+        addSectionWithPagination('Physical Examination', note.physicalExamination || 'Not recorded');
+        addSectionWithPagination('Assessment', note.assessmentAndDiagnosis || 'Not recorded');
+        addSectionWithPagination('Plan', note.managementPlan || 'Not recorded');
+        
+        // Save fallback PDF
+        const patientName = note.patientName || 'Unknown_Patient';
+        const safePatientName = patientName.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        const dateStr = new Date().toISOString().split('T')[0];
+        
+        doc.save(`Medical_Note_${safePatientName}_${dateStr}.pdf`);
+        
+        // Fallback PDF generation completed
+        
+        toast({
+          title: 'PDF Downloaded (Fallback)',
+          description: 'Medical note exported with basic multi-page support'
+        });
+        
+          } catch (fallbackError) {
+      // Fallback PDF generation also failed
+        toast({
+          title: 'PDF Error',
+          description: 'Failed to generate PDF. Please try again.',
+          variant: 'destructive'
+        });
+      }
     }
   }
 
@@ -394,191 +521,212 @@ export default function NotePage() {
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Upload className="h-4 w-4 mr-2" />
-                  Documents
+                  Upload
                 </Button>
               </DialogTrigger>
               
               {/* Upload Documents Dialog Content */}
-              <DialogContent className="max-w-4xl max-h-[80vh]">
+              <DialogContent className="max-w-5xl max-h-[85vh]">
                 <DialogHeader>
-                  <DialogTitle>Upload Professional Documents</DialogTitle>
-                  <DialogDescription>
-                    Upload your signature, stamp, and letterhead for professional PDF generation.
+                  <DialogTitle className="text-2xl font-bold">Professional Documents</DialogTitle>
+                  <DialogDescription className="text-base">
+                    Upload your signature, stamp, and letterhead for professional medical note generation
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="grid gap-6 py-4 overflow-y-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6 overflow-y-auto">
                   {/* Signature Upload */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <FileImage className="h-5 w-5" />
+                  <Card className="border-2 hover:border-blue-300 transition-colors">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                          <FileImage className="h-5 w-5 text-blue-600" />
+                        </div>
                         Digital Signature
                       </CardTitle>
                       <CardDescription>
-                        Upload your digital signature for document authentication
+                        Your professional signature for document authentication
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="signature-upload" className="sr-only">
-                            Upload Signature
-                          </Label>
-                          <Input
-                            id="signature-upload"
-                            type="file"
-                            accept="image/*"
-                            ref={signatureInputRef}
-                            onChange={handleSignatureUpload}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                        {signaturePreview && (
-                          <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-dashed">
-                            <div className="text-center">
-                              <img 
-                                src={signaturePreview} 
-                                alt="Signature preview" 
-                                className="max-h-24 w-auto mx-auto border rounded"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setSignatureFile(null)
-                                  setSignaturePreview(null)
-                                  if (signatureInputRef.current) signatureInputRef.current.value = ''
-                                }}
-                                className="mt-2"
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Remove
-                              </Button>
-                            </div>
+                    <CardContent className="space-y-4">
+                      {signaturePreview ? (
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <img 
+                              src={signaturePreview} 
+                              alt="Signature preview" 
+                              className="w-full h-32 object-contain bg-white border rounded-lg shadow-sm"
+                            />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setSignatureFile(null)
+                                setSignaturePreview(null)
+                                setSignatureFileName('')
+                                if (signatureInputRef.current) signatureInputRef.current.value = ''
+                              }}
+                              className="absolute top-2 right-2 h-6 w-6 p-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
-                        )}
-                      </div>
+                          <p className="text-xs text-gray-500 text-center">{signatureFileName}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div 
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors cursor-pointer bg-gray-50"
+                            onClick={() => signatureInputRef.current?.click()}
+                          >
+                            <FileImage className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-600">Click to upload signature</p>
+                            <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+                          </div>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        ref={signatureInputRef}
+                        onChange={handleSignatureUpload}
+                        className="hidden"
+                      />
                     </CardContent>
                   </Card>
 
                   {/* Stamp Upload */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <FileImage className="h-5 w-5" />
+                  <Card className="border-2 hover:border-green-300 transition-colors">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 bg-green-100 rounded-lg">
+                          <FileImage className="h-5 w-5 text-green-600" />
+                        </div>
                         Official Stamp
                       </CardTitle>
                       <CardDescription>
-                        Upload your official medical practice stamp
+                        Your medical practice official stamp
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="stamp-upload" className="sr-only">
-                            Upload Stamp
-                          </Label>
-                          <Input
-                            id="stamp-upload"
-                            type="file"
-                            accept="image/*"
-                            ref={stampInputRef}
-                            onChange={handleStampUpload}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                        {stampPreview && (
-                          <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-dashed">
-                            <div className="text-center">
-                              <img 
-                                src={stampPreview} 
-                                alt="Stamp preview" 
-                                className="max-h-24 w-auto mx-auto border rounded"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setStampFile(null)
-                                  setStampPreview(null)
-                                  if (stampInputRef.current) stampInputRef.current.value = ''
-                                }}
-                                className="mt-2"
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Remove
-                              </Button>
-                            </div>
+                    <CardContent className="space-y-4">
+                      {stampPreview ? (
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <img 
+                              src={stampPreview} 
+                              alt="Stamp preview" 
+                              className="w-full h-32 object-contain bg-white border rounded-lg shadow-sm"
+                            />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setStampFile(null)
+                                setStampPreview(null)
+                                setStampFileName('')
+                                if (stampInputRef.current) stampInputRef.current.value = ''
+                              }}
+                              className="absolute top-2 right-2 h-6 w-6 p-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
-                        )}
-                      </div>
+                          <p className="text-xs text-gray-500 text-center">{stampFileName}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div 
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors cursor-pointer bg-gray-50"
+                            onClick={() => stampInputRef.current?.click()}
+                          >
+                            <FileImage className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-600">Click to upload stamp</p>
+                            <p className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</p>
+                          </div>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        ref={stampInputRef}
+                        onChange={handleStampUpload}
+                        className="hidden"
+                      />
                     </CardContent>
                   </Card>
 
                   {/* Letterhead Upload */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-lg">
-                        <FileImage className="h-5 w-5" />
-                        Letterhead Template
+                  <Card className="border-2 hover:border-purple-300 transition-colors">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                          <FileImage className="h-5 w-5 text-purple-600" />
+                        </div>
+                        Letterhead
                       </CardTitle>
                       <CardDescription>
-                        Upload your practice letterhead template for PDF backgrounds
+                        Your organization's professional letterhead
                       </CardDescription>
                     </CardHeader>
-                    <CardContent>
-                      <div className="space-y-4">
-                        <div>
-                          <Label htmlFor="letterhead-upload" className="sr-only">
-                            Upload Letterhead
-                          </Label>
-                          <Input
-                            id="letterhead-upload"
-                            type="file"
-                            accept="image/*"
-                            ref={letterheadInputRef}
-                            onChange={handleLetterheadUpload}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                        {letterheadPreview && (
-                          <div className="flex items-center justify-center p-4 bg-gray-50 rounded-lg border-2 border-dashed">
-                            <div className="text-center">
-                              <img 
-                                src={letterheadPreview} 
-                                alt="Letterhead preview" 
-                                className="max-h-32 w-auto mx-auto border rounded"
-                              />
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  setLetterheadFile(null)
-                                  setLetterheadPreview(null)
-                                  if (letterheadInputRef.current) letterheadInputRef.current.value = ''
-                                }}
-                                className="mt-2"
-                              >
-                                <X className="h-4 w-4 mr-2" />
-                                Remove
-                              </Button>
-                            </div>
+                    <CardContent className="space-y-4">
+                      {letterheadPreview ? (
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <img 
+                              src={letterheadPreview} 
+                              alt="Letterhead preview" 
+                              className="w-full h-32 object-contain bg-white border rounded-lg shadow-sm"
+                            />
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setLetterheadFile(null)
+                                setLetterheadPreview(null)
+                                setLetterheadFileName('')
+                                if (letterheadInputRef.current) letterheadInputRef.current.value = ''
+                                // Also remove from localStorage
+                                localStorage.removeItem('doctorLetterhead')
+                                localStorage.removeItem('doctorLetterheadFileName')
+                              }}
+                              className="absolute top-2 right-2 h-6 w-6 p-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
                           </div>
-                        )}
-                      </div>
+                          <p className="text-xs text-gray-500 text-center">{letterheadFileName}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div 
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-purple-400 transition-colors cursor-pointer bg-gray-50"
+                            onClick={() => letterheadInputRef.current?.click()}
+                          >
+                            <FileImage className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-600">Click to upload letterhead</p>
+                            <p className="text-xs text-gray-400 mt-1">PDF, Word documents (.pdf, .doc, .docx) up to 10MB</p>
+                          </div>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept=".pdf,.doc,.docx,image/*"
+                        ref={letterheadInputRef}
+                        onChange={handleLetterheadUpload}
+                        className="hidden"
+                      />
                     </CardContent>
                   </Card>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className="pt-6 border-t">
                   <Button variant="outline" onClick={() => setShowUploadsDialog(false)}>
                     Cancel
                   </Button>
                   <Button 
                     onClick={handleSaveUploads} 
                     disabled={isUploadLoading}
-                    className="min-w-24"
+                    className="min-w-24 bg-blue-600 hover:bg-blue-700"
                   >
                     {isUploadLoading ? (
                       <>
@@ -611,40 +759,30 @@ export default function NotePage() {
       <div className="py-6">
         <DocumentStyleNoteViewer
           note={(() => {
-            // Try to parse simple note data from additionalNotes first
-            try {
-              const savedSimpleNote = note.additionalNotes ? JSON.parse(note.additionalNotes) : null
-              if (savedSimpleNote && savedSimpleNote.patientName) {
-                return savedSimpleNote
-              }
-            } catch (e) {
-              // Fall through to conversion
-            }
+            // LOADING NOTE FROM BACKEND API (CORRECT FORMAT)
             
-            // Convert from MedicalNote format to SimpleMedicalNote with sample examination data
-            return {
+            // 🔧 FIXED: Convert from backend API format to CleanMedicalNote
+            const convertedNote: CleanMedicalNote = {
+              // Patient Information
               patientName: note.patientName || '',
               patientAge: note.patientAge?.toString() || '',
-              patientGender: note.patientGender || 'Male',
-              patientId: (note as any).patientId || '',
-              chaperone: '',
+              patientGender: note.patientGender || '',
+              visitDate: note.visitDate || new Date().toISOString().split('T')[0],
+              
+              // Vital Signs
               temperature: '',
               pulseRate: '',
               respiratoryRate: '',
               bloodPressure: '',
-              spo2: '',
-              weight: '',
-              height: '',
-              bmi: '',
-              bmiStatus: '',
-              takenOn: '',
-              takenBy: '',
+              glucose: '',
+              
+              // Main Medical Content
               chiefComplaint: note.chiefComplaint || '',
-              historyOfPresentingIllness: note.historyOfPresentingIllness || '',
-              medicalConditions: '',
+              historyOfPresentingIllness: note.historyOfPresentingIllness || note.historyOfPresentIllness || '',
+              medicalConditions: note.pastMedicalHistory || '',
               surgeries: '',
               hospitalizations: '',
-              medications: '',
+              medications: note.managementPlan?.medicationsPrescribed || '',
               allergies: '',
               smoking: '',
               alcohol: '',
@@ -654,24 +792,38 @@ export default function NotePage() {
               sexual: '',
               eatingOut: '',
               familyHistory: '',
+              
+              // Review of Systems
               systemsReview: note.systemReview || '',
-              generalExamination: 'Head: Normal examination, no abnormalities noted. Face: Symmetrical, no facial droop. Eyes: PERRLA bilaterally, no discharge. Neck: Supple, no lymphadenopathy. Upper extremities: Normal range of motion in shoulders, arms, and hands with good strength and sensation. Lower extremities: Normal muscle tone, no swelling or tenderness in thighs, knees, and feet.',
-              vitalSignsFindings: '',
-              cardiovascularExamination: 'Heart sounds: S1, S2 normal, no murmurs heard at aortic, pulmonary, tricuspid, and mitral areas. JVP not elevated. No peripheral edema.',
-              respiratoryExamination: 'Lung sounds: Clear to auscultation bilaterally. Good air entry throughout all lung fields. No adventitious sounds noted. Resonant to percussion.',
-              abdominalExamination: 'Soft, non-tender, no masses palpated. Liver: Not enlarged, no tenderness. Spleen: Not palpable. Umbilicus: Normal, no hernias. Bowel sounds present and normal. No tenderness in flanks or lower quadrants.',
-              otherSystemsExamination: '',
-              physicalExaminationFindings: {},
-              investigations: note.managementPlan || '',
-              assessment: note.diagnosis || '',
-              plan: note.treatmentPlan || '',
-              doctorName: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : user?.name || '',
-              doctorRegistrationNo: user?.registrationNo || '',
-              generatedOn: new Date().toLocaleString(),
-              signature: (user as any)?.doctorSignature || '',
-              stamp: (user as any)?.doctorStamp || '',
-              letterhead: (user as any)?.letterhead
+              
+              // Physical Examination
+              physicalExamination: note.physicalExamination || '',
+              
+
+              
+              // Assessment & Plan
+              investigations: note.managementPlan?.investigations || '',
+              assessment: note.assessmentAndDiagnosis || note.diagnosis || '',
+              plan: note.managementPlan?.treatmentAdministered || note.treatmentPlan || '',
+              
+              // ICD-11 Codes (optional)
+              icd11Codes: note.icd11Codes,
+              
+              // Doctor Information
+              doctorName: note.doctorName || '',
+              doctorRegistrationNo: note.doctorRegistrationNo || '',
+              dateTime: note.createdAt || new Date().toLocaleString(),
+              signature: note.doctorSignature || '',
+              stamp: note.doctorStamp || '',
+              
+              // Transcript for validation
+              originalTranscript: '',
+              transcript: ''
             }
+            
+            // CONVERTED FROM BACKEND API
+            
+            return convertedNote
           })()}
           onSave={handleSave}
           onVersionHistory={() => setShowVersionHistory(true)}
@@ -689,11 +841,11 @@ export default function NotePage() {
         currentVersion={versions.length}
         onViewVersion={(version) => {
           // Handle version viewing
-          console.log('View version:', version)
+      
         }}
         onRestoreVersion={(version) => {
           // Handle version restoration
-          console.log('Restore version:', version)
+          
           toast({
             title: 'Version Restored',
             description: `Note restored to version ${version}`

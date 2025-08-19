@@ -5,11 +5,11 @@ export const disableDebugging = () => {
   if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
     // Disable console methods
     const noop = () => {};
-    console.log = noop;
-    console.debug = noop;
-    console.info = noop;
-    console.warn = noop;
-    console.error = noop;
+    // console.log = noop;
+// console.debug = noop;
+// console.info = noop;
+// console.warn = noop;
+// console.error = noop;
     console.table = noop;
     console.trace = noop;
     console.group = noop;
@@ -76,27 +76,27 @@ export const disableDebugging = () => {
 export const devConsole = {
   log: (...args: any[]) => {
     if (process.env.NODE_ENV === 'development') {
-      console.log(...args);
+      // console.log(...args);
     }
   },
   error: (...args: any[]) => {
     if (process.env.NODE_ENV === 'development') {
-      console.error(...args);
+      // console.error(...args);
     }
   },
   warn: (...args: any[]) => {
     if (process.env.NODE_ENV === 'development') {
-      console.warn(...args);
+      // console.warn(...args);
     }
   },
   info: (...args: any[]) => {
     if (process.env.NODE_ENV === 'development') {
-      console.info(...args);
+      // console.info(...args);
     }
   },
   debug: (...args: any[]) => {
     if (process.env.NODE_ENV === 'development') {
-      console.debug(...args);
+      // console.debug(...args);
     }
   }
 }; 

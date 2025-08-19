@@ -204,7 +204,7 @@ const authSlice = createSlice({
             state.token = token
           }
         } catch (error) {
-          console.warn('Failed to load token from localStorage:', error)
+  
         }
       }
     },

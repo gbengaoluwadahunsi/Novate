@@ -3,94 +3,94 @@
 
 import { ExaminationTemplate } from './examination'
 
-export interface PatientInfo {
-  name: string
-  age: number | string
-  gender: string
-  visitDate?: string
-  visitTime?: string
+export interface PatientInformation {
+  name: string;
+  age: number;
+  gender: 'male' | 'female';
+  [key: string]: any;
 }
 
-export interface DoctorDetails {
-  name: string
-  registrationNumber?: string
-  department?: string
-  signature?: string // Base64
-  stamp?: string // Base64
-  timestamp?: string
+export interface ExaminationData {
+  generalExamination?: string;
+  cardiovascularExamination?: string;
+  respiratoryExamination?: string;
+  abdominalExamination?: string;
+  otherSystemsExamination?: string;
+  [key: string]: any;
 }
 
-export interface Prescription {
-  medication: string
-  dosage: string
-  instructions?: string
+export interface ICD11MedicalCodes {
+  primary: Array<{
+    code: string;
+    title: string;
+    definition?: string;
+    uri: string;
+    confidence?: number;
+    matchType: 'exact' | 'partial' | 'synonym' | 'related';
+  }>;
+  secondary: Array<{
+    code: string;
+    title: string;
+    definition?: string;
+    uri: string;
+    confidence?: number;
+    matchType: 'exact' | 'partial' | 'synonym' | 'related';
+  }>;
+  suggestions: Array<{
+    code: string;
+    title: string;
+    definition?: string;
+    uri: string;
+    confidence?: number;
+    matchType: 'exact' | 'partial' | 'synonym' | 'related';
+  }>;
+  extractedTerms: string[];
+  processingTime: number;
+  lastUpdated: string;
 }
 
-// Main medical note interface following new.pdf template structure
-export interface ComprehensiveMedicalNote {
-  id: string
-  
-  // Patient Information (following template)
-  patientName: string
-  patientAge: number | null | string
-  patientGender: string
-  visitDate?: string
-  visitTime?: string
-  
-  // Medical Content Sections (as per template)
-  chiefComplaint?: string
-  historyOfPresentIllness?: string
-  historyOfPresentingIllness?: string // Backend field name
-  pastMedicalHistory?: string
-  systemReview?: string
-  physicalExamination?: string
-  comprehensiveExamination?: ExaminationTemplate // Interactive examination
-  diagnosis?: string
-  assessmentAndDiagnosis?: string // Backend field name
-  treatmentPlan?: string
-  managementPlan?: any
-  followUpInstructions?: string
-  additionalNotes?: string
-  
-  // Prescriptions
-  prescriptions?: Prescription[]
-  
-  // Note metadata
-  noteType: 'consultation' | 'follow-up' | 'assessment' | null
-  audioJobId?: string
-  timeSaved?: number | null
-  
-  // Timestamps
-  createdAt: string
-  updatedAt: string
-  
-  // Doctor information
-  doctorName?: string
-  doctorRegistrationNo?: string
-  doctorDepartment?: string
-  doctorSignature?: string // Base64
-  doctorStamp?: string // Base64
-  letterhead?: string // Base64 letterhead from settings
-  dateOfIssue?: string
-  
-  // System metadata
-  version?: number
-  lastModified?: string
+export interface MedicalNoteComprehensive {
+  id: string;
+  patientInformation: PatientInformation;
+  chiefComplaint: string;
+  historyOfPresentingIllness: string;
+  pastMedicalHistory?: string;
+  medication?: string;
+  allergies?: string;
+  socialHistory?: string;
+  familyHistory?: string;
+  reviewOfSystems?: string;
+  examinationData: ExaminationData;
+  investigations?: string;
+  assessment: string;
+  plan: string;
+  icd11Codes?: ICD11MedicalCodes;
+  [key: string]: any;
 }
+
+// Alias for backward compatibility with PDF generator
+export type ComprehensiveMedicalNote = MedicalNoteComprehensive;
 
 // Helper function to create empty medical note following template
 export const createEmptyComprehensiveMedicalNote = (): ComprehensiveMedicalNote => ({
   id: '',
-  patientName: '',
-  patientAge: '',
-  patientGender: 'Male',
-  visitDate: '',
-  visitTime: '',
-  noteType: 'consultation',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
-  version: 1,
-  lastModified: new Date().toISOString()
+  patientInformation: {
+    name: '',
+    age: 0,
+    gender: 'male'
+  },
+  chiefComplaint: '',
+  historyOfPresentingIllness: '',
+  pastMedicalHistory: '',
+  medication: '',
+  allergies: '',
+  socialHistory: '',
+  familyHistory: '',
+  reviewOfSystems: '',
+  examinationData: {},
+  investigations: '',
+  assessment: '',
+  plan: ''
 })
 
 // Template sections for modular rendering

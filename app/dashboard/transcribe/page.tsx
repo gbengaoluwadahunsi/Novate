@@ -228,7 +228,7 @@ export default function TranscribePage() {
       } else if (createMedicalNote.rejected.match(result)) {
         // Handle rejected/failed action - but note might still be created
         const errorMessage = result.payload || result.error?.message || 'Unknown error';
-        console.warn('⚠️ Note creation API returned error, but note may still be created:', errorMessage);
+        // Note creation API returned error, but note may still be created
         
         // Show warning instead of error - note might still appear in the list
         toast({
@@ -242,7 +242,7 @@ export default function TranscribePage() {
         }, 1500);
       } else {
         // Handle any other case
-        console.warn('⚠️ Unknown Redux result:', result);
+        // Unknown Redux result
         toast({
           title: "⚠️ Unexpected Result",
           description: "Transcription completed but note status unclear. Check your notes page.",
@@ -253,7 +253,7 @@ export default function TranscribePage() {
         }, 2000);
       }
     } catch (error) {
-      console.error('Error creating draft note:', error);
+              // Error creating draft note
       
       // Even if note creation fails, show success and try to navigate to notes page
       // The note might still be created through other means
@@ -383,55 +383,30 @@ export default function TranscribePage() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Header Section */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-          Audio Transcription
-        </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-          Upload or record audio to generate medical notes with AI-powered transcription
-        </p>
-      </div>
+    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
+        {/* Header */}
+        <div className="text-center space-y-2 sm:space-y-4">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+            Voice Transcription
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
+            Record or upload audio files to create structured medical notes
+          </p>
+        </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Information Alert - Full Width */}
-          <div className="lg:col-span-3">
-            <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertTitle className="text-blue-900 dark:text-blue-100">How it works</AlertTitle>
-              <AlertDescription className="text-blue-800 dark:text-blue-200">
-                Upload an audio file or record directly in your browser. You can process immediately or 
-                save recordings to a queue for batch processing later. Our AI will transcribe the audio,
-                identify medical terms, and generate a structured medical note. Processing typically takes
-                30-60 seconds depending on audio length.
-        </AlertDescription>
-      </Alert>
-          </div>
-
-          {/* Audio Upload Component - Takes 2/3 Width */}
-          <div className="lg:col-span-2">
-            <Card className="mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          {/* Left Column - Audio Upload */}
+          <div className="space-y-6 sm:space-y-8">
+            <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Patient Information
-                  </div>
-                  {settingsLoaded && (
-                    <Badge variant="outline" className={
-                      isStudentUser 
-                        ? "bg-green-50 text-green-700 border-green-200 dark:bg-green-950/20 dark:text-green-300 dark:border-green-800"
-                        : "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/20 dark:text-blue-300 dark:border-blue-800"
-                    }>
-                      {isStudentUser ? "🔒 Auto-Anonymized" : "🏥 Professional Mode"}
-                    </Badge>
-                  )}
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <Mic className="h-5 w-5" />
+                  Record or Upload Audio
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4 sm:space-y-6">
                 {/* Privacy Warning - Different for Students vs Professionals */}
                 {/* Only show alerts when settings are loaded and we know user type */}
                 {settingsLoaded && (isStudentUser ? (
@@ -609,7 +584,7 @@ export default function TranscribePage() {
         />
           </div>
 
-          {/* Recording Queue - Takes 1/3 Width */}
+          {/* Right Column - Recording Queue */}
           <div className="lg:col-span-1">
             <Card className="h-full">
         <CardHeader>

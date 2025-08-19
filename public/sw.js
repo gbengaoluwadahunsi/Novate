@@ -17,11 +17,11 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
-  console.log('Service Worker installing...')
+  // console.log('Service Worker installing...')
   event.waitUntil(
     caches.open(STATIC_CACHE)
       .then((cache) => {
-        console.log('Caching static assets')
+        // console.log('Caching static assets')
         return cache.addAll(STATIC_ASSETS)
       })
       .then(() => {
@@ -32,13 +32,13 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
-  console.log('Service Worker activating...')
+  // console.log('Service Worker activating...')
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== STATIC_CACHE && cacheName !== DYNAMIC_CACHE) {
-            console.log('Deleting old cache:', cacheName)
+            // console.log('Deleting old cache:', cacheName)
             return caches.delete(cacheName)
           }
         })
@@ -100,7 +100,7 @@ self.addEventListener('fetch', (event) => {
 // Background sync for offline uploads (future enhancement)
 self.addEventListener('sync', (event) => {
   if (event.tag === 'background-sync') {
-    console.log('Background sync triggered')
+    // console.log('Background sync triggered')
     // Handle offline upload queue here
   }
 })

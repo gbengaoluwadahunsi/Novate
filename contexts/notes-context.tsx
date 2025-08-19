@@ -108,7 +108,7 @@ export function NotesProvider({ children }: { children: ReactNode }) {
         try {
           setNotes(JSON.parse(savedNotes))
         } catch (error) {
-          console.error('Error parsing saved notes:', error)
+          // Error parsing saved notes
           // Use initial notes if parsing fails
           setNotes(initialNotes)
           localStorage.setItem("novate-notes", JSON.stringify(initialNotes))

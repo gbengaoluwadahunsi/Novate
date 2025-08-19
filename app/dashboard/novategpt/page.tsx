@@ -785,7 +785,7 @@ export default function NovateGPTPage() {
   }, [])
 
   // Handle form submission
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
 
@@ -797,20 +797,60 @@ export default function NovateGPTPage() {
     }
 
     setMessages((prev) => [...prev, userMessage])
+    const currentInput = input
     setInput("")
     setIsLoading(true)
 
-    // Generate contextual response based on conversation history
-    setTimeout(() => {
+    try {
+      // Call NovateGPT API with real OpenAI integration
+      const response = await fetch('/api/novategpt', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: currentInput,
+          conversationHistory: messages,
+          medicalContext: processedContextRef.current
+        })
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.details || data.error || 'Failed to get response')
+      }
+
       const aiMessage: Message = {
         id: `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         role: "assistant",
-        content: generateContextualResponse(input, messages),
+        content: data.response || 'I apologize, but I could not generate a response.',
         timestamp: new Date(),
       }
+      
       setMessages((prev) => [...prev, aiMessage])
-      setIsLoading(false)
-    }, 1500)
+      
+    } catch (error) {
+      logger.error('NovateGPT request error:', error)
+      
+      // Fallback to contextual response if API fails
+      const fallbackMessage: Message = {
+        id: `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        role: "assistant",
+        content: generateContextualResponse(currentInput, messages),
+        timestamp: new Date(),
+      }
+      
+      setMessages((prev) => [...prev, fallbackMessage])
+      
+      toast({
+        title: "Connection Issue",
+        description: "Using offline mode. For full AI capabilities, please check your connection.",
+        variant: "destructive",
+      })
+    }
+    
+    setIsLoading(false)
   }
 
   // Handle voice input

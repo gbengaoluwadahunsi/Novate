@@ -45,7 +45,7 @@ const addHeader = (ctx: PDFContext, note: ComprehensiveMedicalNote, organization
       ctx.doc.addImage(note.letterhead, 'JPEG', ctx.margins.left, yPos, 182, 30)
       yPos += 40
     } catch (error) {
-      console.error('Failed to add letterhead to PDF:', error)
+      // Failed to add letterhead to PDF
       // Fallback to standard header
       ctx.doc.setFontSize(18)
       ctx.doc.text("Medical Consultation Note", ctx.pageWidth / 2, yPos, { align: "center" })
@@ -197,7 +197,7 @@ const addComprehensiveExaminationToPDF = (ctx: PDFContext, examination: Examinat
   yPos += 15
 
   // Vital Signs
-  if (examination.VitalSigns) {
+  if (examination.generalExamination) {
     ctx.doc.setFontSize(14)
     ctx.doc.setFont('helvetica', 'bold')
     ctx.doc.text("VITAL SIGNS", ctx.margins.left, yPos)
@@ -206,24 +206,13 @@ const addComprehensiveExaminationToPDF = (ctx: PDFContext, examination: Examinat
     ctx.doc.setFontSize(10)
     ctx.doc.setFont('helvetica', 'normal')
     
-    const vitals = examination.VitalSigns
-    if (vitals.RecordedBy) ctx.doc.text(`Recorded by: ${vitals.RecordedBy}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.TakenOn) ctx.doc.text(`Taken on: ${vitals.TakenOn}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.Temp) ctx.doc.text(`Temperature: ${vitals.Temp}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.PR) ctx.doc.text(`Pulse Rate: ${vitals.PR}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.RR) ctx.doc.text(`Respiratory Rate: ${vitals.RR}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.BP) ctx.doc.text(`Blood Pressure: ${vitals.BP}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.OxygenSaturationSpO2) ctx.doc.text(`Oxygen Saturation: ${vitals.OxygenSaturationSpO2}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.BodyWeight) ctx.doc.text(`${vitals.BodyWeight}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.Height) ctx.doc.text(`${vitals.Height}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.BMI?.Value) ctx.doc.text(`${vitals.BMI.Value}`, ctx.margins.left, yPos), yPos += 6
-    if (vitals.BMI?.Status) ctx.doc.text(`${vitals.BMI.Status}`, ctx.margins.left, yPos), yPos += 6
-    
+    // Handle general examination as string
+    ctx.doc.text(examination.generalExamination, ctx.margins.left, yPos)
     yPos += 10
   }
 
   // General Examination
-  if (examination.GeneralExamination) {
+  if (examination.generalExamination) {
     yPos = checkAndAddPage({ ...ctx, currentY: yPos }, 30).currentY
     
     ctx.doc.setFontSize(14)
@@ -234,29 +223,13 @@ const addComprehensiveExaminationToPDF = (ctx: PDFContext, examination: Examinat
     ctx.doc.setFontSize(10)
     ctx.doc.setFont('helvetica', 'normal')
     
-    const general = examination.GeneralExamination
-    if (general.Observations?.ConsciousnessLevel) {
-      ctx.doc.text(`Consciousness: ${general.Observations.ConsciousnessLevel}`, ctx.margins.left, yPos)
-      yPos += 6
-    }
-    if (general.Observations?.WellnessPain) {
-      ctx.doc.text(`Wellness/Pain: ${general.Observations.WellnessPain}`, ctx.margins.left, yPos)
-      yPos += 6
-    }
-    if (general.Observations?.HydrationStatus) {
-      ctx.doc.text(`Hydration: ${general.Observations.HydrationStatus}`, ctx.margins.left, yPos)
-      yPos += 6
-    }
-    if (general.Observations?.GaitAndPosture) {
-      ctx.doc.text(`Gait & Posture: ${general.Observations.GaitAndPosture}`, ctx.margins.left, yPos)
-      yPos += 6
-    }
-    
+    // Handle general examination as string
+    ctx.doc.text(examination.generalExamination, ctx.margins.left, yPos)
     yPos += 10
   }
 
   // GEI (General Examination Inspection)
-  if (examination.GEI) {
+  if (examination.cardiovascularExamination) {
     yPos = checkAndAddPage({ ...ctx, currentY: yPos }, 30).currentY
     
     ctx.doc.setFontSize(14)
@@ -267,24 +240,13 @@ const addComprehensiveExaminationToPDF = (ctx: PDFContext, examination: Examinat
     ctx.doc.setFontSize(10)
     ctx.doc.setFont('helvetica', 'normal')
     
-    const gei = examination.GEI
-    Object.entries(gei).forEach(([region, findings]) => {
-      if (typeof findings === 'object' && findings !== null) {
-        ctx.doc.text(`${region}:`, ctx.margins.left, yPos)
-        yPos += 6
-        Object.entries(findings).forEach(([part, finding]) => {
-          if (finding && typeof finding === 'string') {
-            ctx.doc.text(`  ${part}: ${finding}`, ctx.margins.left + 10, yPos)
-            yPos += 6
-          }
-        })
-        yPos += 4
-      }
-    })
+    // Handle cardiovascular examination as string
+    ctx.doc.text(examination.cardiovascularExamination, ctx.margins.left, yPos)
+    yPos += 10
   }
 
   // CVS/Respiratory Examination
-  if (examination.CVSRespExamination) {
+  if (examination.respiratoryExamination) {
     yPos = checkAndAddPage({ ...ctx, currentY: yPos }, 30).currentY
     
     ctx.doc.setFontSize(14)
@@ -295,19 +257,13 @@ const addComprehensiveExaminationToPDF = (ctx: PDFContext, examination: Examinat
     ctx.doc.setFontSize(10)
     ctx.doc.setFont('helvetica', 'normal')
     
-    const cvs = examination.CVSRespExamination
-    if (cvs.Chest) {
-      Object.entries(cvs.Chest).forEach(([finding, value]) => {
-        if (value && typeof value === 'string' && finding !== 'Percussion' && finding !== 'Auscultation') {
-          ctx.doc.text(`${finding}: ${value}`, ctx.margins.left, yPos)
-          yPos += 6
-        }
-      })
-    }
+    // Handle respiratory examination as string
+    ctx.doc.text(examination.respiratoryExamination, ctx.margins.left, yPos)
+    yPos += 10
   }
 
   // Abdominal Examination
-  if (examination.AbdominalInguinalExamination) {
+  if (examination.abdominalExamination) {
     yPos = checkAndAddPage({ ...ctx, currentY: yPos }, 30).currentY
     
     ctx.doc.setFontSize(14)
@@ -318,22 +274,9 @@ const addComprehensiveExaminationToPDF = (ctx: PDFContext, examination: Examinat
     ctx.doc.setFontSize(10)
     ctx.doc.setFont('helvetica', 'normal')
     
-    const abdomen = examination.AbdominalInguinalExamination
-    Object.entries(abdomen).forEach(([region, finding]) => {
-      if (finding && typeof finding === 'string') {
-        ctx.doc.text(`${region}: ${finding}`, ctx.margins.left, yPos)
-        yPos += 6
-      } else if (typeof finding === 'object' && finding !== null) {
-        ctx.doc.text(`${region}:`, ctx.margins.left, yPos)
-        yPos += 6
-        Object.entries(finding).forEach(([part, value]) => {
-          if (value && typeof value === 'string') {
-            ctx.doc.text(`  ${part}: ${value}`, ctx.margins.left + 10, yPos)
-            yPos += 6
-          }
-        })
-      }
-    })
+    // Handle abdominal examination as string
+    ctx.doc.text(examination.abdominalExamination, ctx.margins.left, yPos)
+    yPos += 10
   }
 
   return { ...ctx, currentY: yPos }
@@ -379,7 +322,7 @@ const addSignature = (ctx: PDFContext, note: ComprehensiveMedicalNote): PDFConte
     try {
       updatedCtx.doc.addImage(note.doctorSignature, 'PNG', updatedCtx.margins.left, signatureY, 60, 20)
     } catch (error) {
-      console.error('Failed to add signature:', error)
+      // Failed to add signature
       updatedCtx.doc.line(updatedCtx.margins.left, signatureY + 15, updatedCtx.margins.left + 60, signatureY + 15)
     }
   } else {
@@ -394,7 +337,7 @@ const addSignature = (ctx: PDFContext, note: ComprehensiveMedicalNote): PDFConte
     try {
       updatedCtx.doc.addImage(note.doctorStamp, 'PNG', stampX, signatureY, 60, 30)
     } catch (error) {
-      console.error('Failed to add stamp:', error)
+      // Failed to add stamp
       updatedCtx.doc.rect(stampX, signatureY, 60, 30)
       updatedCtx.doc.text("Official Stamp", stampX + 15, signatureY + 18)
     }
@@ -467,7 +410,7 @@ const generateAndDownloadComprehensivePDF = (
     
     doc.save(filename || defaultFilename)
   } catch (error) {
-    console.error('Error generating comprehensive PDF:', error)
+          // Error generating comprehensive PDF
     throw new Error('Failed to generate PDF. Please check the note data.')
   }
 }

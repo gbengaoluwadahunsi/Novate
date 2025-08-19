@@ -1,5 +1,5 @@
 // Performance monitoring and optimization utilities
-import { logger } from './logger'
+
 
 // Performance monitoring
 export class PerformanceMonitor {
@@ -26,7 +26,7 @@ export class PerformanceMonitor {
       const startTime = this.metrics.get(name)
       if (startTime) {
         const duration = performance.now() - startTime
-        logger.info(`Performance: ${name} took ${duration.toFixed(2)}ms`)
+    
         this.metrics.delete(name)
         return duration
       }
@@ -41,7 +41,7 @@ export class PerformanceMonitor {
       new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries()
         const lastEntry = entries[entries.length - 1]
-        logger.info(`LCP: ${lastEntry.startTime.toFixed(2)}ms`)
+    
       }).observe({ entryTypes: ['largest-contentful-paint'] })
 
       // First Input Delay
@@ -49,7 +49,7 @@ export class PerformanceMonitor {
         const entries = entryList.getEntries()
         entries.forEach((entry: any) => {
           if (entry.processingStart) {
-            logger.info(`FID: ${entry.processingStart - entry.startTime}ms`)
+        
           }
         })
       }).observe({ entryTypes: ['first-input'] })
@@ -63,7 +63,7 @@ export class PerformanceMonitor {
             clsValue += entry.value
           }
         })
-        logger.info(`CLS: ${clsValue}`)
+    
       }).observe({ entryTypes: ['layout-shift'] })
     }
   }
@@ -114,7 +114,7 @@ export const useLazyImage = (src: string, placeholder?: string) => {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) {
-          const image = new Image()
+          const image = new window.Image()
           image.onload = () => {
             setImageSrc(src)
             setIsLoaded(true)
@@ -198,7 +198,7 @@ export const bundle = {
       const module = await importFunc()
       return module
     } catch (error) {
-      logger.error('Dynamic import failed:', error)
+  
       return null
     }
   },
@@ -230,7 +230,7 @@ export const initPerformanceMonitoring = () => {
     // Report to analytics (optional)
     window.addEventListener('beforeunload', () => {
       // Send performance data to analytics
-      logger.info('Page unload - performance data collected')
+  
     })
   }
 } 

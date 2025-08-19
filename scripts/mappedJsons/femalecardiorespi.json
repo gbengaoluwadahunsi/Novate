@@ -1,0 +1,230 @@
+{
+  "timestamp": "2025-08-18T06:09:09.518Z",
+  "total_images": 1,
+  "mapped_images": 1,
+  "coordinates_by_image": {
+    "femalecardiorespi.png": {
+      "image_name": "femalecardiorespi.png",
+      "image_type": "respiratory",
+      "total_regions": 36,
+      "coordinates": {
+        "apex_beat_5th_ics_midclavicular": {
+          "x": 534,
+          "y": 569,
+          "width": 50,
+          "height": 50
+        },
+        "mitral_area": {
+          "x": 528,
+          "y": 605,
+          "width": 50,
+          "height": 50
+        },
+        "pulmonary_area": {
+          "x": 458,
+          "y": 352,
+          "width": 50,
+          "height": 50
+        },
+        "tricuspid_area": {
+          "x": 406,
+          "y": 503,
+          "width": 50,
+          "height": 50
+        },
+        "aortic_area": {
+          "x": 336,
+          "y": 352,
+          "width": 50,
+          "height": 50
+        },
+        "parasternal_heave_area": {
+          "x": 511,
+          "y": 350,
+          "width": 50,
+          "height": 50
+        },
+        "lower_sternal_border": {
+          "x": 402,
+          "y": 552,
+          "width": 50,
+          "height": 50
+        },
+        "carotid_artery_left": {
+          "x": 436,
+          "y": 192,
+          "width": 50,
+          "height": 50
+        },
+        "carotid_artery_right": {
+          "x": 349,
+          "y": 196,
+          "width": 50,
+          "height": 50
+        },
+        "jugular_venous_pressure_point": {
+          "x": 336,
+          "y": 158,
+          "width": 50,
+          "height": 50
+        },
+        "mitral_area_to_axilla": {
+          "x": 608,
+          "y": 537,
+          "width": 50,
+          "height": 50
+        },
+        "trachea_suprasternal_notch": {
+          "x": 391,
+          "y": 237,
+          "width": 50,
+          "height": 50
+        },
+        "upper_chest_expansion_right": {
+          "x": 281,
+          "y": 356,
+          "width": 50,
+          "height": 50
+        },
+        "upper_chest_expansion_left": {
+          "x": 511,
+          "y": 356,
+          "width": 50,
+          "height": 50
+        },
+        "lower_chest_expansion_right": {
+          "x": 281,
+          "y": 596,
+          "width": 50,
+          "height": 50
+        },
+        "lower_chest_expansion_left": {
+          "x": 509,
+          "y": 609,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_above_clavicle_right": {
+          "x": 266,
+          "y": 211,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_above_clavicle_left": {
+          "x": 496,
+          "y": 218,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_clavicle_right": {
+          "x": 268,
+          "y": 256,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_clavicle_left": {
+          "x": 492,
+          "y": 254,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_2nd_ics_right": {
+          "x": 274,
+          "y": 354,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_2nd_ics_left": {
+          "x": 513,
+          "y": 347,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_3rd_ics_right": {
+          "x": 274,
+          "y": 426,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_3rd_ics_left": {
+          "x": 509,
+          "y": 420,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_4th_ics_right": {
+          "x": 277,
+          "y": 505,
+          "width": 50,
+          "height": 50
+        },
+        "percussion_4th_ics_left": {
+          "x": 504,
+          "y": 498,
+          "width": 50,
+          "height": 50
+        },
+        "auscultation_upper_right": {
+          "x": 277,
+          "y": 352,
+          "width": 50,
+          "height": 50
+        },
+        "auscultation_upper_left": {
+          "x": 511,
+          "y": 350,
+          "width": 50,
+          "height": 50
+        },
+        "auscultation_middle_right": {
+          "x": 279,
+          "y": 464,
+          "width": 50,
+          "height": 50
+        },
+        "auscultation_middle_left": {
+          "x": 504,
+          "y": 458,
+          "width": 50,
+          "height": 50
+        },
+        "auscultation_lower_right": {
+          "x": 281,
+          "y": 600,
+          "width": 50,
+          "height": 50
+        },
+        "auscultation_lower_left": {
+          "x": 506,
+          "y": 605,
+          "width": 50,
+          "height": 50
+        },
+        "tactile_fremitus_upper_right": {
+          "x": 272,
+          "y": 311,
+          "width": 50,
+          "height": 50
+        },
+        "tactile_fremitus_upper_left": {
+          "x": 496,
+          "y": 301,
+          "width": 50,
+          "height": 50
+        },
+        "tactile_fremitus_lower_right": {
+          "x": 279,
+          "y": 599,
+          "width": 50,
+          "height": 50
+        },
+        "tactile_fremitus_lower_left": {
+          "x": 504,
+          "y": 608,
+          "width": 50,
+          "height": 50
+        }
+      }
+    }
+  }
+}
