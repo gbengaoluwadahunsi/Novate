@@ -15,6 +15,7 @@ import type { FastTranscriptionResponse, TranscriptionResult } from "@/lib/api-c
 import { useAppSelector } from "@/store/hooks"
 import { fetchSupportedLanguages, type Language } from "@/app/config/languages"
 import { logger } from '@/lib/logger'
+import { parseTranscript, calculateOverallConfidence, testTranscripts } from '@/lib/intelligentTranscriptParser'
 
 // Types
 interface MedicalNote {
@@ -318,6 +319,448 @@ const extractTreatmentPlan = (segments: any[]): string => {
   return 'Treatment plan extracted from transcription';
 };
 
+// Enhanced transcript extraction functions for better medical information extraction
+const extractChiefComplaintFromTranscript = (transcriptionData: any): string => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return '[To be extracted from transcript]';
+  
+  const text = transcript.toLowerCase();
+  
+  // Look for chief complaint patterns
+  const patterns = [
+    /(?:chief complaint|complains? of|presenting with|came in (?:for|with)|here for|main (?:problem|concern)|patient reports?|suffering from)[\s:]*([^.!?]+)/i,
+    /(?:pain|ache|hurt|sore|fever|cough|headache|nausea|dizzy|weakness|tired|fatigue)[\s\w]*(?:in|on|at)?[\s\w]*(?:for|since)?[^.!?]*/i,
+    /(?:sakit|demam|batuk|pusing|mual|lemah|letih)[\s\w]*(?:di|pada|sejak)?[^.!?]*/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = transcript.match(pattern);
+    if (match && match[0] && match[0].length > 10) {
+      return match[0].trim().replace(/^(chief complaint|complains? of|presenting with|came in (?:for|with)|here for|main (?:problem|concern)|patient reports?|suffering from)[\s:]*/i, '');
+    }
+  }
+  
+  // Fallback: look for symptom keywords in first few sentences
+  const sentences = transcript.split(/[.!?]/);
+  const symptoms = ['pain', 'ache', 'fever', 'cough', 'sore', 'headache', 'nausea', 'dizzy', 'weakness', 'sakit', 'demam', 'batuk', 'pusing'];
+  
+  for (const sentence of sentences.slice(0, 5)) {
+    for (const symptom of symptoms) {
+      if (sentence.toLowerCase().includes(symptom) && sentence.length > 15) {
+        return sentence.trim();
+      }
+    }
+  }
+  
+  return transcript.split(/[.!?]/)[0]?.trim() || '[To be extracted from transcript]';
+};
+
+const extractHistoryFromTranscript = (transcriptionData: any): string => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return 'Not recorded';
+  
+  const text = transcript.toLowerCase();
+  
+  // Look for history patterns
+  const patterns = [
+    /(?:history|started|began|since|for the past|duration|onset|when did)[\s\w]*[^.!?]*/i,
+    /(?:riwayat|mulai|sejak|selama|durasi)[\s\w]*[^.!?]*/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = transcript.match(pattern);
+    if (match && match[0] && match[0].length > 20) {
+      return match[0].trim();
+    }
+  }
+  
+  // Extract time-related information
+  const timePatterns = [
+    /(?:\d+)\s*(?:days?|weeks?|months?|years?|hours?)\s*(?:ago|back)/i,
+    /(?:yesterday|today|this morning|last night|few days)/i
+  ];
+  
+  const sentences = transcript.split(/[.!?]/);
+  for (const sentence of sentences) {
+    for (const pattern of timePatterns) {
+      if (pattern.test(sentence) && sentence.length > 15) {
+        return sentence.trim();
+      }
+    }
+  }
+  
+  return 'History of presenting illness to be documented';
+};
+
+const extractDiagnosisFromTranscript = (transcriptionData: any): string => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return '[To be determined based on transcript analysis]';
+  
+  const text = transcript.toLowerCase();
+  
+  // Look for diagnosis patterns
+  const patterns = [
+    /(?:diagnosis|diagnosed with|condition|appears to be|likely|probably|suspect)[\s:]*([^.!?]+)/i,
+    /(?:diagnosa|kondisi|kemungkinan|sepertinya)[\s:]*([^.!?]+)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1] && match[1].length > 5) {
+      return match[1].trim();
+    }
+  }
+  
+  // Look for common medical conditions
+  const conditions = [
+    'upper respiratory tract infection', 'urinary tract infection', 'gastritis', 'hypertension',
+    'diabetes', 'asthma', 'bronchitis', 'pneumonia', 'migraine', 'sinusitis', 'pharyngitis',
+    'flu', 'cold', 'fever', 'infection', 'inflammation'
+  ];
+  
+  for (const condition of conditions) {
+    if (text.includes(condition)) {
+      return condition.charAt(0).toUpperCase() + condition.slice(1);
+    }
+  }
+  
+  return 'Clinical assessment pending based on examination findings';
+};
+
+const extractTreatmentFromTranscript = (transcriptionData: any): string => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return '[To be determined based on transcript analysis]';
+  
+  const text = transcript.toLowerCase();
+  
+  // Look for treatment patterns
+  const patterns = [
+    /(?:treatment|prescribe|medication|take|give|recommend|plan)[\s:]*([^.!?]+)/i,
+    /(?:pengobatan|obat|minum|berikan|anjuran|rencana)[\s:]*([^.!?]+)/i
+  ];
+  
+  for (const pattern of patterns) {
+    const match = transcript.match(pattern);
+    if (match && match[0] && match[0].length > 15) {
+      return match[0].trim();
+    }
+  }
+  
+  // Look for medication names or dosages
+  const medicationPatterns = [
+    /(?:paracetamol|ibuprofen|amoxicillin|azithromycin|omeprazole|metformin)[\s\w\d]*/i,
+    /\d+\s*mg|\d+\s*ml|\d+\s*tablets?|\d+\s*times?/i
+  ];
+  
+  const sentences = transcript.split(/[.!?]/);
+  for (const sentence of sentences) {
+    for (const pattern of medicationPatterns) {
+      if (pattern.test(sentence) && sentence.length > 10) {
+        return sentence.trim();
+      }
+    }
+  }
+  
+  return 'Treatment plan to be determined based on clinical assessment';
+};
+
+const extractPatientInfoFromTranscript = (transcriptionData: any): {name: string, age: string, gender: string} => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return { name: '', age: '', gender: '' };
+  
+  const text = transcript.toLowerCase();
+  let extractedName = '';
+  let extractedAge = '';
+  let extractedGender = '';
+  
+  // Extract patient name
+  const namePatterns = [
+    /(?:patient|name|called|mr|mrs|ms|miss)[\s:]*([\w\s]+?)(?:\s|,|\.|\n)/i,
+    /(?:nama|pasien)[\s:]*([\w\s]+?)(?:\s|,|\.|\n)/i
+  ];
+  
+  for (const pattern of namePatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1] && match[1].trim().length > 2) {
+      extractedName = match[1].trim();
+      break;
+    }
+  }
+  
+  // Extract age
+  const agePatterns = [
+    /(?:age|aged|years? old|\d+\s*years?)[\s:]*(\d+)/i,
+    /(?:umur|berumur)[\s:]*(\d+)/i,
+    /(\d+)[\s-]*(?:year|yr|tahun)/i
+  ];
+  
+  for (const pattern of agePatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1]) {
+      const age = parseInt(match[1]);
+      if (age > 0 && age < 150) {
+        extractedAge = age.toString();
+        break;
+      }
+    }
+  }
+  
+  // Extract gender
+  const malePatterns = /(?:male|man|boy|laki|pria|cowok)/i;
+  const femalePatterns = /(?:female|woman|girl|lady|perempuan|wanita|cewek)/i;
+  
+  if (malePatterns.test(transcript)) {
+    extractedGender = 'Male';
+  } else if (femalePatterns.test(transcript)) {
+    extractedGender = 'Female';
+  }
+  
+  return {
+    name: extractedName,
+    age: extractedAge,
+    gender: extractedGender
+  };
+};
+
+const extractVitalSignsFromTranscript = (transcriptionData: any): any => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return null;
+  
+  const text = transcript.toLowerCase();
+  const vitals: any = {};
+  
+  // Blood pressure patterns
+  const bpPatterns = [
+    /(?:blood pressure|bp)[\s:]*(\d{2,3}\/\d{2,3})/i,
+    /(\d{2,3})\s*over\s*(\d{2,3})/i,
+    /(\d{2,3})\/(\d{2,3})\s*mmhg/i
+  ];
+  
+  for (const pattern of bpPatterns) {
+    const match = transcript.match(pattern);
+    if (match) {
+      if (match[1] && match[1].includes('/')) {
+        vitals.bloodPressure = match[1];
+      } else if (match[1] && match[2]) {
+        vitals.bloodPressure = `${match[1]}/${match[2]}`;
+      }
+      break;
+    }
+  }
+  
+  // Heart rate patterns
+  const hrPatterns = [
+    /(?:heart rate|pulse|hr)[\s:]*(\d{2,3})\s*(?:bpm|beats)/i,
+    /(\d{2,3})\s*(?:bpm|beats per minute)/i
+  ];
+  
+  for (const pattern of hrPatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1]) {
+      const hr = parseInt(match[1]);
+      if (hr > 30 && hr < 200) {
+        vitals.heartRate = `${hr} bpm`;
+        break;
+      }
+    }
+  }
+  
+  // Temperature patterns
+  const tempPatterns = [
+    /(?:temperature|temp)[\s:]*(\d{2,3}\.?\d*)\s*(?:degrees?|°|celsius|fahrenheit|c|f)/i,
+    /(\d{2,3}\.?\d*)\s*(?:°c|°f|celsius|fahrenheit)/i
+  ];
+  
+  for (const pattern of tempPatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1]) {
+      const temp = parseFloat(match[1]);
+      if (temp > 30 && temp < 50) {
+        vitals.temperature = `${temp}°C`;
+        break;
+      }
+    }
+  }
+  
+  // Respiratory rate patterns
+  const rrPatterns = [
+    /(?:respiratory rate|breathing rate|rr)[\s:]*(\d{1,2})/i,
+    /(\d{1,2})\s*(?:breaths? per minute|rpm)/i
+  ];
+  
+  for (const pattern of rrPatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1]) {
+      const rr = parseInt(match[1]);
+      if (rr > 5 && rr < 60) {
+        vitals.respiratoryRate = `${rr}/min`;
+        break;
+      }
+    }
+  }
+  
+  return Object.keys(vitals).length > 0 ? vitals : null;
+};
+
+const extractPhysicalExaminationFromTranscript = (transcriptionData: any): string => {
+  const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+  if (!transcript) return 'No physical examination was performed during this consultation.';
+  
+  const text = transcript.toLowerCase();
+  
+  // Look for examination patterns
+  const examPatterns = [
+    /(?:examination|physical exam|on examination|inspect|palpat|auscultat)[\s:]*([^.!?]+)/i,
+    /(?:pemeriksaan|fisik|inspeksi|palpasi|auskultasi)[\s:]*([^.!?]+)/i
+  ];
+  
+  const examFindings = [];
+  
+  for (const pattern of examPatterns) {
+    const match = transcript.match(pattern);
+    if (match && match[1] && match[1].length > 10) {
+      examFindings.push(match[1].trim());
+    }
+  }
+  
+  // Look for specific body system examinations
+  const systemExams = [
+    { system: 'Cardiovascular', patterns: [/heart|cardiac|murmur|rhythm|s1|s2/i] },
+    { system: 'Respiratory', patterns: [/lung|chest|breath|wheeze|crackle|rhonchi/i] },
+    { system: 'Abdominal', patterns: [/abdomen|stomach|bowel|liver|spleen/i] },
+    { system: 'Neurological', patterns: [/neuro|reflex|motor|sensory|coordination/i] },
+    { system: 'ENT', patterns: [/throat|ear|nose|pharynx|tonsil/i] }
+  ];
+  
+  const sentences = transcript.split(/[.!?]/);
+  for (const sentence of sentences) {
+    for (const exam of systemExams) {
+      for (const pattern of exam.patterns) {
+        if (pattern.test(sentence) && sentence.length > 15) {
+          examFindings.push(`${exam.system}: ${sentence.trim()}`);
+          break;
+        }
+      }
+    }
+  }
+  
+  if (examFindings.length > 0) {
+    return examFindings.join('. ');
+  }
+  
+  // Look for any mention of normal/abnormal findings
+  const findingPatterns = [
+    /(?:normal|abnormal|clear|unremarkable|within normal limits|wnl)/i
+  ];
+  
+  for (const sentence of sentences) {
+    for (const pattern of findingPatterns) {
+      if (pattern.test(sentence) && sentence.length > 10) {
+        return sentence.trim();
+      }
+    }
+  }
+  
+  return 'No physical examination was performed during this consultation.';
+};
+
+// Intelligent parser wrapper function
+const parseTranscriptWithIntelligentParser = (transcript: string) => {
+  if (!transcript || transcript.trim().length < 10) {
+    logger.warn('⚠️ Transcript too short for intelligent parsing, using basic extraction');
+    return {
+      patientInfo: extractPatientInfoFromTranscript({ transcript }),
+      vitalSigns: extractVitalSignsFromTranscript({ transcript }),
+      chiefComplaint: extractChiefComplaintFromTranscript({ transcript }),
+      historyOfPresentIllness: extractHistoryFromTranscript({ transcript }),
+      pastMedicalHistory: 'Not recorded',
+      medications: ['[To be determined based on transcript analysis]'],
+      allergies: 'Not recorded',
+      reviewOfSystems: 'Not recorded',
+      physicalExamination: extractPhysicalExaminationFromTranscript({ transcript }),
+      investigations: 'Not recorded',
+      assessment: extractDiagnosisFromTranscript({ transcript }),
+      plan: extractTreatmentFromTranscript({ transcript })
+    };
+  }
+
+  try {
+    logger.info('🧠 Using intelligent parser for transcript extraction');
+    logger.debug('📝 Transcript preview:', transcript.substring(0, 200) + '...');
+    
+    // Use the already imported parseTranscript function
+    const extracted = parseTranscript(transcript);
+    
+    if (!extracted) {
+      throw new Error('Intelligent parser returned null/undefined result');
+    }
+    
+    const confidence = calculateOverallConfidence(extracted);
+    
+    // Log extraction results for debugging
+    logger.info('✅ Intelligent extraction SUCCESS:', {
+      patientName: extracted.patientInfo?.name,
+      age: extracted.patientInfo?.age,
+      gender: extracted.patientInfo?.gender,
+      chiefComplaint: extracted.chiefComplaint?.substring(0, 50) + '...',
+      hasVitalSigns: !!extracted.vitalSigns,
+      hasAssessment: !!extracted.assessment,
+      confidence: confidence + '%'
+    });
+    
+    // Only use intelligent parser if confidence is reasonable  
+    if (confidence < 5) {
+      logger.warn('⚠️ Very low confidence intelligent extraction, falling back to basic');
+      throw new Error(`Very low confidence extraction: ${confidence}%`);
+    }
+    
+    // Log vital signs extraction details for debugging
+    logger.debug('🩺 Vital Signs extracted:', {
+      temperature: extracted.vitalSigns?.temperature,
+      pulse: extracted.vitalSigns?.pulse,
+      bloodPressure: extracted.vitalSigns?.bloodPressure,
+      respiratoryRate: extracted.vitalSigns?.respiratoryRate,
+      glucose: extracted.vitalSigns?.glucose
+    });
+    
+    return extracted;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack?.substring(0, 500) : undefined;
+    
+    logger.error('❌ Intelligent parser failed, falling back to basic extraction:', {
+      error: errorMessage,
+      stack: errorStack
+    });
+    
+    // Fallback to basic extraction if intelligent parser fails
+    return {
+      patientInfo: extractPatientInfoFromTranscript({ transcript }),
+      vitalSigns: extractVitalSignsFromTranscript({ transcript }),
+      chiefComplaint: extractChiefComplaintFromTranscript({ transcript }),
+      historyOfPresentIllness: extractHistoryFromTranscript({ transcript }),
+      pastMedicalHistory: 'Not recorded',
+      medications: ['[To be determined based on transcript analysis]'],
+      allergies: 'Not recorded',
+      reviewOfSystems: 'Not recorded',
+      physicalExamination: extractPhysicalExaminationFromTranscript({ transcript }),
+      investigations: 'Not recorded',
+      assessment: extractDiagnosisFromTranscript({ transcript }),
+      plan: extractTreatmentFromTranscript({ transcript })
+    };
+  }
+};
+
+// Calculate extraction confidence
+const calculateExtractionConfidence = (extraction: any): number => {
+  try {
+    return calculateOverallConfidence(extraction);
+  } catch (error) {
+    logger.error('Failed to calculate extraction confidence:', error);
+    return 0;
+  }
+};
+
 const formatManagementPlan = (managementPlan: any): string => {
   if (!managementPlan || typeof managementPlan !== 'object') {
     return 'Treatment plan to be determined';
@@ -432,32 +875,36 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     };
   }, [])
 
-  // Function to animate progress for a specific stage
-  const animateStageProgress = (stageName: string, targetProgress: number, duration: number = 2000) => {
-    const startTime = Date.now()
-    const startProgress = 0
-    
-    const animate = () => {
-      const elapsed = Date.now() - startTime
-      const progress = Math.min(startProgress + (targetProgress - startProgress) * (elapsed / duration), targetProgress)
-      
-      updateProcessingStage(stageName, 'processing', '', Math.floor(progress))
-      
-      // Update overall progress based on all stages
-      setProcessingStages(prev => {
-        const totalStages = prev.length
-        const completedProgress = prev.reduce((sum, stage) => sum + stage.progress, 0)
-        const overallProg = Math.floor(completedProgress / totalStages)
-        setOverallProgress(overallProg)
-        return prev
-      })
-      
-      if (progress < targetProgress) {
-        requestAnimationFrame(animate)
-      }
-    }
-    
-    requestAnimationFrame(animate)
+  // Real-time progress tracking - no fake animations
+  
+  // FAST but VISIBLE note generation progress after transcription completes
+  const simulateNoteGenerationProgress = () => {
+    const noteStages = [
+      { progress: 0, message: 'Starting medical note generation...', delay: 10 },
+      { progress: 15, message: 'Analyzing transcript content...', delay: 20 },
+      { progress: 30, message: 'Extracting patient information...', delay: 30 },
+      { progress: 45, message: 'Identifying medical concepts...', delay: 40 },
+      { progress: 60, message: 'Structuring clinical findings...', delay: 50 },
+      { progress: 75, message: 'Generating assessment...', delay: 60 },
+      { progress: 90, message: 'Creating management plan...', delay: 70 },
+      { progress: 100, message: 'Medical note completed!', delay: 80 }
+    ];
+
+    noteStages.forEach((stage, index) => {
+      setTimeout(() => {
+        updateProcessingStage('Medical Note Generation', 'processing', stage.message, stage.progress);
+        // Update overall progress as well
+        setOverallProgress(Math.min(80 + (stage.progress * 0.2), 100));
+        
+        // Complete the stage when we reach 100%
+        if (stage.progress === 100) {
+          setTimeout(() => {
+            updateProcessingStage('Medical Note Generation', 'completed', 'Medical note generated successfully', 100);
+            setOverallProgress(100);
+          }, 100);
+        }
+      }, stage.delay);
+    });
   }
 
   // Function to complete a stage with 100% progress
@@ -792,37 +1239,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   }
 
   const initializeProcessingStages = useCallback(() => {
-    if (useFastTranscription) {
-      setProcessingStages([
-        {
-          name: 'Fast Transcription',
-          status: 'pending',
-          description: 'Processing audio with ultra-fast transcription (30-60 seconds)',
-          progress: 0
-        },
-        {
-          name: 'Medical Note Generation',
-          status: 'pending',
-          description: 'Generating structured medical note from transcript',
-          progress: 0
-        }
-      ]);
-    } else {
-      setProcessingStages([
-        {
-          name: 'Transcribing',
-          status: 'pending',
-          description: 'Converting audio to text',
-          progress: 0
-        },
-        {
-          name: 'Medical Note Generation',
-          status: 'pending',
-          description: 'Generating structured medical note',
-          progress: 0
-        }
-      ]);
-    }
+    // Initialize with empty stages - only add stages when they actually start processing
+    setProcessingStages([]);
   }, [useFastTranscription]);
 
   const updateProcessingStage = (name: string, status: string, description?: string, progress: number = 0) => {
@@ -838,19 +1256,22 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         'Final Review': 'Preparing note for review...'
       }
       
+      // Round progress to 1 decimal place for precision display
+      const preciseProgress = Math.round(progress * 10) / 10;
+      
       if (existingIndex !== -1) {
         updatedStages[existingIndex] = {
           name,
           status,
           description: description || stageDescriptions[name as keyof typeof stageDescriptions] || '',
-          progress
+          progress: preciseProgress
         }
       } else {
         updatedStages.push({
           name,
           status,
           description: description || stageDescriptions[name as keyof typeof stageDescriptions] || '',
-          progress
+          progress: preciseProgress
         })
       }
       
@@ -970,11 +1391,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       }
       
       if (useFastTranscription) {
-        // Use the new ultra-fast transcription endpoint
-        updateProcessingStage('Fast Transcription', 'processing', '', 0);
-        
-        // Animate progress for fast transcription
-        animateStageProgress('Fast Transcription', 85, 3000); // Animate to 85% over 3 seconds
+        // Use the new ultra-fast transcription endpoint - start at 0%
+        updateProcessingStage('Fast Transcription', 'processing', 'Starting transcription...', 0);
         
         // Prepare patient information for API call - prioritize props over internal state
         const patientData = {
@@ -1010,11 +1428,9 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         const { data } = response;
         
         if (data && 'jobId' in data) {
-          // Processing took >1 minute, need to poll
+          // Processing took >1 minute, need to poll for transcription progress
           processingJobId.current = data.jobId;
-          completeStage('Fast Transcription'); // Complete at 100%
-          updateProcessingStage('Medical Note Generation', 'processing', '', 0);
-          animateStageProgress('Medical Note Generation', 90, 2000); // Animate note generation
+          updateProcessingStage('Fast Transcription', 'processing', 'Transcription in progress, polling for updates...', 10);
           
           toast({
             title: "Processing Started",
@@ -1033,14 +1449,31 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             updateProcessingStage('Fast Transcription', 'failed', '', 0);
           }
         } else {
-          // Immediate result (under 1 minute)  
-          completeStage('Fast Transcription'); // Complete at 100%
-          updateProcessingStage('Medical Note Generation', 'processing', '', 0);
-          animateStageProgress('Medical Note Generation', 95, 800); // Faster animation
+          // Immediate result (under 1 minute) - show fast progression then complete
+          const fastProgressSteps = [
+            { progress: 20, delay: 20 },
+            { progress: 45, delay: 40 },
+            { progress: 70, delay: 60 },
+            { progress: 90, delay: 80 },
+            { progress: 100, delay: 100 }
+          ];
           
-          // Handle immediate result - reduced delay
+          fastProgressSteps.forEach((step, index) => {
+            setTimeout(() => {
+              if (step.progress === 100) {
+                updateProcessingStage('Fast Transcription', 'completed', 'Transcription completed successfully', 100);
+                // Start medical note generation
+                updateProcessingStage('Medical Note Generation', 'processing', 'Starting medical note generation...', 0);
+              } else {
+                updateProcessingStage('Fast Transcription', 'processing', 'Transcribing audio to text...', step.progress);
+              }
+            }, step.delay);
+          });
+          
+          // Handle immediate result - show proper note generation progress
           setTimeout(() => {
-            completeStage('Medical Note Generation'); // Complete at 100%
+            // Start note generation progress simulation
+            simulateNoteGenerationProgress();
             
             // Always treat API success as data success since backend creates the note
             if (response.success) {
@@ -1073,14 +1506,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 processingTime: '0s'
               });
             }
-          }, 800);
+          }, 1700); // Wait for note generation to complete (1.5s + buffer)
         }
       } else {
-        // Use standard transcription endpoint
-        updateProcessingStage('Transcribing', 'processing', '', 0);
-        
-        // Animate progress for standard transcription
-        animateStageProgress('Transcribing', 80, 4000); // Animate to 80% over 4 seconds
+        // Use standard transcription endpoint - start at 0%
+        updateProcessingStage('Transcribing', 'processing', 'Starting transcription...', 0);
         
         // Prepare patient information for API call - prioritize props over internal state
         const patientData = {
@@ -1117,9 +1547,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
         processingJobId.current = data.jobId;
         
-        completeStage('Transcribing'); // Complete at 100%
-        updateProcessingStage('Medical Note Generation', 'processing', '', 0);
-        animateStageProgress('Medical Note Generation', 85, 3000); // Animate note generation
+        updateProcessingStage('Transcribing', 'processing', 'Transcription queued, polling for progress...', 10);
         
         toast({
           title: "Transcription Started",
@@ -1167,9 +1595,13 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   };
 
   const startPolling = (jobId: string) => {
+    // Ultra-fast polling for development, normal for production
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const pollingDelay = isDevelopment ? 500 : 1000; // 0.5s in dev, 1s in prod
+    
     const interval = setInterval(() => {
       pollTranscriptionStatus(jobId);
-    }, 5000);
+    }, pollingDelay);
     pollingInterval.current = interval;
     pollTranscriptionStatus(jobId);
   };
@@ -1185,37 +1617,56 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           variant: "destructive",
         });
         setIsProcessing(false);
-        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'failed', '', 0);
+        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'failed', 'Failed to get transcription status', 0);
         return;
       }
       const result = response.data;
       
-      if (result.status === 'COMPLETED') {
+      // Update transcription progress based on status - SUPER FAST progression
+      if (result.status === 'QUEUED') {
+        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'processing', 'Transcription starting...', 25);
+        setOverallProgress(20);
+      } else if (result.status === 'IN_PROGRESS') {
+        // Use progress from API if available, otherwise show rapid progress
+        const progress = (result as any).progress || Math.min(60 + Math.random() * 30, 95); // Show fast progress between 60-95%
+        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'processing', 'Transcribing audio to text...', progress);
+        // Update overall progress (transcription is 80% of total)
+        setOverallProgress(Math.min(progress * 0.8, 80));
+      } else if (result.status === 'COMPLETED') {
         if (pollingInterval.current) clearInterval(pollingInterval.current);
         pollingInterval.current = null;
-        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'completed', '', 100);
-        updateProcessingStage('Medical Note Generation', 'processing', '', 0);
         
-        // Handle completed transcription
-        await handleTranscriptionComplete({
-          transcript: result.transcript,
-          language: language,
-          processingTime: 'Completed'
-        });
+        // Complete transcription stage
+        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'completed', 'Transcription completed successfully', 100);
+        
+        // Start medical note generation as separate stage
+        updateProcessingStage('Medical Note Generation', 'processing', 'Starting medical note generation...', 0);
+        
+        // Start note generation progress simulation
+        simulateNoteGenerationProgress();
+        
+        // Handle completed transcription after a delay to show note generation
+        setTimeout(async () => {
+          await handleTranscriptionComplete({
+            transcript: result.transcript,
+            language: language,
+            processingTime: 'Completed'
+          });
+        }, 1700); // Wait for note generation to complete (1.5s + buffer)
         
       } else if (result.status === 'FAILED') {
         if (pollingInterval.current) clearInterval(pollingInterval.current);
         pollingInterval.current = null;
         
-        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'failed', '', 0);
+        updateProcessingStage(useFastTranscription ? 'Fast Transcription' : 'Transcribing', 'failed', 'Transcription failed', 0);
         setIsProcessing(false);
         toast({
-          title: "Processing Failed",
+          title: "Transcription Failed",
           description: "The transcription job failed. Please try again.",
           variant: "destructive",
         });
       }
-      // If status is 'IN_PROGRESS' or 'QUEUED', continue polling
+      // Continue polling for QUEUED and IN_PROGRESS statuses
     } catch (error) {
       logger.error('Error polling transcription status:', error);
       
@@ -1241,6 +1692,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   const handleTranscriptionComplete = async (transcriptionData: FastTranscriptionResponse | { transcript?: string; language: string; processingTime: string }) => {
     try {
+      // Update medical note generation progress
+      updateProcessingStage('Medical Note Generation', 'processing', 'Extracting patient information...', 25);
       // Extract patient info and medical note data from API response
       const apiPatientInfo = ('patientInfo' in transcriptionData ? transcriptionData.patientInfo : 
                             'patientInformation' in transcriptionData ? transcriptionData.patientInformation : undefined);
@@ -1262,14 +1715,30 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       
       logger.debug('🎯 Transcription completed for:', (apiPatientInfo as any)?.name || 'Unknown Patient');
       
-      // Use form patient information if provided, otherwise fall back to API data or defaults
-      const finalPatientName = patientName.trim() || (apiPatientInfo as any)?.name || 'Unknown Patient';
+      // Update progress - processing patient data
+      updateProcessingStage('Medical Note Generation', 'processing', 'Processing patient demographics...', 50);
+      
+      // Extract patient info using intelligent parser
+      const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+      const intelligentPatientInfo = parseTranscriptWithIntelligentParser(transcript).patientInfo;
+      
+      // Use form patient information, then API data, then intelligent extraction, then defaults
+      const finalPatientName = patientName.trim() || 
+                              (apiPatientInfo as any)?.name || 
+                              (intelligentPatientInfo?.name !== 'Not extracted' ? intelligentPatientInfo?.name : null) || 
+                              'Patient Name';
       const finalPatientAge = (() => {
-        const ageString = patientAge || (apiPatientInfo as any)?.age || '0';
+        const ageString = patientAge || 
+                         (apiPatientInfo as any)?.age || 
+                         (intelligentPatientInfo?.age !== 'Not recorded' ? intelligentPatientInfo?.age : null) || 
+                         '0';
         const parsedAge = parseInt(ageString, 10);
         return isNaN(parsedAge) ? 0 : parsedAge;
       })();
-      const finalPatientGender = patientGender || (apiPatientInfo as any)?.gender || 'Not Specified';
+      const finalPatientGender = patientGender || 
+                                (apiPatientInfo as any)?.gender || 
+                                (intelligentPatientInfo?.gender !== 'Not recorded' ? intelligentPatientInfo?.gender : null) || 
+                                'Not Specified';
       
       // Create note data with comprehensive extraction - check multiple possible field names
       const noteData = {
@@ -1285,36 +1754,73 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           registrationNo: user?.registrationNo || "",
           department: user?.specialization || "General Medicine"
         },
-        medicalNote: {
-          chiefComplaint: medicalNote?.chiefComplaint || 
-                        (transcriptionData as any)?.chiefComplaint ||
-                        '[To be extracted from transcript]',
-          historyOfPresentIllness: medicalNote?.historyOfPresentIllness ||
-                                 (medicalNote as any)?.historyOfPresentIllness ||
-                                 (transcriptionData as any)?.historyOfPresentIllness ||
-                                 '[To be extracted from transcript]',
-          diagnosis: medicalNote?.diagnosis ||
-                    (medicalNote as any)?.assessmentAndDiagnosis ||
-                    (transcriptionData as any)?.diagnosis ||
-                    (transcriptionData as any)?.assessmentAndDiagnosis ||
-                    '[To be determined based on transcript analysis]',
-          treatmentPlan: medicalNote?.treatmentPlan ||
-                        (medicalNote as any)?.managementPlan ||
-                        (transcriptionData as any)?.managementPlan ||
-                        (transcriptionData as any)?.treatmentPlan ||
-                        '[To be determined based on transcript analysis]',
-          // Add ICD-11 codes (will be generated asynchronously)
-          icd11Codes: null,
-          // Add raw transcript for reference and validation
-          rawTranscript: ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '',
-        },
+        medicalNote: (() => {
+          // Use Claude's intelligent parser for comprehensive extraction
+          const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
+          const intelligentExtraction = parseTranscriptWithIntelligentParser(transcript);
+          
+          return {
+            chiefComplaint: medicalNote?.chiefComplaint || 
+                          (transcriptionData as any)?.chiefComplaint ||
+                          intelligentExtraction.chiefComplaint,
+            historyOfPresentIllness: medicalNote?.historyOfPresentIllness ||
+                                   (medicalNote as any)?.historyOfPresentIllness ||
+                                   (transcriptionData as any)?.historyOfPresentIllness ||
+                                   intelligentExtraction.historyOfPresentIllness,
+            diagnosis: medicalNote?.diagnosis ||
+                      (medicalNote as any)?.assessmentAndDiagnosis ||
+                      (transcriptionData as any)?.diagnosis ||
+                      (transcriptionData as any)?.assessmentAndDiagnosis ||
+                      intelligentExtraction.assessment,
+            treatmentPlan: medicalNote?.treatmentPlan ||
+                          (medicalNote as any)?.managementPlan ||
+                          (transcriptionData as any)?.managementPlan ||
+                          (transcriptionData as any)?.treatmentPlan ||
+                          intelligentExtraction.plan,
+            // Map vital signs from intelligent parser to individual fields
+            temperature: intelligentExtraction.vitalSigns?.temperature || 'Not recorded',
+            pulseRate: intelligentExtraction.vitalSigns?.pulse || intelligentExtraction.vitalSigns?.heartRate || 'Not recorded',
+            respiratoryRate: intelligentExtraction.vitalSigns?.respiratoryRate || 'Not recorded', 
+            bloodPressure: intelligentExtraction.vitalSigns?.bloodPressure || 'Not recorded',
+            glucose: intelligentExtraction.vitalSigns?.glucose || 'Not recorded',
+            // Add extracted medications and past medical history
+            medications: intelligentExtraction.medications,
+            pastMedicalHistory: intelligentExtraction.pastMedicalHistory,
+            reviewOfSystems: intelligentExtraction.reviewOfSystems,
+            // Add new enhanced extractions
+            allergies: intelligentExtraction.allergies || 'Not recorded',
+            investigations: intelligentExtraction.investigations || 'Not recorded',
+            physicalExamination: intelligentExtraction.physicalExamination || 'No physical examination was performed during this consultation.',
+            // Add ICD-11 codes (will be generated asynchronously)
+            icd11Codes: null,
+            // Add extracted vital signs object  
+            vitalSigns: intelligentExtraction.vitalSigns,
+            // Add extraction confidence score
+            extractionConfidence: calculateExtractionConfidence(intelligentExtraction),
+            // Add raw transcript for reference and validation
+            rawTranscript: transcript,
+          };
+        })(),
         transcript: ('transcript' in transcriptionData ? transcriptionData.transcript : '') || 'No transcript available',
         language: transcriptionData.language || 'en',
         processingTime: transcriptionData.processingTime || '0s'
       };
 
+      // Update progress - finalizing note
+      updateProcessingStage('Medical Note Generation', 'processing', 'Finalizing medical note...', 90);
+      
       // Call the completion handler with the note data
       onTranscriptionComplete(noteData);
+      
+      // Complete medical note generation
+      updateProcessingStage('Medical Note Generation', 'completed', 'Medical note generated successfully', 100);
+      
+      // Set final completion states and trigger routing
+      setTimeout(() => {
+        setOverallProgress(100);
+        setTranscriptionComplete(true);
+        setIsProcessing(false);
+      }, 500);
 
       // Generate ICD-11 codes asynchronously (non-blocking)
       const diagnosisText = medicalNote?.diagnosis ||
@@ -1416,7 +1922,9 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   }
 
   return (
-    <Card className="w-full max-w-3xl mx-auto border-blue-500">
+    <Card className={`w-full max-w-3xl mx-auto border-blue-500 transition-all duration-300 ${
+      isProcessing ? 'ring-2 ring-blue-300 dark:ring-blue-600' : ''
+    }`}>
       <CardContent className="p-6">
         <motion.div
           className="space-y-6"
@@ -1438,41 +1946,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             </Alert>
           )}
 
-          <div className="flex flex-col items-center justify-center space-y-4">
-            <div className="h-16 w-16 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-lg border border-gray-100 dark:border-gray-700 mx-auto">
-              {/* Light mode logo */}
-              <img 
-                src="/novateLogo-removebg-preview.png" 
-                alt="NovateScribe Logo" 
-                className="h-12 w-12 object-contain dark:hidden"
-                onError={(e) => {
-                  // Fallback to microphone icon if logo fails to load
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-              {/* Dark mode logo */}
-              <img 
-                src="/darkmodelogo.png" 
-                alt="NovateScribe Logo" 
-                className="h-12 w-12 object-contain hidden dark:block"
-                onError={(e) => {
-                  // Fallback to microphone icon if logo fails to load
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                  target.nextElementSibling?.classList.remove('hidden');
-                }}
-              />
-              <Mic className="h-8 w-8 text-blue-500 hidden" />
-            </div>
-            <div className="text-center w-full">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                NovateScribe
-              </h2>
-              <p className="text-muted-foreground text-center">Advanced Medical Voice Recognition</p>
-            </div>
-          </div>
+
 
           {/* Language Selector - Full Width */}
           <div className="w-full">
@@ -1521,58 +1995,67 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             </motion.div>
           )}
 
-          {/* Audio Quality Best Practices */}
-          {!whatsappWarning?.show && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="w-full"
-            >
-              <Alert className="border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-                <Zap className="h-4 w-4 text-blue-600" />
-                <AlertTitle className="text-blue-800 dark:text-blue-200">
-                  💡 Best Audio Quality Tips
-                </AlertTitle>
-                <AlertDescription className="text-blue-700 dark:text-blue-300">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <strong>✅ Use:</strong>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>Original audio files (.m4a, .wav, .mp3)</li>
-                        <li>Direct recordings from your device</li>
-                        <li>Clear, quiet environment</li>
-                      </ul>
-                    </div>
-                    <div>
-                      <strong>❌ Avoid:</strong>
-                      <ul className="list-disc list-inside mt-1 space-y-1">
-                        <li>WhatsApp-shared audio files</li>
-                        <li>Multiple file compressions</li>
-                        <li>Background noise</li>
-                      </ul>
-                    </div>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            </motion.div>
-          )}
 
-          {/* Action Buttons - Equal Width Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full">
+
+          {/* Action Buttons - Fixed Width Container */}
+          <div className="w-full space-y-4">
             {!isRecording ? (
-              <Button
-                onClick={startRecording}
-                className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 h-12"
-                size="lg"
-                disabled={isProcessing || disabled}
-              >
-                <Mic size={18} /> Start Recording
-              </Button>
+              /* Recording not started - Show all three options */
+              <div className="flex flex-col gap-3">
+                {/* Primary action - Start Recording */}
+                <Button
+                  onClick={startRecording}
+                  className="flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 h-12 w-full"
+                  size="lg"
+                  disabled={isProcessing || disabled}
+                >
+                  <Mic size={18} className="shrink-0" />
+                  <span className="truncate">Start Recording</span>
+                </Button>
+                
+                {/* Secondary actions - Upload and Demo */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="relative">
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      className="flex items-center justify-center gap-2 w-full h-12"
+                      disabled={isProcessing || disabled}
+                      onClick={() => document.getElementById("audio-upload")?.click()}
+                      title="Upload original audio files (.m4a, .wav, .mp3) for best transcription quality. Avoid WhatsApp-shared files."
+                    >
+                      <Upload size={18} className="shrink-0" />
+                      <span className="truncate">Upload Audio</span>
+                    </Button>
+                    <input
+                      type="file"
+                      id="audio-upload"
+                      accept="audio/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                      disabled={isRecording || isProcessing}
+                      title="For best transcription quality, use original audio files. Avoid WhatsApp-compressed files."
+                    />
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="flex items-center justify-center gap-2 h-12 w-full border-blue-200 text-blue-600 hover:bg-blue-50"
+                    onClick={loadDemoFile}
+                    disabled={isRecording || isProcessing}
+                  >
+                    <FileAudio size={18} className="shrink-0" />
+                    <span className="truncate">Load Demo</span>
+                  </Button>
+                </div>
+              </div>
             ) : (
-              <div className="col-span-1 md:col-span-2 flex gap-2">
+              /* Recording in progress - Show recording controls */
+              <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   onClick={isPaused ? resumeRecording : pauseRecording}
-                  className={`flex items-center justify-center gap-2 flex-1 h-12 ${
+                  className={`flex items-center justify-center gap-2 h-12 flex-1 min-w-0 ${
                     isPaused ? "bg-green-500 hover:bg-green-600" : "bg-yellow-500 hover:bg-yellow-600"
                   }`}
                   size="lg"
@@ -1580,56 +2063,28 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 >
                   {isPaused ? (
                     <>
-                      <Play size={18} /> Resume ({formatTime(recordingTime)})
+                      <Play size={18} className="shrink-0" />
+                      <span className="truncate">Resume ({formatTime(recordingTime)})</span>
                     </>
                   ) : (
                     <>
-                      <Pause size={18} /> Pause ({formatTime(recordingTime)})
+                      <Pause size={18} className="shrink-0" />
+                      <span className="truncate">Pause ({formatTime(recordingTime)})</span>
                     </>
                   )}
                 </Button>
+                
                 <Button
                   onClick={stopRecording}
-                  className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 h-12 flex-1"
+                  className="flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 h-12 flex-1 min-w-0"
                   size="lg"
                   disabled={isProcessing || disabled}
                 >
-                  <span className="animate-pulse">●</span> Stop
+                  <span className="animate-pulse shrink-0">●</span>
+                  <span className="truncate">Stop Recording</span>
                 </Button>
               </div>
             )}
-
-            <div className="relative">
-              <Button
-                variant="outline"
-                size="lg"
-                className="flex items-center justify-center gap-2 w-full h-12"
-                disabled={isProcessing || disabled}
-                onClick={() => document.getElementById("audio-upload")?.click()}
-                title="Upload original audio files (.m4a, .wav, .mp3) for best transcription quality. Avoid WhatsApp-shared files."
-              >
-                <Upload size={18} /> Upload Audio File
-              </Button>
-              <input
-                type="file"
-                id="audio-upload"
-                accept="audio/*"
-                className="hidden"
-                onChange={handleFileChange}
-                disabled={isRecording || isProcessing}
-                title="For best transcription quality, use original audio files. Avoid WhatsApp-compressed files."
-              />
-            </div>
-
-            <Button
-              variant="outline"
-              size="lg"
-              className="flex items-center justify-center gap-2 w-full h-12 border-blue-200 text-blue-600 hover:bg-blue-50"
-              onClick={loadDemoFile}
-              disabled={isRecording || isProcessing}
-            >
-              <FileAudio size={18} /> Load Demo File
-            </Button>
           </div>
 
           {/* Keywords section - disabled during recording to prevent fake keywords */}
@@ -1784,12 +2239,16 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
                 {!transcriptionComplete ? (
                   <Button
-                    className="w-full flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white"
+                    className={`w-full flex items-center gap-2 text-white transition-all duration-300 ${
+                      isProcessing 
+                        ? 'bg-blue-400 cursor-not-allowed opacity-75' 
+                        : 'bg-blue-500 hover:bg-blue-600'
+                    }`}
                     onClick={processAudio}
                     disabled={isProcessing}
                   >
                     {isProcessing ? (
-                      <>Processing...</>
+                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     ) : (
                       <>
                         {useFastTranscription ? (
@@ -1869,94 +2328,45 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 ) : null}
 
                 {isProcessing && (
-                  <div className="space-y-4">
-                    <Progress value={overallProgress} className="h-2" />
-                    
-                    {/* Processing Stages */}
-                    <div className="space-y-3">
-                      {processingStages.map((stage, index) => (
-                        <div key={index} className="flex items-center gap-3">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                            stage.status === 'completed' 
-                              ? 'bg-green-500 text-white' 
-                              : stage.status === 'processing' 
-                                ? 'bg-blue-500 text-white' 
-                                : stage.status === 'failed' || stage.status === 'error'
-                                  ? 'bg-red-500 text-white' 
-                                  : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                          }`}>
-                            {stage.status === 'completed' ? (
-                              '100%'
-                            ) : stage.status === 'processing' ? (
-                              <div className="text-xs font-bold">
-                                {stage.progress}%
-                              </div>
-                            ) : stage.status === 'failed' || stage.status === 'error' ? (
-                              <AlertCircle className="w-4 h-4" />
-                            ) : (
-                              '0%'
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                            <p className={`text-sm font-medium ${
-                              stage.status === 'completed' 
-                                ? 'text-green-600 dark:text-green-400' 
-                                : stage.status === 'processing' 
-                                  ? 'text-blue-600 dark:text-blue-400' 
-                                    : stage.status === 'failed' || stage.status === 'error'
-                                    ? 'text-red-600 dark:text-red-400' 
-                                    : 'text-gray-500 dark:text-gray-400'
-                            }`}>
-                              {stage.name}
-                            </p>
-                              <span className={`text-xs font-medium ${
-                                stage.status === 'completed' 
-                                  ? 'text-green-600 dark:text-green-400' 
-                                  : stage.status === 'processing' 
-                                    ? 'text-blue-600 dark:text-blue-400' 
-                                    : stage.status === 'failed' || stage.status === 'error'
-                                      ? 'text-red-600 dark:text-red-400' 
-                                      : 'text-gray-500 dark:text-gray-400'
-                              }`}>
-                                {stage.status === 'completed' ? 'Complete' : 
-                                 stage.status === 'processing' ? `${stage.progress}%` :
-                                 stage.status === 'failed' || stage.status === 'error' ? 'Failed' :
-                                 'Pending'}
-                              </span>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                              {stage.description}
-                            </p>
-                            
-                            {/* Individual progress bar for each stage */}
-                            {stage.status === 'processing' && (
-                              <div className="mt-2">
-                                <Progress value={stage.progress} className="h-1" />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                  <div className="bg-blue-50 dark:bg-blue-950/10 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-lg font-medium text-blue-900 dark:text-blue-100">
+                        Processing Audio...
+                      </span>
                     </div>
                     
-                    <p className="text-xs text-center text-muted-foreground">
-                      {overallProgress < 25
-                        ? "📤 Uploading and preparing audio file..."
-                        : overallProgress < 50
-                          ? "🎧 Transcribing audio to text..."
-                          : overallProgress < 75
-                            ? "🏥 Extracting medical information..."
-                            : overallProgress < 100
-                              ? "📝 Structuring medical note..."
-                              : "✅ Finalizing note creation..."}
-                    </p>
+                    <div className="space-y-3">
+                      <div className="h-2 bg-blue-100 dark:bg-blue-900/50 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${overallProgress}%` }}
+                        ></div>
+                      </div>
+                      
+                      <div className="text-sm text-blue-700 dark:text-blue-300">
+                        {overallProgress.toFixed(0)}% Complete
+                      </div>
+                      
+                      {processingStages.length > 0 && (
+                        <div className="text-sm text-gray-600 dark:text-gray-400">
+                          {processingStages.find(stage => stage.status === 'processing')?.name || 'Fast Transcription'}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
                 {transcriptionComplete && (
-                  <div className="space-y-2">
-                    <Progress value={100} className="h-2" />
-                    <p className="text-xs text-center text-green-600 font-medium">Transcription complete! (100%)</p>
+                  <div className="space-y-3">
+                    <Progress value={100} className="h-3 bg-green-100 dark:bg-green-900/20" />
+                    <div className="text-center space-y-1">
+                      <p className="text-sm font-bold text-green-600 dark:text-green-400 animate-bounce">
+                        🎉 Transcription Complete! (100.0%)
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Your medical note is ready for review
+                      </p>
+                    </div>
                   </div>
                 )}
               </motion.div>

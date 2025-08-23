@@ -3,17 +3,17 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
+
 import { Badge } from "@/components/ui/badge"
-import { Eye, RotateCcw, Brain, Stethoscope } from "lucide-react"
+import { Brain, Stethoscope, Eye } from "lucide-react"
 import { 
   selectDynamicDiagram, 
   getRecommendedDiagrams,
+  getAllRelevantDiagrams,
   loadDiagramCoordinates,
   type DiagramConfig,
   type ExaminationAnalysis
 } from '@/lib/dynamic-diagram-selector'
-
 
 interface EnhancedMedicalDiagramProps {
   patientGender: 'male' | 'female'
@@ -24,48 +24,77 @@ interface EnhancedMedicalDiagramProps {
     abdominalExamination?: string
     otherSystemsExamination?: string
   }
+  onFindingsChange?: (findings: Finding[]) => void
+  medicalNoteText?: string
 }
 
 interface Finding {
+  id: string
   bodyPart: string
   description: string
+  type: 'normal' | 'abnormal' | 'pain' | 'swelling' | 'rash' | 'mass'
   coordinates?: { x: number; y: number }
+  diagramType?: string
+  timestamp: string
+  source: 'manual' | 'auto-extracted' | 'examination-data'
 }
 
-export default function EnhancedMedicalDiagram({ patientGender, examinationData }: EnhancedMedicalDiagramProps) {
+
+
+// Finding types with colors
+const findingTypes = {
+  normal: { color: '#10b981', label: 'Normal', bgColor: 'bg-green-100' },
+  abnormal: { color: '#ef4444', label: 'Abnormal', bgColor: 'bg-red-100' },
+  pain: { color: '#f59e0b', label: 'Pain/Tenderness', bgColor: 'bg-yellow-100' },
+  swelling: { color: '#8b5cf6', label: 'Swelling', bgColor: 'bg-purple-100' },
+  rash: { color: '#ec4899', label: 'Rash/Skin Issue', bgColor: 'bg-pink-100' },
+  mass: { color: '#6b7280', label: 'Mass/Lump', bgColor: 'bg-gray-100' }
+}
+
+export default function EnhancedMedicalDiagram({ 
+  patientGender, 
+  examinationData, 
+  onFindingsChange,
+  medicalNoteText
+}: EnhancedMedicalDiagramProps) {
   const imageRef = useRef<HTMLImageElement>(null)
   const [imageLoaded, setImageLoaded] = useState(false)
   const [findings, setFindings] = useState<Finding[]>([])
   const [analysis, setAnalysis] = useState<ExaminationAnalysis | null>(null)
-  const [currentDiagram, setCurrentDiagram] = useState<DiagramConfig | null>(null)
-  const [coordinates, setCoordinates] = useState<any>(null)
+  const [activeDiagrams, setActiveDiagrams] = useState<DiagramConfig[]>([])
+  const [diagramCoordinates, setDiagramCoordinates] = useState<Record<string, any>>({})
   const [alternativeDiagrams, setAlternativeDiagrams] = useState<DiagramConfig[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  
 
-  // Initialize dynamic diagram selection
+
+  // Initialize multiple dynamic diagrams
   useEffect(() => {
-    async function initializeDynamicDiagram() {
+    async function initializeMultipleDiagrams() {
       setIsLoading(true)
       try {
-        // Get intelligent diagram selection
+        // Get all relevant diagrams that should be displayed simultaneously
+        const relevantDiagrams = getAllRelevantDiagrams(patientGender, examinationData, 1)
+        setActiveDiagrams(relevantDiagrams)
 
-        // Get intelligent diagram selection
+        // Get single diagram analysis for metadata
         const diagramAnalysis = selectDynamicDiagram(patientGender, examinationData)
         setAnalysis(diagramAnalysis)
-        setCurrentDiagram(diagramAnalysis.primaryDiagram)
 
-        // Get alternative diagram options
-        const alternatives = getRecommendedDiagrams(patientGender, examinationData, 5)
-        setAlternativeDiagrams(alternatives.slice(1)) // Exclude primary
-
-        // Load coordinates for the selected diagram
-        const coords = await loadDiagramCoordinates(diagramAnalysis.primaryDiagram)
-        setCoordinates(coords)
+        // Load coordinates for all active diagrams
+        const coordinatesMap: Record<string, any> = {}
+        for (const diagram of relevantDiagrams) {
+          try {
+            const coords = await loadDiagramCoordinates(diagram)
+            coordinatesMap[diagram.type] = coords
+          } catch (error) {
+            console.warn(`Failed to load coordinates for ${diagram.type}`)
+          }
+        }
+        setDiagramCoordinates(coordinatesMap)
 
       } catch (error) {
-        // Error initializing enhanced dynamic diagram
-        
-        // Fallback to front view
+        // Fallback to front view only
         const fallbackConfig: DiagramConfig = {
           type: 'front' as const,
           imagePath: `/medical-images/${patientGender}front.png`,
@@ -74,383 +103,333 @@ export default function EnhancedMedicalDiagram({ patientGender, examinationData 
           dimensions: { width: 750, height: 1140 }
         }
         
-        setCurrentDiagram(fallbackConfig)
+        setActiveDiagrams([fallbackConfig])
         
         // Try to load fallback coordinates
         try {
           const fallbackCoords = patientGender === 'male' ? 
             await import('../../scripts/mappedJsons/malefront.json') :
             await import('../../scripts/mappedJsons/femalefront.json')
-          setCoordinates(fallbackCoords.default || fallbackCoords)
-              } catch (coordError) {
-        // Error loading fallback coordinates
+          setDiagramCoordinates({ front: fallbackCoords.default || fallbackCoords })
+        } catch (coordError) {
+          console.error('Error loading fallback coordinates')
         }
       } finally {
         setIsLoading(false)
       }
     }
 
-    initializeDynamicDiagram()
+    initializeMultipleDiagrams()
   }, [patientGender, JSON.stringify(examinationData)])
 
-  // Switch to a different diagram view
-  const switchDiagram = async (newDiagramConfig: DiagramConfig) => {
-    setIsLoading(true)
-    try {
-      setCurrentDiagram(newDiagramConfig)
-      setImageLoaded(false)
-      
-      // Load new coordinates
-      const newCoords = await loadDiagramCoordinates(newDiagramConfig)
-      setCoordinates(newCoords)
-      
-    } catch (error) {
-        // Error switching diagram
-    } finally {
-      setIsLoading(false)
+
+
+
+
+  // Auto-generate findings from medical note text
+  useEffect(() => {
+    if (medicalNoteText && findings.length === 0) {
+      generateFindingsFromMedicalNote(medicalNoteText)
+    }
+  }, [medicalNoteText])
+
+  // Generate findings from medical note content  
+  const generateFindingsFromMedicalNote = (noteText: string) => {
+    const autoFindings: Finding[] = []
+    const lowerText = noteText.toLowerCase()
+
+    // Neurological findings patterns
+    if (lowerText.includes('weakness') && (lowerText.includes('left') || lowerText.includes('right'))) {
+      const side = lowerText.includes('left') ? 'left' : 'right'
+      autoFindings.push({
+        id: `auto-weakness-${Date.now()}`,
+        bodyPart: 'head',
+        description: `${side.charAt(0).toUpperCase() + side.slice(1)}-sided weakness affecting face, arm, and leg`,
+        type: 'abnormal' as keyof typeof findingTypes,
+        coordinates: getBodyPartCoordinates('head'),
+        timestamp: new Date().toISOString(),
+        source: 'auto-extracted'
+      })
+    }
+
+    if (lowerText.includes('facial') && lowerText.includes('droop')) {
+      autoFindings.push({
+        id: `auto-facial-${Date.now()}`,
+        bodyPart: 'head', 
+        description: 'Facial drooping observed on left side',
+        type: 'abnormal' as keyof typeof findingTypes,
+        coordinates: getBodyPartCoordinates('head'),
+        timestamp: new Date().toISOString(),
+        source: 'auto-extracted'
+      })
+    }
+
+    if (lowerText.includes('heart') && lowerText.includes('regular')) {
+      autoFindings.push({
+        id: `auto-heart-${Date.now()}`,
+        bodyPart: 'chest',
+        description: 'Heart sounds regular, no murmurs detected',
+        type: 'normal' as keyof typeof findingTypes,
+        coordinates: getBodyPartCoordinates('chest'),
+        timestamp: new Date().toISOString(),
+        source: 'auto-extracted'
+      })
+    }
+
+    if (lowerText.includes('lung') && lowerText.includes('clear')) {
+      autoFindings.push({
+        id: `auto-lungs-${Date.now()}`,
+        bodyPart: 'chest',
+        description: 'Lungs clear to auscultation bilaterally',  
+        type: 'normal' as keyof typeof findingTypes,
+        coordinates: getBodyPartCoordinates('chest'),
+        timestamp: new Date().toISOString(),
+        source: 'auto-extracted'
+      })
+    }
+
+    // Add stroke-related findings based on assessment
+    if (lowerText.includes('stroke') || lowerText.includes('cerebrovascular')) {
+      autoFindings.push({
+        id: `auto-stroke-${Date.now()}`,
+        bodyPart: 'head',
+        description: 'Clinical presentation consistent with possible stroke - urgent evaluation required',
+        type: 'abnormal' as keyof typeof findingTypes,
+        coordinates: getBodyPartCoordinates('head'),
+        timestamp: new Date().toISOString(),
+        source: 'auto-extracted'
+      })
+    }
+
+    if (autoFindings.length > 0) {
+      setFindings(prev => [...prev, ...autoFindings])
     }
   }
 
-  // Extract findings from examination text - Enhanced for dynamic diagrams
-  const extractFindingsFromText = (text: string): Finding[] => {
-    if (!text || !coordinates || !currentDiagram) return []
+  // Notify parent of findings changes
+  useEffect(() => {
+    if (onFindingsChange) {
+      onFindingsChange(findings)
+    }
+  }, [findings, onFindingsChange])
+
+
+
+
+
+  const getBodyPartCoordinates = (bodyPart: string, diagramCoords?: any) => {
+    const coords = diagramCoords || (activeDiagrams.length > 0 ? diagramCoordinates[activeDiagrams[0].type] : null)
+    if (!coords) return null
     
-    const activeCoords = coordinates.coordinates_by_image?.[currentDiagram.jsonKey]?.coordinates || coordinates
+    // Try to find matching coordinates in the JSON mapping
+    const coordKey = Object.keys(coords).find(key => 
+      key.toLowerCase().includes(bodyPart.toLowerCase()) ||
+      bodyPart.toLowerCase().includes(key.toLowerCase())
+    )
     
-    if (!activeCoords) return []
+    return coordKey ? coords[coordKey] : null
+  }
+
+  const handleImageClick = (event: React.MouseEvent<HTMLImageElement>, diagram?: DiagramConfig) => {
+    const targetElement = event.currentTarget
+    const diagramType = diagram?.type || activeDiagrams[0]?.type
+    const coords = diagramCoordinates[diagramType]
     
-    if (!activeCoords) return []
+    if (!targetElement || !coords) return
+
+    const rect = targetElement.getBoundingClientRect()
+    const scaleX = targetElement.naturalWidth / rect.width
+    const scaleY = targetElement.naturalHeight / rect.height
     
-    const bodyParts = Object.keys(activeCoords)
-    const findings: Finding[] = []
+    const x = (event.clientX - rect.left) * scaleX
+    const y = (event.clientY - rect.top) * scaleY
+
+    // Find clicked body part
+    let clickedBodyPart = ''
+    let minDistance = Infinity
     
-    bodyParts.forEach(bodyPart => {
-      // Enhanced pattern matching for different body regions
-      const bodyPartVariants = [
-        bodyPart,
-        bodyPart.replace('_', ' '),
-        bodyPart.replace('left_', 'left '),
-        bodyPart.replace('right_', 'right ')
-      ]
-      
-      // Medical examination keywords that indicate findings
-      const medicalKeywords = [
-        'pain', 'tender', 'swollen', 'abnormal', 'inflamed', 'red', 'bruise', 
-        'wound', 'mass', 'lump', 'enlarged', 'positive', 'negative', 'normal',
-        'palpable', 'visible', 'audible', 'present', 'absent', 'clear', 'dull'
-      ]
-      
-      const patterns = [
-        // Body part followed by finding
-        new RegExp(`\\b${bodyPart.replace('_', '[ _]')}\\b.*?(?:${medicalKeywords.join('|')})`, 'gi'),
-        // Finding followed by body part
-        new RegExp(`(?:${medicalKeywords.join('|')}).*?\\b${bodyPart.replace('_', '[ _]')}\\b`, 'gi'),
-        // Direct mention with punctuation
-        new RegExp(`\\b${bodyPart.replace('_', '[ _]')}\\s*[:,-]\\s*\\w+`, 'gi')
-      ]
-      
-      let foundMatch = false
-      const lowerText = text.toLowerCase()
-      
-      // Check for body part variants in text
-      const variantFound = bodyPartVariants.some(variant => 
-        lowerText.includes(variant.toLowerCase())
-      )
-      
-      if (variantFound && !foundMatch) {
-        // Find the most relevant sentence
-        const sentences = text.split(/[.!?]+/)
-        const relevantSentence = sentences.find(sentence => 
-          bodyPartVariants.some(variant => 
-            sentence.toLowerCase().includes(variant.toLowerCase())
-          )
-        )?.trim()
+    Object.entries(coords).forEach(([key, coord]: [string, any]) => {
+      if (coord && typeof coord === 'object' && coord.x !== undefined && coord.y !== undefined) {
+        const distance = Math.sqrt(
+          Math.pow(x - coord.x, 2) + Math.pow(y - coord.y, 2)
+        )
         
-        if (relevantSentence && relevantSentence.length > 5) {
-          const coord = activeCoords[bodyPart]
-          if (coord && typeof coord === 'object' && coord.x !== undefined && coord.y !== undefined) {
-            findings.push({
-              bodyPart: bodyPart.replace(/_/g, ' '),
-              description: relevantSentence.length > 100 ? 
-                relevantSentence.substring(0, 97) + '...' : 
-                relevantSentence,
-              coordinates: coord
-            })
-            foundMatch = true
-          }
+        if (distance < minDistance && distance < 100) { // Within 100px threshold
+          minDistance = distance
+          clickedBodyPart = key
         }
       }
     })
-    
-    return findings
-  }
-  
-  // Update findings when examination data or diagram changes
-  useEffect(() => {
-    if (!currentDiagram || !coordinates) return
-    
-    const allExaminationText = [
-      examinationData.generalExamination || '',
-      examinationData.cardiovascularExamination || '',
-      examinationData.respiratoryExamination || '',
-      examinationData.abdominalExamination || '',
-      examinationData.otherSystemsExamination || ''
-    ].join(' ')
-    
-    const extractedFindings = extractFindingsFromText(allExaminationText)
-    setFindings(extractedFindings)
-  }, [examinationData, coordinates, currentDiagram])
 
-  const handleImageLoad = () => {
-    setImageLoaded(true)
-
-  }
-
-  // Enhanced marker position calculation with dynamic image dimensions
-  const getMarkerPosition = (coords: { x: number; y: number }) => {
-    if (!imageRef.current || !imageLoaded || !currentDiagram) return { left: 0, top: 0 }
-
-    const imageElement = imageRef.current
-    
-    // Get actual displayed image dimensions
-    const displayWidth = imageElement.offsetWidth
-    const displayHeight = imageElement.offsetHeight
-    
-    // Use dynamic dimensions based on current diagram
-    const ORIGINAL_MAPPING_WIDTH = currentDiagram.dimensions.width
-    const ORIGINAL_MAPPING_HEIGHT = currentDiagram.dimensions.height
-    
-    // Calculate position as percentage of original mapping, then scale to display
-    const percentX = coords.x / ORIGINAL_MAPPING_WIDTH
-    const percentY = coords.y / ORIGINAL_MAPPING_HEIGHT
-    
-    // Apply percentage to actual displayed image dimensions
-    const scaledX = percentX * displayWidth
-    const scaledY = percentY * displayHeight
-    
-    return {
-      left: scaledX,
-      top: scaledY
+    if (clickedBodyPart) {
+      // Coordinate mapping functionality preserved for existing system
+      console.log('Clicked body part:', clickedBodyPart, 'on diagram:', diagramType)
     }
   }
 
-  // Reset function to reinitialize the diagram
-  const handleReset = async () => {
-    setIsLoading(true)
-    setImageLoaded(false)
-    setFindings([])
-    
-    try {
-      // Get intelligent diagram selection
-      const diagramAnalysis = selectDynamicDiagram(patientGender, examinationData)
-      setAnalysis(diagramAnalysis)
-      setCurrentDiagram(diagramAnalysis.primaryDiagram)
 
-      // Get alternative diagram options
-      const alternatives = getRecommendedDiagrams(patientGender, examinationData, 5)
-      setAlternativeDiagrams(alternatives.slice(1)) // Exclude primary
 
-      // Load coordinates for the selected diagram
-      const coords = await loadDiagramCoordinates(diagramAnalysis.primaryDiagram)
-      setCoordinates(coords)
-
-      // Enhanced dynamic diagram reset successfully
-    } catch (error) {
-      // Error resetting enhanced dynamic diagram
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  // Loading state
-  if (isLoading || !currentDiagram) {
     return (
-      <Card className="w-full max-w-6xl mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Medical Examination Diagram
+    <div className="w-full max-w-7xl mx-auto">
+      <Card className="shadow-lg">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+                <Stethoscope className="h-6 w-6 text-blue-600" />
+                Enhanced Physical Examination Mapper
           </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse">
-            <div className="bg-gray-200 h-64 rounded-lg"></div>
-          </div>
-        </CardContent>
-      </Card>
-    )
-  }
-
-  // Check if there's any examination data
-  const hasExaminationData = Object.values(examinationData).some(
-    value => value && value.trim() && value !== 'Not recorded' && value !== 'N/A' && value !== 'n/a' && value !== 'N/a'
-  )
-
-  // If no examination data, show "no data" state
-  if (!hasExaminationData) {
-    return (
-      <Card className="w-full max-w-6xl mx-auto">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Brain className="h-5 w-5" />
-            Medical Examination Diagram
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-8 text-gray-500">
-            <div className="flex flex-col items-center space-y-2">
-              <div className="text-4xl text-gray-300">🩺</div>
-              <p className="text-sm font-medium">No examination conducted</p>
-              <p className="text-xs text-gray-400">Physical examination findings will appear here when documented.</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Interactive medical diagram with intelligent finding extraction
+              </p>
             </div>
+            
+            {analysis && (
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="text-xs">
+                  <Brain className="h-3 w-3 mr-1" />
+                  {analysis.confidence.toFixed(0)}% Match
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  {activeDiagrams.length} diagram{activeDiagrams.length === 1 ? '' : 's'} active
+                </Badge>
+              </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
-    )
-  }
 
-  return (
-    <Card className="w-full max-w-6xl mx-auto">
-      <CardHeader>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <Brain className="h-4 w-4 sm:h-5 sm:w-5" />
-            Medical Examination Diagram
-            <Badge variant="secondary" className="ml-2">
-              {patientGender.charAt(0).toUpperCase() + patientGender.slice(1)}
-            </Badge>
-          </CardTitle>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleReset}
-              className="flex items-center gap-1"
-            >
-              <RotateCcw className="h-4 w-4" />
-              Reset
-            </Button>
-          </div>
+          {/* Controls */}
+          <div className="flex flex-wrap gap-2 mt-4">
+
+            
+            {activeDiagrams.length > 1 && (
+              <div className="flex flex-wrap gap-1">
+                {activeDiagrams.map((diagram, index) => (
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    className="text-xs"
+                  >
+                    <Eye className="h-3 w-3 mr-1" />
+                    {diagram.type}
+                  </Badge>
+                ))}
+              </div>
+            )}
         </div>
       </CardHeader>
       
       <CardContent className="p-4 sm:p-6">
-        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
-          {/* Main Diagram */}
-          <div className="flex-1 min-w-0">
-            <div className="relative w-full max-w-full overflow-hidden rounded-lg border bg-gray-50 dark:bg-gray-900">
-              {currentDiagram && (
-                <div className="relative w-full h-auto">
-                  <Image
-                    ref={imageRef}
-                    src={currentDiagram.imagePath}
-                    alt={`${patientGender} ${currentDiagram.type} view`}
-                    width={currentDiagram.dimensions.width}
-                    height={currentDiagram.dimensions.height}
-                    className="w-full h-auto max-w-full object-contain"
-                    onLoad={() => setImageLoaded(true)}
-                    priority
-                  />
-                </div>
-              )}
-              
-              {/* Markers - Enhanced */}
-              {imageLoaded && findings.map((finding, index) => {
-                if (!finding.coordinates) return null
-                
-                const position = getMarkerPosition(finding.coordinates)
-                
-                return (
-                  <div
-                    key={index}
-                    className="absolute bg-red-500 border-2 border-white text-white rounded-full flex items-center justify-center font-bold shadow-lg cursor-pointer hover:bg-red-600 transition-all duration-200 hover:scale-110 z-10 w-6 h-6 text-xs md:w-7 md:h-7 md:text-sm"
-                    style={{
-                      left: `calc(${position.left}px - 0.75rem)`,
-                      top: `calc(${position.top}px - 0.75rem)`,
-                      transform: currentDiagram.mirrorImage ? 'scaleX(-1)' : 'none'
-                    }}
-                    title={`${finding.bodyPart}: ${finding.description}`}
-                  >
-                    {index + 1}
-                  </div>
-                )
-              })}
-              
-              {findings.length === 0 && imageLoaded && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
-                  <div className="text-white text-center p-4">
-                    <p className="font-medium">No findings detected</p>
-                    <p className="text-sm opacity-80 mt-1">
-                      Try switching to a different view or add more examination details
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Enhanced Findings List */}
-          <div className="w-full lg:w-1/3 space-y-4">
-            <h3 className="font-semibold text-lg flex items-center gap-2">
-              Examination Findings
-              <Badge variant="outline">{findings.length}</Badge>
-            </h3>
-            
-            {findings.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {findings.map((finding, index) => (
-                  <div
-                    key={index}
-                    className="p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm font-bold">
-                        {index + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 capitalize">
-                          {finding.bodyPart}
-                        </h4>
-                        <p className="text-sm text-gray-600 mt-1 line-clamp-3">
-                          {finding.description}
-                        </p>
-                        {finding.coordinates && (
-                          <p className="text-xs text-gray-400 mt-2">
-                            Position: ({finding.coordinates.x}, {finding.coordinates.y})
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <div className="text-gray-400 mb-2">
-                  <Stethoscope className="h-12 w-12 mx-auto" />
-                </div>
-                <p className="text-gray-500">No examination findings detected</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Add detailed physical examination notes to see findings mapped on the diagram
+        {/* Multiple Diagrams - Vertical Stack */}
+        <div className="space-y-8">
+          {activeDiagrams.map((diagram, index) => (
+            <div key={diagram.type} className="w-full">
+              {/* Diagram Section Header */}
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1 flex items-center gap-2">
+                  <Eye className="h-5 w-5 text-blue-600" />
+                  {diagram.type.charAt(0).toUpperCase() + diagram.type.slice(1)} View
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {diagram.type === 'cardiorespi' ? 'Heart and respiratory system examination' :
+                   diagram.type === 'abdominallinguinal' ? 'Abdominal and inguinal region examination' :
+                   diagram.type === 'back' ? 'Back and spine examination' :
+                   diagram.type === 'front' ? 'General anterior body examination' :
+                   diagram.type === 'leftside' ? 'Left lateral body examination' :
+                   diagram.type === 'rightside' ? 'Right lateral body examination' :
+                   'Medical examination diagram'}
                 </p>
               </div>
-            )}
 
-            {/* Diagram Information */}
-            <div className="mt-6 p-3 bg-blue-50 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Current View</h4>
-              <div className="space-y-1 text-sm text-blue-800">
-                <p><strong>Type:</strong> {currentDiagram.type.charAt(0).toUpperCase() + currentDiagram.type.slice(1)}</p>
-                <p><strong>Dimensions:</strong> {currentDiagram.dimensions.width} × {currentDiagram.dimensions.height}</p>
-                {currentDiagram.mirrorImage && (
-                  <p><strong>Mirror:</strong> Applied</p>
-                )}
+              {/* Diagram Container - Full Width with Optimal Size */}
+              <div className="flex justify-center mb-6">
+                <div className="relative max-w-2xl w-full">
+                  <div className="relative w-full overflow-hidden rounded-lg border bg-white dark:bg-white">
+                    <div className="relative w-full h-auto">
+                      <Image
+                        ref={index === 0 ? imageRef : undefined}
+                        src={diagram.imagePath}
+                        alt={`${patientGender} ${diagram.type} view`}
+                        width={diagram.dimensions.width}
+                        height={diagram.dimensions.height}
+                        className="w-full h-auto max-w-full object-contain cursor-crosshair"
+                        onLoad={() => index === 0 && setImageLoaded(true)}
+                        onClick={(e) => handleImageClick(e, diagram)}
+                        priority={index === 0}
+                      />
+                      
+                      {/* Interactive Markers for this specific diagram */}
+                      {findings
+                        .filter(finding => finding.diagramType === diagram.type || (!finding.diagramType && index === 0))
+                        .map((finding) => {
+                          const coords = finding.coordinates || getBodyPartCoordinates(finding.bodyPart, diagramCoordinates[diagram.type])
+                          if (!coords) return null
+                          
+                          return (
+                            <div
+                              key={finding.id}
+                              className="absolute transform -translate-x-1/2 -translate-y-1/2 group"
+                              style={{
+                                left: `${coords.x}%`,
+                                top: `${coords.y}%`,
+                              }}
+                            >
+                              {/* Marker Circle */}
+                              <div
+                                className="w-6 h-6 rounded-full border-2 border-white shadow-lg cursor-pointer hover:scale-110 transition-transform"
+                                style={{ backgroundColor: findingTypes[finding.type].color }}
+                                title={finding.description}
+                              />
+                              
+                              {/* Tooltip */}
+                              <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white text-xs rounded px-2 py-1 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
+                                {finding.description.length > 30 
+                                  ? finding.description.substring(0, 27) + '...' 
+                                  : finding.description}
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  </div>
+                  
+
+                </div>
               </div>
+
+              {/* Findings Summary for this Diagram */}
+              {findings.filter(finding => finding.diagramType === diagram.type || (!finding.diagramType && index === 0)).length > 0 && (
+                <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                  <h4 className="text-sm font-medium text-blue-800 mb-2">Findings on {diagram.type} view:</h4>
+                  <div className="space-y-1">
+                    {findings
+                      .filter(finding => finding.diagramType === diagram.type || (!finding.diagramType && index === 0))
+                      .map((finding) => (
+                        <div key={finding.id} className="flex items-center justify-between text-xs">
+                          <span>
+                            <span className="font-medium">{finding.bodyPart}:</span> {finding.description}
+                          </span>
+                          <Badge 
+                            variant="secondary" 
+                            className={`text-xs ${findingTypes[finding.type].bgColor}`}
+                          >
+                            {findingTypes[finding.type].label}
+                          </Badge>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Separator between diagrams */}
+              {index < activeDiagrams.length - 1 && (
+                <div className="border-t border-gray-200 my-8"></div>
+              )}
             </div>
-          </div>
+          ))}
         </div>
+
       </CardContent>
     </Card>
+    </div>
   )
 }

@@ -512,7 +512,7 @@ export default function CleanMedicalNoteEditor({
                 />
               </div>
               <div>
-                <Label className="text-xs">Glucose Level</Label>
+                <Label className="text-xs">Glucose Levels</Label>
                 <Input
                   value={note.glucose}
                   onChange={(e) => updateField('glucose', e.target.value)}
@@ -543,13 +543,14 @@ export default function CleanMedicalNoteEditor({
             <div className="p-4 border rounded-lg bg-gray-50">
               <EnhancedMedicalDiagram
                 examinationData={{
-                  generalExamination: `Temperature: ${note.temperature}, Pulse: ${note.pulseRate}, RR: ${note.respiratoryRate}, BP: ${note.bloodPressure}, Glucose: ${note.glucose}`,
+                  generalExamination: (note.physicalExamination || '').replace(/\}\}/g, ''),
                   cardiovascularExamination: '', 
                   respiratoryExamination: '', 
                   abdominalExamination: '', 
                   otherSystemsExamination: ''
                 }}
                 patientGender={determinePatientGender(note.patientGender)}
+                medicalNoteText={`${note.chiefComplaint || ''} ${note.historyOfPresentingIllness || ''} ${note.physicalExamination || ''} ${note.assessment || ''}`}
               />
             </div>
           ) : (

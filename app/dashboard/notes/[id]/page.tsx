@@ -348,56 +348,18 @@ export default function NotePage() {
     // PDF Export triggered
 
     try {
-      // Use the enhanced professional PDF generator for proper multi-page handling
-      const { generateProfessionalMedicalNotePDF } = await import('@/lib/enhanced-professional-pdf-generator');
+      // Use the new styled PDF generator that matches the note page design
+      const { generateStyledNotePDF } = await import('@/lib/styled-note-pdf-generator');
       
-      // Convert CleanMedicalNote to ProfessionalMedicalNote for the enhanced generator
-      const professionalNote: ProfessionalMedicalNote = {
-        patientName: note.patientName || '',
-        patientAge: String(note.patientAge || ''),
-        patientGender: note.patientGender || '',
-        temperature: '',
-        pulseRate: '',
-        respiratoryRate: '',
-        bloodPressure: '',
-        glucose: '',
-        chiefComplaint: note.chiefComplaint || '',
-        historyOfPresentingIllness: note.historyOfPresentingIllness || '',
-        medicalConditions: '',
-        surgeries: '',
-        hospitalizations: '',
-        medications: '',
-        allergies: '',
-        smoking: '',
-        alcohol: '',
-        recreationalDrugs: '',
-        occupationLivingSituation: '',
-        travel: '',
-        sexual: '',
-        eatingOut: '',
-        familyHistory: '',
-        systemsReview: note.systemReview || '',
-        generalExamination: '',
-        cardiovascularExamination: '',
-        respiratoryExamination: '',
-        abdominalExamination: '',
-        otherSystemsExamination: '',
-        physicalExaminationFindings: {},
-        investigations: '',
-        assessment: note.assessmentAndDiagnosis || '',
-        plan: note.managementPlan || '',
-        doctorName: note.doctorName || '',
-        doctorRegistrationNo: note.doctorRegistrationNo || '',
-        generatedOn: note.createdAt || new Date().toISOString(),
-        signature: '',
-        stamp: '',
-        letterhead: '',
-        // Include selected ICD-11 codes if provided
-        selectedICD11Codes: selectedICD11Codes || null
-      };
-
-      // Generate PDF with proper multi-page handling and letterhead support
-      generateProfessionalMedicalNotePDF(professionalNote, useLetterhead && letterheadImage ? letterheadImage : undefined);
+      // Generate PDF with styled formatting that matches the note viewer
+      generateStyledNotePDF(note, {
+        useLetterhead: useLetterhead,
+        letterheadImage: letterheadImage,
+        selectedICD11Codes: selectedICD11Codes,
+        organizationName: 'NovateScribe',
+        doctorName: note.doctorName,
+        registrationNo: note.doctorRegistrationNo
+      });
 
       // PDF generation completed successfully with multi-page support
 
@@ -450,7 +412,14 @@ export default function NotePage() {
         addSectionWithPagination('Chief Complaint', note.chiefComplaint || 'Not recorded');
         addSectionWithPagination('History of Present Illness', note.historyOfPresentingIllness || 'Not recorded');
         addSectionWithPagination('Review of Systems', note.systemReview || 'Not recorded');
-        addSectionWithPagination('Physical Examination', note.physicalExamination || 'Not recorded');
+        addSectionWithPagination('Physical Examination', 
+          note.physicalExamination && 
+          note.physicalExamination !== 'Physical examination performed as clinically indicated' && 
+          note.physicalExamination !== 'Not recorded' &&
+          !note.physicalExamination.toLowerCase().includes('clinically indicated')
+            ? note.physicalExamination 
+            : 'No physical examination was performed during this consultation.'
+        );
         addSectionWithPagination('Assessment', note.assessmentAndDiagnosis || 'Not recorded');
         addSectionWithPagination('Plan', note.managementPlan || 'Not recorded');
         

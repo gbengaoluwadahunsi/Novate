@@ -397,9 +397,14 @@ class ApiClient {
     try {
       const controller = new AbortController();
       
-      // Use longer timeout for transcription endpoints
+      // Use optimized timeout for transcription endpoints
       const isTranscriptionEndpoint = endpoint.includes('/transcribe');
-      const timeoutMs = isTranscriptionEndpoint ? 180000 : this.timeout; // 3 minutes for transcription, 30 seconds for others
+      const isDevelopment = process.env.NODE_ENV === 'development';
+      
+      // Faster timeouts in development for quicker feedback
+      const timeoutMs = isTranscriptionEndpoint 
+        ? (isDevelopment ? 60000 : 180000)  // 1 minute in dev, 3 minutes in prod
+        : this.timeout; // 30 seconds for others
       
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -940,7 +945,7 @@ class ApiClient {
   }
 
   /**
-   * Generate ICD-11 codes based on medical content (using simple ChatGPT-based service)
+   * Generate ICD-11 codes based on medical content (using WHO ICD-11 API)
    */
   async generateICD11Codes(medicalData: {
     diagnosis?: string;

@@ -349,7 +349,7 @@ class EnhancedTemplatePDFGenerator {
       // Show explicit message that no examination was conducted
       this.doc.setFont('helvetica', 'normal');
       this.doc.setFontSize(10);
-      this.doc.text('No physical examination was conducted during this consultation.', 20, this.currentY + 10);
+      this.doc.text('No physical examination was performed during this consultation.', 20, this.currentY + 10);
       this.doc.text('Physical examination findings would be documented here if performed.', 20, this.currentY + 20);
     }
   }

@@ -27,7 +27,7 @@ import {
   Sparkles
 } from 'lucide-react'
 import { CleanMedicalNote } from './clean-medical-note-editor'
-import SimpleMedicalDiagram from '@/components/medical-diagram/simple-medical-diagram'
+import EnhancedMedicalDiagram from '@/components/medical-diagram/enhanced-medical-diagram'
 import { useAppSelector } from '@/store/hooks'
 
 import { toast } from 'sonner'
@@ -117,7 +117,7 @@ export default function DocumentStyleNoteViewer({
     }
   }, [note, isGeneratingICD11, generatedICD11Codes])
 
-  // Function to automatically generate ICD-11 codes
+  // Function to automatically generate ICD-11 codes using LLM + WHO API
   const generateICD11Codes = async () => {
     if (!note) return
 
@@ -127,7 +127,7 @@ export default function DocumentStyleNoteViewer({
     setIsGeneratingICD11(true)
 
     try {
-      const response = await fetch('/api/simple-icd11', {
+      const response = await fetch('/api/llm-icd11', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -150,7 +150,9 @@ export default function DocumentStyleNoteViewer({
             secondary: [],
             suggestions: []
           })
-          toast.success('ICD-11 codes generated automatically using AI')
+          toast.success('ICD-11 codes generated using AI + WHO database')
+        } else if (data.error) {
+          toast.error(`Failed to generate ICD-11 codes: ${data.error}`)
         }
       }
     } catch (error) {
@@ -188,6 +190,26 @@ export default function DocumentStyleNoteViewer({
     }
 
     return selectedCodes
+  }
+
+  // Function to get selected codes formatted for PDF export
+  const getSelectedCodesForPDF = () => {
+    const selectedCodes = getSelectedCodesForDisplay()
+    if (!selectedCodes) return null
+    
+    // Return only selected codes with clean formatting for PDF
+    const formatCodesForPDF = (codes: any[]) => 
+      codes.filter(code => code).map(code => ({
+        code: code.code || 'N/A',
+        title: code.title || 'Unknown condition',
+        confidence: code.confidence ? `${(code.confidence * 100).toFixed(0)}%` : 'N/A'
+      }))
+    
+    return {
+      primary: formatCodesForPDF(selectedCodes.primary),
+      secondary: formatCodesForPDF(selectedCodes.secondary), 
+      suggestions: formatCodesForPDF(selectedCodes.suggestions)
+    }
   }
 
   // Note prop updated
@@ -557,6 +579,25 @@ export default function DocumentStyleNoteViewer({
     return cleanedValue || 'Not recorded'
   }
 
+  // Special formatting for physical examination
+  const formatPhysicalExaminationValue = (value: string | undefined | null) => {
+    // Handle null, undefined, or empty
+    if (!value || value === '' || value === 'N/A' || value === 'n/a' || value === 'N/a') {
+      return 'No physical examination was performed during this consultation.'
+    }
+    
+    // Handle default/placeholder text
+    if (value === 'Physical examination performed as clinically indicated' || 
+        value === 'Not recorded' ||
+        value.toLowerCase().includes('clinically indicated')) {
+      return 'No physical examination was performed during this consultation.'
+    }
+    
+    // Clean and return actual examination findings
+    const cleanedValue = String(value).replace(/\}\}/g, '').trim()
+    return cleanedValue || 'No physical examination was performed during this consultation.'
+  }
+
   return (
     <div className="max-w-5xl mx-auto bg-white shadow-lg">
       {/* Document Header */}
@@ -861,7 +902,7 @@ export default function DocumentStyleNoteViewer({
           <div className="flex justify-end items-start">
             <div className="text-right">
               <h2 className="text-base font-bold">Medical Consultation Note</h2>
-              <p className="text-sm opacity-90 mt-1">
+              <p className="text-sm opacity-90 mt-1 font-mono tracking-wide">
                 Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}
               </p>
             </div>
@@ -938,7 +979,7 @@ export default function DocumentStyleNoteViewer({
                 <EditableField
                   fieldName="glucose"
                   value={note.glucose || ''}
-                  label="Glucose Level"
+                  label="Glucose Levels"
                   placeholder="e.g., 5.5 mmol/L"
                 />
               </div>
@@ -948,7 +989,7 @@ export default function DocumentStyleNoteViewer({
                 <div><strong>Pulse Rate:</strong> {formatFieldValue(note.pulseRate)}</div>
                 <div><strong>Respiratory Rate:</strong> {formatFieldValue(note.respiratoryRate)}</div>
                 <div><strong>Blood Pressure:</strong> {formatFieldValue(note.bloodPressure)}</div>
-                <div><strong>Glucose:</strong> {formatFieldValue(note.glucose)}</div>
+                <div><strong>Glucose Levels:</strong> {formatFieldValue(note.glucose)}</div>
               </div>
             )}
           </div>
@@ -1174,7 +1215,7 @@ export default function DocumentStyleNoteViewer({
                 {/* Medical Diagram - Only show when there's meaningful examination data */}
                 {hasPhysicalExaminationFindings(note) && (
                   <div className="mb-6">
-                    <SimpleMedicalDiagram
+                    <EnhancedMedicalDiagram
                       patientGender={determinePatientGender(note.patientGender)}
                       examinationData={{
                         generalExamination: (note.physicalExamination || '').replace(/\}\}/g, ''),
@@ -1183,12 +1224,13 @@ export default function DocumentStyleNoteViewer({
                         abdominalExamination: '', 
                         otherSystemsExamination: ''
                       }}
+                      medicalNoteText={`${note.chiefComplaint || ''} ${note.historyOfPresentingIllness || ''} ${note.physicalExamination || ''} ${note.assessment || ''}`}
                     />
                   </div>
                 )}
                 {/* Text findings */}
                 <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {formatFieldValue(note.physicalExamination)}
+                  {formatPhysicalExaminationValue(note.physicalExamination)}
                 </div>
               </div>
             )}
@@ -1316,7 +1358,7 @@ export default function DocumentStyleNoteViewer({
               
               {note.icd11Codes.secondary && note.icd11Codes.secondary.length > 0 && (
                 <div>
-                  <h3 className="text-md font-medium mb-2 text-blue-800">Secondary Diagnoses</h3>
+                  <h3 className="text-md font-medium mb-2 text-blue-800">Secondary Diagnosis</h3>
                   <div className="space-y-2">
                     {note.icd11Codes.secondary.map((code, index) => (
                       <div key={index} className="text-sm p-2 bg-gray-50 rounded">
@@ -1351,13 +1393,12 @@ export default function DocumentStyleNoteViewer({
                               className="mt-1 h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div><strong>{code.code}</strong> - {code.title}</div>
-                                <Badge variant="outline" className="text-xs">
-                                  {code.confidence} confidence
-                                </Badge>
-                              </div>
-                              {code.description && <div className="text-gray-600 mt-1">{code.description}</div>}
+                              <div className="font-medium">{code.code} - {code.title}</div>
+                              {code.llmReasoning && (
+                                <div className="text-gray-600 mt-1 text-xs">
+                                  {code.llmReasoning}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1370,7 +1411,7 @@ export default function DocumentStyleNoteViewer({
               {generatedICD11Codes.secondary && generatedICD11Codes.secondary.length > 0 && (
                 <div>
                   <h3 className="text-md font-medium mb-2 text-blue-800">
-                    Secondary Diagnoses
+                    Secondary Diagnosis
                   </h3>
                   <div className="space-y-2">
                     {generatedICD11Codes.secondary.map((code: any, index: number) => {
@@ -1387,12 +1428,7 @@ export default function DocumentStyleNoteViewer({
                               className="mt-1 h-4 w-4 text-orange-600 rounded border-gray-300 focus:ring-orange-500"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div><strong>{code.code}</strong> - {code.title}</div>
-                                <Badge variant="outline" className="text-xs">
-                                  {code.confidence} confidence
-                                </Badge>
-                              </div>
+                              <div><strong>{code.code}</strong> - {code.title}</div>
                               {code.description && <div className="text-gray-600 mt-1">{code.description}</div>}
                             </div>
                           </div>
@@ -1423,12 +1459,7 @@ export default function DocumentStyleNoteViewer({
                               className="mt-1 h-4 w-4 text-gray-600 rounded border-gray-300 focus:ring-gray-500"
                             />
                             <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <div><strong>{code.code}</strong> - {code.title}</div>
-                                <Badge variant="outline" className="text-xs">
-                                  {code.confidence} confidence
-                                </Badge>
-                              </div>
+                              <div><strong>{code.code}</strong> - {code.title}</div>
                               {code.description && <div className="text-gray-600 mt-1">{code.description}</div>}
                             </div>
                           </div>
@@ -1439,17 +1470,7 @@ export default function DocumentStyleNoteViewer({
                 </div>
               )}
 
-              {/* Show selected codes summary */}
-              {getSelectedCodesForDisplay() && (
-                <div className="mt-4 p-3 bg-green-50 rounded border border-green-200">
-                  <h4 className="text-sm font-medium text-green-800 mb-2">
-                    Selected Codes for Medical Note ({selectedICD11Codes.primary.length + selectedICD11Codes.secondary.length + selectedICD11Codes.suggestions.length} codes)
-                  </h4>
-                  <div className="text-xs text-green-700">
-                    These codes will appear in the PDF
-                  </div>
-                </div>
-              )}
+
 
 
             </div>
@@ -1461,8 +1482,8 @@ export default function DocumentStyleNoteViewer({
                 <p className="text-sm font-medium">No ICD-11 codes assigned</p>
                 <p className="text-xs text-gray-400">
                   {isGeneratingICD11 
-                    ? 'Generating ICD-11 codes using AI...' 
-                    : 'Click "Generate with AI" to automatically generate codes from diagnosis and symptoms'
+                    ? 'Analyzing symptoms with AI and fetching official WHO ICD-11 codes...' 
+                    : 'ICD-11 codes will be automatically generated using AI analysis + WHO database when medical content is available'
                   }
                 </p>
               </div>

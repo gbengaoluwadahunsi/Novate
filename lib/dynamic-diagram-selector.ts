@@ -279,6 +279,45 @@ export function getRecommendedDiagrams(
 }
 
 /**
+ * Get ALL relevant diagrams that should be displayed simultaneously
+ * based on examination findings (not just top 1)
+ */
+export function getAllRelevantDiagrams(
+  gender: 'male' | 'female',
+  examinationData: {
+    generalExamination?: string;
+    cardiovascularExamination?: string;
+    respiratoryExamination?: string;
+    abdominalExamination?: string;
+    otherSystemsExamination?: string;
+  },
+  minScore: number = 1
+): DiagramConfig[] {
+  
+  const diagramConfigs = getDiagramConfigs(gender);
+  const analysisScores = analyzeExaminationContent(examinationData);
+  
+  // Get all diagrams with scores above minimum threshold
+  const relevantDiagrams = Object.entries(analysisScores)
+    .filter(([_, data]) => data.score >= minScore)
+    .map(([type, data]) => ({
+      type: type as DiagramType,
+      config: diagramConfigs[type as DiagramType],
+      score: data.score,
+      factors: data.factors
+    }))
+    .sort((a, b) => b.score - a.score) // Sort by score descending
+    .map(d => d.config);
+  
+  // Always include front view if no other diagrams qualify
+  if (relevantDiagrams.length === 0) {
+    return [diagramConfigs.front];
+  }
+  
+  return relevantDiagrams;
+}
+
+/**
  * Load coordinate data for a specific diagram
  */
 export async function loadDiagramCoordinates(config: DiagramConfig): Promise<any> {

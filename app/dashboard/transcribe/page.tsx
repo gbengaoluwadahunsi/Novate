@@ -383,30 +383,30 @@ export default function TranscribePage() {
 
 
   return (
-    <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
-      <div className="max-w-4xl mx-auto space-y-6 sm:space-y-8">
+    <div className="w-full px-2 sm:px-3 py-4 sm:py-6">
+      <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
         {/* Header */}
-        <div className="text-center space-y-2 sm:space-y-4">
+        <div className="text-center space-y-1 sm:space-y-2">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Voice Transcription
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-            Record or upload audio files to create structured medical notes
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Record or upload audio to create medical notes
           </p>
         </div>
 
         {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Left Column - Audio Upload */}
-          <div className="space-y-6 sm:space-y-8">
+          <div className="space-y-4 sm:space-y-6">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-                  <Mic className="h-5 w-5" />
-                  Record or Upload Audio
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Mic className="h-4 w-4" />
+                  Audio Input
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4 sm:space-y-6">
+              <CardContent className="space-y-4">
                 {/* Privacy Warning - Different for Students vs Professionals */}
                 {/* Only show alerts when settings are loaded and we know user type */}
                 {settingsLoaded && (isStudentUser ? (
@@ -438,19 +438,8 @@ export default function TranscribePage() {
                     <AlertTitle className="text-blue-800 dark:text-blue-200">
                       🏥 Healthcare Professional: Patient Privacy Guidelines
                     </AlertTitle>
-                    <AlertDescription className="text-blue-700 dark:text-blue-300 space-y-3">
-                      <p className="font-semibold">Please ensure patient consent and follow privacy regulations:</p>
-                      <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-lg">
-                        <ul className="list-disc list-inside space-y-1 text-sm">
-                          <li>Obtain patient consent before recording consultations</li>
-                          <li>Ensure secure handling of patient information</li>
-                          <li>Follow your institution's privacy policies</li>
-                          <li>Consider anonymization for training or research purposes</li>
-                        </ul>
-                      </div>
-                      <p className="text-xs italic">
-                        Patient information will appear exactly as entered in the generated documentation.
-                      </p>
+                    <AlertDescription className="text-blue-700 dark:text-blue-300 text-sm">
+                      <p>Please ensure patient consent and follow privacy regulations - patient information will appear exactly as entered.</p>
                     </AlertDescription>
                   </Alert>
                 ))}
@@ -540,16 +529,7 @@ export default function TranscribePage() {
               </CardContent>
             </Card>
 
-            {/* Validation Alert */}
-            {!isPatientInfoValid() && (
-              <Alert className="mb-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Patient Information Required</AlertTitle>
-                <AlertDescription>
-                  Please fill in the patient's anonymized information before recording. Remember to use generic identifiers, not real patient names.
-                </AlertDescription>
-              </Alert>
-            )}
+
 
             {/* Recording Privacy Guidance - Only for Students */}
             {isStudentUser && isPatientInfoValid() && (
@@ -587,10 +567,10 @@ export default function TranscribePage() {
           {/* Right Column - Recording Queue */}
           <div className="lg:col-span-1">
             <Card className="h-full">
-        <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Mic className="h-5 w-5" />
-                  Recording Queue
+        <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Mic className="h-4 w-4" />
+                  Queue
                   {queuedRecordings.length > 0 && (
                     <Badge variant="secondary" className="ml-2">
                       {queuedRecordings.length}
@@ -600,13 +580,13 @@ export default function TranscribePage() {
         </CardHeader>
         <CardContent>
                 {queuedRecordings.length === 0 ? (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                    <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
-                      <Mic className="h-8 w-8 text-gray-400" />
+          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
+                    <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                      <Mic className="h-6 w-6 text-gray-400" />
                     </div>
                     <p className="font-medium mb-2">No recordings queued</p>
                     <p className="text-sm">
-                      Record audio files to process them later during quieter hours
+                      Record audio to process later
                     </p>
                     <Button
                       size="sm"
@@ -711,8 +691,11 @@ export default function TranscribePage() {
               <span className="text-2xl">📄</span>
           </div>
             <h3 className="font-semibold text-lg mb-2">Upload Files</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
               Support for MP3, WAV, M4A and other popular audio formats
+            </p>
+            <p className="text-xs text-red-600 dark:text-red-400">
+              ❌ Avoid: WhatsApp files, compressed audio, poor quality recordings
             </p>
       </Card>
       

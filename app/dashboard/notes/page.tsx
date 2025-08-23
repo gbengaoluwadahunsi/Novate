@@ -52,6 +52,8 @@ export default function NotesPage() {
   const [itemsPerPage, setItemsPerPage] = useState(12)
   const [isDeleting, setIsDeleting] = useState<string | null>(null)
   const [showPracticeSelector, setShowPracticeSelector] = useState<{open: boolean, noteId: string, patientName: string} | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{open: boolean, noteId: string} | null>(null)
+  const [lastDeleteClick, setLastDeleteClick] = useState<number>(0)
   
   // Enhanced filter state
   const [filters, setFilters] = useState({
@@ -392,172 +394,100 @@ export default function NotesPage() {
     }
   }, [currentPage, totalFilteredPages])
 
-  const handleDeleteNote = async (noteId: string) => {
-    // Show confirmation toast instead of browser alert
-    toast({
-      title: 'Delete Note',
-      description: 'Are you sure you want to delete this note? This action cannot be undone.',
-      action: (
-        <div className="flex gap-2 mt-2">
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={async () => {
-              setIsDeleting(noteId)
-              
-              try {
-                logger.info('🗑️ Attempting to delete note:', noteId)
-                const response = await apiClient.deleteMedicalNote(noteId)
-                logger.info('🗑️ Delete response:', response)
-                logger.info('🗑️ Response success:', response.success)
-                logger.info('🗑️ Response error:', response.error)
-                logger.info('🗑️ Response details:', response.details)
+  const handleDeleteNote = (noteId: string) => {
+    // Prevent multiple clicks by checking if already deleting
+    if (isDeleting === noteId) return
+    
+    // Debounce mechanism - prevent rapid clicks
+    const now = Date.now()
+    if (now - lastDeleteClick < 500) return // 500ms debounce
+    setLastDeleteClick(now)
+    
+    setShowDeleteConfirm({ open: true, noteId })
+  }
 
-                if (response.success) {
-                  // Remove from UI immediately
-                  setNotes(prevNotes => {
-                    const filteredNotes = prevNotes.filter(note => note.id !== noteId)
-                    logger.info('UI updated - removed note from list', { 
-                      notesBefore: prevNotes.length, 
-                      notesAfter: filteredNotes.length 
-                    })
-                    return filteredNotes
-                  })
-                  setTotalNotes(prev => Math.max(0, prev - 1))
-                  
-                  logger.info('✅ Note deleted successfully from backend and UI updated')
-                  toast({
-                    title: 'Note Deleted',
-                    description: 'Medical note has been successfully deleted',
-                  })
+  const confirmDelete = async (noteId: string) => {
+    // Prevent multiple executions
+    if (isDeleting) return
+    
+    setIsDeleting(noteId)
+    setShowDeleteConfirm(null)
+    
+    try {
+      logger.info('🗑️ Attempting to delete note:', noteId)
+      const response = await apiClient.deleteMedicalNote(noteId)
+      logger.info('🗑️ Delete response:', response)
 
-                  // Optional: Reload notes in background without blocking success message
-                  setTimeout(() => {
-                    logger.info('🗑️ Starting background reload after successful delete')
-                    loadNotes().catch(err => {
-                      logger.error('🗑️ Background reload failed after delete:', err)
-                      logger.error('🗑️ Background reload error type:', typeof err)
-                      logger.error('🗑️ Background reload error message:', err instanceof Error ? err.message : String(err))
-                      // Silent failure - don't show error toast for background reload
-                    })
-                  }, 1000)
-                } else {
-                  logger.info('🗑️ SIMPLE CHECK: Delete API returned error, checking if note was actually deleted')
-                  logger.error('🗑️ Delete API error:', response.error)
-                  
-                  // Simple approach: wait a moment then check if the notes list was updated
-                  // If the backend deleted the note despite the error response, the list will be updated
-                  setTimeout(async () => {
-                    try {
-                      logger.info('🗑️ Checking notes list after delete error...')
-                      
-                      // Get fresh notes directly from API
-                      const params: any = {
-                        page: currentPage,
-                        limit: itemsPerPage,
-                      }
-                      if (searchTerm.trim()) {
-                        params.search = searchTerm.trim()
-                      }
-                      
-                      const freshResponse = await apiClient.getMedicalNotes(params)
-                      
-                      if (freshResponse.success && freshResponse.data) {
-                        const freshNotes = freshResponse.data.notes || []
-                        const noteStillExists = freshNotes.some(n => n.id === noteId)
-                        
-                        logger.info('🗑️ Fresh notes count:', freshNotes.length)
-                        logger.info('🗑️ Looking for note ID:', noteId)
-                        logger.info('🗑️ Note still exists:', noteStillExists)
-                        
-                        if (!noteStillExists) {
-                          logger.info('🗑️ SUCCESS: Note was actually deleted despite error response!')
-                          
-                          // Update UI state to reflect the deletion
-                          setNotes(freshNotes)
-                          setTotalNotes(freshResponse.data.pagination?.total || freshNotes.length)
-                          
-                          toast({
-                            title: 'Note Deleted',
-                            description: 'Medical note has been successfully deleted',
-                          })
-                        } else {
-                          logger.info('🗑️ FAILED: Note still exists after delete attempt')
-                          toast({
-                            title: 'Delete Error',
-                            description: `Failed to delete note: ${response.error || 'Unknown error occurred'}`,
-                            variant: 'destructive'
-                          })
-                        }
-                      } else {
-                        logger.error('🗑️ Failed to get fresh notes for verification')
-                        // Assume success since we can't verify
-                        toast({
-                          title: 'Note Deleted',
-                          description: 'Medical note has been successfully deleted',
-                        })
-                      }
-                    } catch (checkError) {
-                      logger.error('🗑️ Error checking notes after delete:', checkError)
-                      // If there's an error loading notes, assume deletion was successful
-                      // since the most common case is that the note was deleted
-                      toast({
-                        title: 'Note Deleted',
-                        description: 'Medical note has been successfully deleted',
-                      })
-                    }
-                  }, 500)
-                  
-                  // Don't throw error immediately, let the check above handle it
-                  return
-                }
-              } catch (error) {
-                logger.error('🗑️ Delete error caught in try-catch:', error)
-                logger.error('🗑️ Error type:', typeof error)
-                logger.error('🗑️ Error instanceof Error:', error instanceof Error)
-                logger.error('🗑️ Error message:', error instanceof Error ? error.message : String(error))
-                logger.error('🗑️ Error stack:', error instanceof Error ? error.stack : 'No stack trace')
-                logger.error('Error deleting note:', error)
-                
-                toast({
-                  title: 'Delete Error',
-                  description: `Failed to delete note: ${error instanceof Error ? error.message : 'Unknown error occurred'}`,
-                  variant: 'destructive'
-                })
-                
-                // Reload notes to get current state from backend
-                try {
-                  await loadNotes()
-                } catch (reloadError) {
-                  logger.error('Failed to reload notes after delete error:', reloadError)
-                }
-              } finally {
-                setIsDeleting(null)
-              }
-            }}
-          >
-            {isDeleting === noteId ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
-              </>
-            ) : (
-              'Delete'
-            )}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              // Dismiss the toast
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
-      ),
-      duration: 10000, // 10 seconds to give user time to decide
-    })
+      if (response.success) {
+        // Remove from UI immediately
+        setNotes(prevNotes => {
+          const filteredNotes = prevNotes.filter(note => note.id !== noteId)
+          logger.info('UI updated - removed note from list', { 
+            notesBefore: prevNotes.length, 
+            notesAfter: filteredNotes.length 
+          })
+          return filteredNotes
+        })
+        setTotalNotes(prev => Math.max(0, prev - 1))
+        
+        logger.info('✅ Note deleted successfully')
+        toast({
+          title: 'Note Deleted',
+          description: 'Medical note has been successfully deleted',
+        })
+      } else {
+        // Check if it's a 404 error (note already deleted)
+        if (response.error?.includes('404') || response.error?.includes('Not Found')) {
+          logger.warn('🗑️ Note not found on server (already deleted), removing from UI')
+          // Remove from UI since it doesn't exist on server anyway
+          setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId))
+          setTotalNotes(prev => Math.max(0, prev - 1))
+          
+          toast({
+            title: 'Note Removed',
+            description: 'Note was already deleted from the server',
+          })
+        } else {
+          logger.error('🗑️ Delete API error:', response.error)
+          toast({
+            title: 'Delete Failed',
+            description: response.error || 'Failed to delete the note. Please try again.',
+            variant: 'destructive'
+          })
+        }
+      }
+    } catch (error: any) {
+      logger.error('🗑️ Delete request failed:', error)
+      
+      // Check if it's a 404 error (note doesn't exist)
+      if (error.message?.includes('404') || error.status === 404) {
+        logger.warn('🗑️ Note not found on server (404), removing from UI')
+        // Remove from UI since it doesn't exist on server
+        setNotes(prevNotes => prevNotes.filter(note => note.id !== noteId))
+        setTotalNotes(prev => Math.max(0, prev - 1))
+        
+        toast({
+          title: 'Note Removed',
+          description: 'Note was already deleted from the server',
+        })
+      } else {
+        toast({
+          title: 'Delete Failed',
+          description: error instanceof Error ? error.message : 'Failed to delete the note. Please try again.',
+          variant: 'destructive'
+        })
+      }
+    } finally {
+      setIsDeleting(null)
+      
+      // Refresh the notes list to sync with backend
+      setTimeout(() => {
+        logger.info('🔄 Refreshing notes list after delete operation')
+        loadNotes(currentPage, searchTerm, noteTypeFilter).catch(err => {
+          logger.error('Failed to refresh notes after delete:', err)
+        })
+      }, 1000)
+    }
   }
 
   // Show practice selector dialog
@@ -630,10 +560,35 @@ export default function NotesPage() {
       };
 
       // Use the unified PDF generator for consistent, well-organized PDFs
-      const { generateAndDownloadUnifiedPDF } = await import('@/lib/unified-pdf-generator');
-      generateAndDownloadUnifiedPDF(comprehensiveNote, {
+      // Use the new styled PDF generator that matches the note page design
+      const { generateStyledNotePDF } = await import('@/lib/styled-note-pdf-generator');
+      
+      // Convert comprehensive note back to CleanMedicalNote format for styled generator
+      const cleanNote = {
+        id: note.id,
+        patientName: note.patientName,
+        patientAge: note.patientAge,
+        patientGender: note.patientGender,
+        visitDate: note.visitDate,
+        visitTime: note.visitTime,
+        chiefComplaint: note.chiefComplaint,
+        historyOfPresentingIllness: note.historyOfPresentingIllness,
+        pastMedicalHistory: note.pastMedicalHistory,
+        systemReview: note.systemReview,
+        physicalExamination: note.physicalExamination,
+        assessmentAndDiagnosis: note.assessmentAndDiagnosis,
+        managementPlan: note.managementPlan,
+        doctorName: note.doctorName,
+        doctorRegistrationNo: note.doctorRegistrationNo,
+        createdAt: note.createdAt,
+        noteType: note.noteType || 'consultation',
+        updatedAt: note.updatedAt || note.createdAt
+      };
+      
+      generateStyledNotePDF(cleanNote, {
         organizationName: practiceInfo.organizationName,
-        includeICD11: true
+        doctorName: note.doctorName,
+        registrationNo: note.doctorRegistrationNo
       });
 
       toast({
@@ -985,18 +940,7 @@ export default function NotesPage() {
                         />
                         <span className="hidden sm:inline">GPT</span>
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                                                      handleExportPDF(note.id, generateCaseNumber(note, notes))
-                        }}
-                        className="text-xs h-9 flex items-center justify-center"
-                      >
-                        <Download className="h-3 w-3" />
-                        <span className="hidden sm:inline ml-1">PDF</span>
-                      </Button>
+
                       <Button
                         size="sm"
                         variant="outline"
@@ -1262,6 +1206,40 @@ export default function NotesPage() {
               onClick={() => setShowPracticeSelector(null)}
             >
               Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm?.open || false} onOpenChange={(open) => !open && setShowDeleteConfirm(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Note</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this note? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-3 justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteConfirm(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => showDeleteConfirm && !isDeleting && confirmDelete(showDeleteConfirm.noteId)}
+              disabled={!!isDeleting}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
             </Button>
           </div>
         </DialogContent>
