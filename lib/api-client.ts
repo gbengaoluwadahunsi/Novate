@@ -932,14 +932,22 @@ class ApiClient {
       noteType: noteData.noteType,
       startedAt: new Date().toISOString(),
       audioDuration: 0, // Add if available
-      // 🩺 VITAL SIGNS: Include vital signs in backend payload
-      ...(noteData.vitalSigns && {
+      // 🩺 VITAL SIGNS: Include vital signs in backend payload - check both nested and flat structures
+      ...(noteData.vitalSigns ? {
         temperature: noteData.vitalSigns.temperature,
         pulseRate: noteData.vitalSigns.pulseRate,
         respiratoryRate: noteData.vitalSigns.respiratoryRate,
         bloodPressure: noteData.vitalSigns.bloodPressure,
         oxygenSaturation: noteData.vitalSigns.oxygenSaturation,
         glucoseLevels: noteData.vitalSigns.glucoseLevels
+      } : {
+        // Handle cases where vital signs come from medicalNote structure
+        temperature: (noteData as any).medicalNote?.vitalSigns?.temperature || 'Not recorded',
+        pulseRate: (noteData as any).medicalNote?.vitalSigns?.pulseRate || 'Not recorded',
+        respiratoryRate: (noteData as any).medicalNote?.vitalSigns?.respiratoryRate || 'Not recorded',
+        bloodPressure: (noteData as any).medicalNote?.vitalSigns?.bloodPressure || 'Not recorded',
+        oxygenSaturation: (noteData as any).medicalNote?.vitalSigns?.oxygenSaturation || 'Not recorded',
+        glucoseLevels: (noteData as any).medicalNote?.vitalSigns?.glucoseLevels || 'Not recorded'
       })
     };
 

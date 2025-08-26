@@ -33,6 +33,37 @@ interface MedicalNote {
   updatedAt?: string
 }
 
+// ICD-11 Codes Interface
+interface ICD11Codes {
+  primary: Array<{
+    code: string
+    title: string
+    definition?: string
+    uri: string
+    confidence?: number
+    matchType: 'exact' | 'partial' | 'synonym' | 'related'
+  }>
+  secondary: Array<{
+    code: string
+    title: string
+    definition?: string
+    uri: string
+    confidence?: number
+    matchType: 'exact' | 'partial' | 'synonym' | 'related'
+  }>
+  suggestions: Array<{
+    code: string
+    title: string
+    definition?: string
+    uri: string
+    confidence?: number
+    matchType: 'exact' | 'partial' | 'synonym' | 'related'
+  }>
+  extractedTerms: string[]
+  processingTime: number
+  lastUpdated: string
+}
+
 interface AudioUploadProps {
   onTranscriptionComplete: (transcription: any) => void
   onRecordingComplete?: (file: File, duration: number) => void
@@ -813,7 +844,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const [showDemoAlert, setShowDemoAlert] = useState(false)
   const [transcriptionComplete, setTranscriptionComplete] = useState(false)
   const [processingStages, setProcessingStages] = useState<{ name: string; status: string; description: string; progress: number }[]>([])
-  const [useFastTranscription, setUseFastTranscription] = useState(true) // Default to fast mode
+  const [useFastTranscription, setUseFastTranscription] = useState(false) // Use standard mode for complete results
   const [overallProgress, setOverallProgress] = useState(0)
   const [processingFailed, setProcessingFailed] = useState(false)
   const [failureMessage, setFailureMessage] = useState<string>('')
@@ -1814,12 +1845,15 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                           (transcriptionData as any)?.managementPlan ||
                           (transcriptionData as any)?.treatmentPlan ||
                           intelligentExtraction.plan,
-            // Map vital signs from intelligent parser to individual fields
-            temperature: intelligentExtraction.vitalSigns?.temperature || 'Not recorded',
-            pulseRate: intelligentExtraction.vitalSigns?.pulse || intelligentExtraction.vitalSigns?.heartRate || 'Not recorded',
-            respiratoryRate: intelligentExtraction.vitalSigns?.respiratoryRate || 'Not recorded', 
-            bloodPressure: intelligentExtraction.vitalSigns?.bloodPressure || 'Not recorded',
-            glucose: intelligentExtraction.vitalSigns?.glucose || 'Not recorded',
+            // Map vital signs from intelligent parser to nested vitalSigns object
+            vitalSigns: {
+              temperature: intelligentExtraction.vitalSigns?.temperature || 'Not recorded',
+              pulseRate: intelligentExtraction.vitalSigns?.pulse || intelligentExtraction.vitalSigns?.heartRate || 'Not recorded',
+              respiratoryRate: intelligentExtraction.vitalSigns?.respiratoryRate || 'Not recorded', 
+              bloodPressure: intelligentExtraction.vitalSigns?.bloodPressure || 'Not recorded',
+              oxygenSaturation: intelligentExtraction.vitalSigns?.oxygenSaturation || 'Not recorded',
+              glucoseLevels: intelligentExtraction.vitalSigns?.glucose || 'Not recorded'
+            },
             // Add extracted medications and past medical history
             medications: intelligentExtraction.medications,
             pastMedicalHistory: intelligentExtraction.pastMedicalHistory,
@@ -1830,8 +1864,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             physicalExamination: intelligentExtraction.physicalExamination || 'No physical examination was performed during this consultation.',
             // Add ICD-11 codes (will be generated asynchronously)
             icd11Codes: null,
-            // Add extracted vital signs object  
-            vitalSigns: intelligentExtraction.vitalSigns,
             // Add extraction confidence score
             extractionConfidence: calculateExtractionConfidence(intelligentExtraction),
             // Add raw transcript for reference and validation
@@ -1846,8 +1878,86 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       // Update progress - finalizing note
       updateRealProgress('Medical Note Generating', 95, 'Finalizing medical note...');
       
-      // Call the completion handler with the note data
-      onTranscriptionComplete(noteData);
+      // Generate ICD-11 codes BEFORE saving the note
+      const diagnosisText = medicalNote?.diagnosis ||
+                    (medicalNote as any)?.assessmentAndDiagnosis ||
+                    (transcriptionData as any)?.diagnosis ||
+                    (transcriptionData as any)?.assessmentAndDiagnosis ||
+                    (transcriptionData as any)?.assessment ||
+                    '';
+      
+      const symptomsText = medicalNote?.chiefComplaint || 
+                        (transcriptionData as any)?.chiefComplaint ||
+                        (transcriptionData as any)?.physicalExamination ||
+                        '';
+
+      let finalNoteData = noteData;
+
+      if (diagnosisText || symptomsText) {
+        try {
+          // Update progress - generating ICD codes
+          updateRealProgress('Medical Note Generating', 96, 'Generating ICD-11 codes...');
+          
+          logger.info('🔍 Generating ICD-11 codes before saving...');
+          const icdResponse = await fetch(`${window.location.origin}/api/simple-icd11`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              diagnosis: diagnosisText,
+              symptoms: symptomsText,
+              chiefComplaint: symptomsText,
+              assessment: diagnosisText
+            })
+          });
+
+          if (icdResponse.ok) {
+            const icdData = await icdResponse.json();
+            if (icdData.success && icdData.codes) {
+              logger.info('✅ ICD-11 codes generated successfully:', {
+                primaryCount: icdData.codes.primary?.length || 0,
+                secondaryCount: icdData.codes.secondary?.length || 0,
+                suggestionsCount: icdData.codes.suggestions?.length || 0
+              });
+              
+              // Add ICD codes to the medical note BEFORE saving
+              finalNoteData = {
+                ...noteData,
+                medicalNote: {
+                  ...noteData.medicalNote,
+                  icd11Codes: icdData.codes
+                }
+              };
+              
+              // Show success notification
+              toast({
+                title: "ICD-11 Codes Generated",
+                description: `Found ${icdData.codes.primary?.length || 0} primary and ${icdData.codes.secondary?.length || 0} secondary codes`,
+                variant: "default",
+              });
+            } else if (icdData.warning) {
+              logger.warn('⚠️ ICD-11 API not configured:', icdData.warning);
+              toast({
+                title: "ICD-11 Setup Required",
+                description: "Configure WHO ICD-11 API credentials to enable automatic code generation",
+                variant: "default",
+              });
+            }
+          }
+        } catch (icdError) {
+          logger.error('ICD-11 generation error:', icdError);
+          // Continue without ICD codes - don't block the transcription
+          toast({
+            title: "ICD-11 Generation Failed", 
+            description: "Medical note saved successfully, but ICD codes could not be generated",
+            variant: "default",
+          });
+        }
+      }
+      
+      // Call the completion handler with the note data (including ICD codes if generated)
+      onTranscriptionComplete(finalNoteData);
       
       // Complete medical note generation
       updateProcessingStage('Medical Note Generating', 'completed', 'Medical note generated successfully', 100);
@@ -1858,58 +1968,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         setTranscriptionComplete(true);
         setIsProcessing(false);
               }, 200); // Quick completion state
-
-      // Generate ICD-11 codes asynchronously (non-blocking)
-      const diagnosisText = medicalNote?.diagnosis ||
-                    (medicalNote as any)?.assessmentAndDiagnosis ||
-                    (transcriptionData as any)?.diagnosis ||
-                    (transcriptionData as any)?.assessmentAndDiagnosis ||
-                    '';
-      
-      const symptomsText = medicalNote?.chiefComplaint || 
-                        (transcriptionData as any)?.chiefComplaint ||
-                        '';
-
-      if (diagnosisText || symptomsText) {
-        // Generate ICD codes in background without blocking the UI
-        setTimeout(async () => {
-          try {
-            logger.info('🔍 Generating simple ICD-11 codes in background...');
-            const icdResponse = await fetch(`${window.location.origin}/api/simple-icd11`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                diagnosis: diagnosisText,
-                symptoms: symptomsText,
-                chiefComplaint: symptomsText
-              })
-            });
-
-            if (icdResponse.ok) {
-              const icdData = await icdResponse.json();
-              if (icdData.success && icdData.codes) {
-                logger.info('✅ Simple ICD-11 codes generated successfully:', {
-                  primaryCount: icdData.codes.primary?.length || 0,
-                  secondaryCount: icdData.codes.secondary?.length || 0,
-                  suggestionsCount: icdData.codes.suggestions?.length || 0
-                });
-                
-                // Show success notification
-                toast({
-                  title: "ICD-11 Codes Generated (ChatGPT)",
-                  description: `Found ${icdData.codes.primary?.length || 0} primary and ${icdData.codes.secondary?.length || 0} secondary codes using AI`,
-                  variant: "default",
-                });
-              }
-            }
-          } catch (icdError) {
-            logger.error('Background simple ICD-11 coding error:', icdError);
-            // Silent failure - don't disrupt user experience
-          }
-        }, 1000); // Small delay to avoid overwhelming the API
-      }
       
       // Clear patient information form after successful transcription (optional)
       // setPatientName('');
