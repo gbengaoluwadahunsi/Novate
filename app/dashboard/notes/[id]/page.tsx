@@ -92,6 +92,31 @@ export default function NotePage() {
     try {
       setIsLoading(true)
       const response = await apiClient.getMedicalNote(noteId)
+      
+      // 🚨 DEBUG: Show individual note data from backend
+      console.log('📄 INDIVIDUAL NOTE API RESPONSE:', JSON.stringify(response, null, 2));
+      
+      if (response.success && response.data) {
+        console.log('🔍 INDIVIDUAL NOTE DATA STRUCTURE:', JSON.stringify(response.data, null, 2));
+        console.log('👤 PATIENT INFO FROM BACKEND:', {
+          name: response.data.patientName,
+          age: response.data.patientAge,
+          gender: response.data.patientGender
+        });
+        console.log('📋 MEDICAL CONTENT FROM BACKEND:', {
+          chiefComplaint: response.data.chiefComplaint,
+          diagnosis: response.data.diagnosis,
+          assessment: response.data.assessmentAndDiagnosis,
+          treatmentPlan: response.data.treatmentPlan,
+          managementPlan: response.data.managementPlan
+        });
+        console.log('👨‍⚕️ DOCTOR INFO FROM BACKEND:', {
+          name: response.data.doctorName,
+          registration: response.data.doctorRegistrationNo,
+          department: response.data.doctorDepartment
+        });
+      }
+      
       setNote(response.data || null)
     } catch (error) {
       // Error fetching note
@@ -477,20 +502,52 @@ export default function NotePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b px-4 py-3">
+      <div className="bg-white border-b px-3 py-2">
         <div className="flex items-center justify-between max-w-5xl mx-auto">
           <div className="flex items-center">
             <Button variant="ghost" size="icon" onClick={handleBack}>
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <span className="ml-2 text-sm text-gray-600">Back to Notes</span>
+            <span className="ml-1 text-xs sm:text-sm text-gray-600 hidden sm:inline">Back to Notes</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* Export PDF Button - Icon only on mobile, text on larger screens */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Trigger the DocumentStyleNoteViewer's export function
+                const exportEvent = new CustomEvent('exportPDF', { detail: note });
+                window.dispatchEvent(exportEvent);
+              }}
+              className="flex items-center px-2 sm:px-3"
+              title="Export PDF"
+            >
+              <Download className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Export PDF</span>
+            </Button>
+            
+            {/* Edit Button - Icon only on mobile, text on larger screens */}
+            <Button 
+              size="sm" 
+              variant="default"
+              onClick={() => {
+                // Trigger the DocumentStyleNoteViewer's edit mode
+                const editEvent = new CustomEvent('toggleEdit');
+                window.dispatchEvent(editEvent);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 px-2 sm:px-3"
+              title="Edit Note"
+            >
+              <Edit2 className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Edit</span>
+            </Button>
+            
             <Dialog open={showUploadsDialog} onOpenChange={setShowUploadsDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload
+                <Button variant="outline" size="sm" className="px-2 sm:px-3" title="Upload Documents">
+                  <Upload className="h-4 w-4" />
+                  <span className="ml-2 hidden sm:inline">Upload</span>
                 </Button>
               </DialogTrigger>
               
@@ -716,9 +773,11 @@ export default function NotePage() {
               variant="outline"
               size="sm"
               onClick={() => router.push('/dashboard/settings')}
+              className="px-2 sm:px-3"
+              title="Settings"
             >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+              <Settings className="h-4 w-4" />
+              <span className="ml-2 hidden sm:inline">Settings</span>
             </Button>
           </div>
         </div>
@@ -738,29 +797,29 @@ export default function NotePage() {
               patientGender: note.patientGender || '',
               visitDate: note.visitDate || new Date().toISOString().split('T')[0],
               
-              // Vital Signs
-              temperature: '',
-              pulseRate: '',
-              respiratoryRate: '',
-              bloodPressure: '',
-              glucose: '',
+              // Vital Signs - Map from backend vitalSigns object
+              temperature: (note as any).vitalSigns?.temperature || note.temperature || 'Not recorded',
+              pulseRate: (note as any).vitalSigns?.pulseRate || note.pulseRate || 'Not recorded',
+              respiratoryRate: (note as any).vitalSigns?.respiratoryRate || note.respiratoryRate || 'Not recorded',
+              bloodPressure: (note as any).vitalSigns?.bloodPressure || note.bloodPressure || 'Not recorded',
+              glucose: (note as any).vitalSigns?.glucoseLevels || note.glucoseLevels || note.glucose || 'Not recorded',
               
               // Main Medical Content
               chiefComplaint: note.chiefComplaint || '',
               historyOfPresentingIllness: note.historyOfPresentingIllness || note.historyOfPresentIllness || '',
               medicalConditions: note.pastMedicalHistory || '',
-              surgeries: '',
-              hospitalizations: '',
+              surgeries: '', // Not provided in backend response
+              hospitalizations: '', // Not provided in backend response
               medications: note.managementPlan?.medicationsPrescribed || '',
-              allergies: '',
-              smoking: '',
-              alcohol: '',
-              recreationalDrugs: '',
-              occupationLivingSituation: '',
-              travel: '',
-              sexual: '',
-              eatingOut: '',
-              familyHistory: '',
+              allergies: '', // Not provided in backend response
+              smoking: note.socialHistory || '', // Use socialHistory from backend
+              alcohol: '', // Could be parsed from socialHistory if needed
+              recreationalDrugs: '', // Could be parsed from socialHistory if needed
+              occupationLivingSituation: '', // Could be parsed from socialHistory if needed
+              travel: '', // Could be parsed from socialHistory if needed
+              sexual: '', // Could be parsed from socialHistory if needed
+              eatingOut: '', // Could be parsed from socialHistory if needed
+              familyHistory: '', // Not provided in backend response
               
               // Review of Systems
               systemsReview: note.systemReview || '',
@@ -773,7 +832,16 @@ export default function NotePage() {
               // Assessment & Plan
               investigations: note.managementPlan?.investigations || '',
               assessment: note.assessmentAndDiagnosis || note.diagnosis || '',
-              plan: note.managementPlan?.treatmentAdministered || note.treatmentPlan || '',
+              plan: (() => {
+                // Combine all management plan components
+                const planParts = [];
+                if (note.managementPlan?.followUp) planParts.push(`Follow-up: ${note.managementPlan.followUp}`);
+                if (note.managementPlan?.investigations) planParts.push(`Investigations: ${note.managementPlan.investigations}`);
+                if (note.managementPlan?.patientEducation) planParts.push(`Patient Education: ${note.managementPlan.patientEducation}`);
+                if (note.managementPlan?.medicationsPrescribed) planParts.push(`Medications: ${note.managementPlan.medicationsPrescribed}`);
+                if (note.managementPlan?.treatmentAdministered) planParts.push(`Treatment: ${note.managementPlan.treatmentAdministered}`);
+                return planParts.length > 0 ? planParts.join('\n\n') : note.treatmentPlan || '';
+              })(),
               
               // ICD-11 Codes (optional)
               icd11Codes: note.icd11Codes,

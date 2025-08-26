@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Male Left Side Medical Image - Coordinate Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f4f8;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #4a5568;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            max-width: 140px;
+            box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3);
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+        }
+        
+        .image-container {
+            position: relative;
+            display: inline-block;
+            border: 3px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+        
+        .medical-image {
+            display: block;
+            width: 512px;
+            height: 768px;
+            object-fit: contain;
+        }
+        
+        .coordinate-marker {
+            position: absolute;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            transition: transform 0.2s ease;
+        }
+        
+        .coordinate-marker:hover {
+            transform: translate(-50%, -50%) scale(1.2);
+            z-index: 20;
+        }
+        
+        /* Color coding for body parts */
+        .coordinate-marker.head { background-color: #e53e3e; width: 12px; height: 12px; }
+        .coordinate-marker.torso { background-color: #3182ce; width: 14px; height: 14px; }
+        .coordinate-marker.limbs { background-color: #38a169; width: 12px; height: 12px; }
+        .coordinate-marker.joints { background-color: #d69e2e; width: 10px; height: 10px; }
+        .coordinate-marker.organs { background-color: #805ad5; width: 11px; height: 11px; }
+        
+        .coordinate-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+            transform: translate(-50%, -100%);
+            margin-top: -25px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .coordinate-marker:hover .coordinate-label {
+            opacity: 1;
+        }
+        
+        .controls-panel {
+            flex: 1;
+            min-width: 400px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .toggle-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .toggle-btn:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+        }
+        
+        .toggle-btn.active {
+            background: #38a169;
+            box-shadow: 0 0 0 2px #68d391;
+        }
+        
+        .coordinates-list {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .coordinates-list h3 {
+            margin-top: 0;
+            color: #2d3748;
+            border-bottom: 2px solid #4299e1;
+            padding-bottom: 8px;
+        }
+        
+        .coord-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            font-size: 12px;
+        }
+        
+        .coord-item {
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #4299e1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .coord-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .coord-item.head { border-left-color: #e53e3e; }
+        .coord-item.torso { border-left-color: #3182ce; }
+        .coord-item.limbs { border-left-color: #38a169; }
+        .coord-item.joints { border-left-color: #d69e2e; }
+        .coord-item.organs { border-left-color: #805ad5; }
+        
+        .category-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+        
+        .category-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🫁 Male Left Side Medical Diagram - Coordinate Test</h1>
+            <p class="subtitle">Interactive visualization of anatomical mapping points with corrected labels</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <span class="stat-number">21</span>
+                <span class="stat-label">Total Points</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">6</span>
+                <span class="stat-label">Head & Face</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">5</span>
+                <span class="stat-label">Torso Areas</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">8</span>
+                <span class="stat-label">Left Limbs</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">2</span>
+                <span class="stat-label">Extremities</span>
+            </div>
+        </div>
+
+        <div class="category-legend">
+            <div class="category-item">
+                <div class="category-color" style="background-color: #e53e3e;"></div>
+                <span><strong>Head & Face</strong> - Head, face, features</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #3182ce;"></div>
+                <span><strong>Torso</strong> - Neck, chest, abdomen, spine</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #38a169;"></div>
+                <span><strong>Left Limbs</strong> - Arms, legs, muscles</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #d69e2e;"></div>
+                <span><strong>Joints</strong> - Elbows, knees, wrists, ankles</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #805ad5;"></div>
+                <span><strong>Back Areas</strong> - Back regions, spine</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="toggle-btn active" id="toggleAll">🎯 Toggle All</button>
+            <button class="toggle-btn active" id="toggleHead">👤 Head & Face</button>
+            <button class="toggle-btn active" id="toggleTorso">🫁 Torso</button>
+            <button class="toggle-btn active" id="toggleLimbs">💪 Left Limbs</button>
+            <button class="toggle-btn active" id="toggleJoints">🦴 Joints</button>
+            <button class="toggle-btn active" id="toggleOrgans">🫀 Back Areas</button>
+        </div>
+
+        <div class="main-content">
+            <div class="image-container">
+                <img src="medical-images/maleleftside.png" alt="Male Left Side Medical Diagram" class="medical-image">
+                <!-- Coordinate markers will be added by JavaScript -->
+            </div>
+            
+            <div class="controls-panel">
+                <div class="coordinates-list">
+                    <h3>🎯 Anatomical Points <span id="pointCount">(21 points)</span></h3>
+                    <div class="coord-grid" id="coordinatesList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Male left side coordinates (corrected labels)
+        const coordinates = {
+            // Head and face
+            "head": { "x": 250, "y": 70, "width": 90, "height": 90, "category": "head" },
+            "face": { "x": 200, "y": 120, "width": 70, "height": 70, "category": "head" },
+            "nose": { "x": 180, "y": 135, "width": 40, "height": 40, "category": "head" },
+            "left_eye": { "x": 195, "y": 115, "width": 35, "height": 35, "category": "head" },
+            "left_ear": { "x": 260, "y": 125, "width": 40, "height": 40, "category": "head" },
+            "mouth": { "x": 185, "y": 160, "width": 50, "height": 30, "category": "head" },
+            
+            // Torso areas
+            "neck": { "x": 250, "y": 180, "width": 60, "height": 50, "category": "torso" },
+            "chest": { "x": 220, "y": 230, "width": 100, "height": 80, "category": "torso" },
+            "abdomen": { "x": 220, "y": 320, "width": 100, "height": 70, "category": "torso" },
+            
+            // Back/spine areas  
+            "back": { "x": 280, "y": 240, "width": 80, "height": 80, "category": "organs" },
+            "spine": { "x": 280, "y": 300, "width": 50, "height": 150, "category": "organs" },
+            
+            // Left limbs
+            "left_shoulder": { "x": 250, "y": 220, "width": 60, "height": 60, "category": "limbs" },
+            "left_arm": { "x": 255, "y": 280, "width": 60, "height": 80, "category": "limbs" },
+            "left_forearm": { "x": 245, "y": 400, "width": 60, "height": 80, "category": "limbs" },
+            "left_hand": { "x": 225, "y": 510, "width": 70, "height": 80, "category": "limbs" },
+            "left_thigh": { "x": 240, "y": 500, "width": 90, "height": 120, "category": "limbs" },
+            "left_calf": { "x": 245, "y": 660, "width": 70, "height": 90, "category": "limbs" },
+            "left_foot": { "x": 180, "y": 750, "width": 90, "height": 40, "category": "limbs" },
+            
+            // Joints
+            "left_elbow": { "x": 260, "y": 350, "width": 50, "height": 50, "category": "joints" },
+            "left_wrist": { "x": 235, "y": 470, "width": 50, "height": 40, "category": "joints" },
+            "left_knee": { "x": 235, "y": 600, "width": 70, "height": 60, "category": "joints" },
+            "left_ankle": { "x": 240, "y": 730, "width": 50, "height": 40, "category": "joints" }
+        };
+
+        let visibleCategories = new Set(['head', 'torso', 'limbs', 'joints', 'organs']);
+
+        function createMarkers() {
+            const container = document.querySelector('.image-container');
+            const coordinatesList = document.getElementById('coordinatesList');
+            
+            // Clear existing markers and list
+            container.querySelectorAll('.coordinate-marker').forEach(marker => marker.remove());
+            coordinatesList.innerHTML = '';
+            
+            // Create markers for coordinates
+            Object.entries(coordinates).forEach(([name, coord]) => {
+                const category = coord.category || 'limbs';
+                
+                if (visibleCategories.has(category)) {
+                    // Create marker
+                    const marker = document.createElement('div');
+                    marker.className = `coordinate-marker ${category}`;
+                    marker.style.left = coord.x + 'px';
+                    marker.style.top = coord.y + 'px';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'coordinate-label';
+                    label.textContent = `${name.replace(/_/g, ' ').toUpperCase()} (${coord.x}, ${coord.y})`;
+                    marker.appendChild(label);
+                    
+                    container.appendChild(marker);
+                }
+
+                // Add to coordinates list
+                const listItem = document.createElement('div');
+                listItem.className = `coord-item ${category}`;
+                listItem.style.display = visibleCategories.has(category) ? 'block' : 'none';
+                listItem.innerHTML = `
+                    <strong>${name.replace(/_/g, ' ').toUpperCase()}</strong><br>
+                    📍 X: ${coord.x}, Y: ${coord.y}<br>
+                    📏 Size: ${coord.width}×${coord.height}<br>
+                    <span style="font-size: 11px; color: #666; text-transform: capitalize;">${category.replace('_', ' ')} Area</span>
+                `;
+                coordinatesList.appendChild(listItem);
+            });
+            
+            updatePointCount();
+        }
+
+        function toggleCategory(category) {
+            if (visibleCategories.has(category)) {
+                visibleCategories.delete(category);
+            } else {
+                visibleCategories.add(category);
+            }
+            createMarkers();
+            updateToggleButtons();
+        }
+
+        function toggleAll() {
+            const allCategories = ['head', 'torso', 'limbs', 'joints', 'organs'];
+            if (visibleCategories.size === allCategories.length) {
+                visibleCategories.clear();
+            } else {
+                visibleCategories = new Set(allCategories);
+            }
+            createMarkers();
+            updateToggleButtons();
+        }
+
+        function updateToggleButtons() {
+            document.getElementById('toggleAll').classList.toggle('active', visibleCategories.size > 0);
+            document.getElementById('toggleHead').classList.toggle('active', visibleCategories.has('head'));
+            document.getElementById('toggleTorso').classList.toggle('active', visibleCategories.has('torso'));
+            document.getElementById('toggleLimbs').classList.toggle('active', visibleCategories.has('limbs'));
+            document.getElementById('toggleJoints').classList.toggle('active', visibleCategories.has('joints'));
+            document.getElementById('toggleOrgans').classList.toggle('active', visibleCategories.has('organs'));
+        }
+
+        function updatePointCount() {
+            const visibleCount = Object.values(coordinates).filter(coord => 
+                visibleCategories.has(coord.category || 'limbs')
+            ).length;
+            document.getElementById('pointCount').textContent = `(${visibleCount} visible of 21 total)`;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners
+            document.getElementById('toggleAll').addEventListener('click', toggleAll);
+            document.getElementById('toggleHead').addEventListener('click', () => toggleCategory('head'));
+            document.getElementById('toggleTorso').addEventListener('click', () => toggleCategory('torso'));
+            document.getElementById('toggleLimbs').addEventListener('click', () => toggleCategory('limbs'));
+            document.getElementById('toggleJoints').addEventListener('click', () => toggleCategory('joints'));
+            document.getElementById('toggleOrgans').addEventListener('click', () => toggleCategory('organs'));
+            
+            createMarkers();
+        });
+    </script>
+</body>
+</html>

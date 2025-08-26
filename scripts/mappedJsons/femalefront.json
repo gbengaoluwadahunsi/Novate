@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-18T04:31:07.247Z",
+  "timestamp": "2025-08-26T02:40:38.644Z",
   "total_images": 1,
   "mapped_images": 1,
   "coordinates_by_image": {
@@ -9,268 +9,276 @@
       "total_regions": 44,
       "coordinates": {
         "head": {
-          "x": 390,
-          "y": 63,
+          "x": 266,
+          "y": 42,
           "width": 50,
           "height": 50
         },
         "face": {
-          "x": 390,
-          "y": 132,
+          "x": 266,
+          "y": 89,
           "width": 50,
           "height": 50
         },
         "nose": {
-          "x": 393,
-          "y": 159,
+          "x": 268,
+          "y": 107,
           "width": 50,
           "height": 50
         },
         "eyes": {
-          "x": 365,
-          "y": 132,
+          "x": 249,
+          "y": 89,
           "width": 50,
           "height": 50
         },
         "left_eye": {
-          "x": 415,
-          "y": 135,
+          "x": 283,
+          "y": 91,
           "width": 50,
           "height": 50
         },
         "right_eye": {
-          "x": 365,
-          "y": 131,
+          "x": 249,
+          "y": 88,
           "width": 50,
           "height": 50
         },
         "mouth": {
-          "x": 391,
-          "y": 185,
+          "x": 267,
+          "y": 125,
           "width": 50,
           "height": 50
         },
         "left_ear": {
-          "x": 451,
-          "y": 139,
+          "x": 308,
+          "y": 94,
           "width": 50,
           "height": 50
         },
         "right_ear": {
-          "x": 329,
-          "y": 141,
+          "x": 225,
+          "y": 95,
           "width": 50,
           "height": 50
         },
         "neck": {
-          "x": 389,
-          "y": 234,
+          "x": 266,
+          "y": 158,
           "width": 50,
           "height": 50
         },
         "chest": {
-          "x": 389,
-          "y": 330,
+          "x": 266,
+          "y": 222,
           "width": 50,
           "height": 50
         },
         "heart": {
-          "x": 450,
-          "y": 375,
+          "x": 307,
+          "y": 253,
           "width": 50,
           "height": 50
         },
         "lungs": {
-          "x": 339,
-          "y": 296,
+          "x": 231,
+          "y": 199,
           "width": 50,
           "height": 50
         },
         "left_lung": {
-          "x": 441,
-          "y": 297,
+          "x": 301,
+          "y": 200,
           "width": 50,
           "height": 50
         },
         "right_lung": {
-          "x": 341,
-          "y": 296,
+          "x": 233,
+          "y": 199,
           "width": 50,
           "height": 50
         },
         "left_shoulder": {
-          "x": 461,
-          "y": 255,
+          "x": 315,
+          "y": 172,
           "width": 50,
           "height": 50
         },
         "right_shoulder": {
-          "x": 316,
-          "y": 252,
+          "x": 216,
+          "y": 170,
           "width": 50,
           "height": 50
         },
         "left_arm": {
-          "x": 520,
-          "y": 389,
+          "x": 355,
+          "y": 262,
           "width": 50,
           "height": 50
         },
         "right_arm": {
-          "x": 261,
-          "y": 378,
+          "x": 178,
+          "y": 255,
           "width": 50,
           "height": 50
         },
         "left_forearm": {
-          "x": 549,
-          "y": 524,
+          "x": 375,
+          "y": 353,
           "width": 50,
           "height": 50
         },
         "right_forearm": {
-          "x": 228,
-          "y": 519,
+          "x": 156,
+          "y": 350,
           "width": 50,
           "height": 50
         },
         "left_wrist": {
-          "x": 578,
-          "y": 614,
+          "x": 395,
+          "y": 414,
           "width": 50,
           "height": 50
         },
         "right_wrist": {
-          "x": 194,
-          "y": 611,
+          "x": 132,
+          "y": 412,
           "width": 50,
           "height": 50
         },
         "left_hand": {
-          "x": 593,
-          "y": 660,
+          "x": 405,
+          "y": 445,
           "width": 50,
           "height": 50
         },
         "right_hand": {
-          "x": 179,
-          "y": 656,
+          "x": 122,
+          "y": 442,
           "width": 50,
           "height": 50
         },
         "abdomen": {
-          "x": 389,
-          "y": 477,
+          "x": 266,
+          "y": 321,
           "width": 50,
           "height": 50
         },
         "stomach": {
-          "x": 418,
-          "y": 422,
+          "x": 285,
+          "y": 284,
           "width": 50,
           "height": 50
         },
         "liver": {
-          "x": 343,
-          "y": 409,
+          "x": 234,
+          "y": 276,
           "width": 50,
           "height": 50
         },
         "kidneys": {
-          "x": 319,
-          "y": 465,
+          "x": 218,
+          "y": 313,
           "width": 50,
           "height": 50
         },
         "left_kidney": {
-          "x": 478,
-          "y": 466,
+          "x": 326,
+          "y": 314,
           "width": 50,
           "height": 50
         },
         "right_kidney": {
-          "x": 319,
-          "y": 465,
+          "x": 218,
+          "y": 313,
           "width": 50,
           "height": 50
         },
         "pelvis": {
-          "x": 385,
-          "y": 589,
+          "x": 263,
+          "y": 397,
           "width": 50,
           "height": 50
         },
         "left_hip": {
-          "x": 486,
-          "y": 501,
+          "x": 332,
+          "y": 338,
           "width": 50,
           "height": 50
         },
         "right_hip": {
-          "x": 294,
-          "y": 501,
+          "x": 201,
+          "y": 338,
           "width": 50,
           "height": 50
         },
         "left_thigh": {
-          "x": 450,
-          "y": 691,
+          "x": 307,
+          "y": 466,
           "width": 50,
           "height": 50
         },
         "right_thigh": {
-          "x": 327,
-          "y": 690,
+          "x": 223,
+          "y": 465,
           "width": 50,
           "height": 50
         },
         "left_knee": {
-          "x": 436,
-          "y": 854,
+          "x": 298,
+          "y": 575,
           "width": 50,
           "height": 50
         },
         "right_knee": {
-          "x": 330,
-          "y": 846,
+          "x": 225,
+          "y": 570,
           "width": 50,
           "height": 50
         },
         "left_shin": {
-          "x": 423,
-          "y": 941,
+          "x": 289,
+          "y": 634,
           "width": 50,
           "height": 50
         },
         "right_shin": {
-          "x": 349,
-          "y": 939,
+          "x": 238,
+          "y": 633,
           "width": 50,
           "height": 50
         },
         "left_ankle": {
-          "x": 414,
-          "y": 1072,
+          "x": 283,
+          "y": 722,
           "width": 50,
           "height": 50
         },
         "right_ankle": {
-          "x": 360,
-          "y": 1069,
+          "x": 246,
+          "y": 720,
           "width": 50,
           "height": 50
         },
         "left_foot": {
-          "x": 458,
-          "y": 1099,
+          "x": 313,
+          "y": 740,
           "width": 50,
           "height": 50
         },
         "right_foot": {
-          "x": 321,
-          "y": 1102,
+          "x": 219,
+          "y": 742,
           "width": 50,
           "height": 50
+        }
+      },
+      "image_dimensions": {
+        "width": 512,
+        "height": 768,
+        "scaled_from": {
+          "width": 750,
+          "height": 1140
         }
       }
     }

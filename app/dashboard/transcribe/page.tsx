@@ -94,6 +94,22 @@ export default function TranscribePage() {
     }
   }, [user])
   
+  // Check if current user is a medical student
+  // Only show student UI when we're certain the user is a student AND settings are loaded
+  const isStudentUser = settingsLoaded && anonymizationSettings?.isStudent === true
+  
+  // Show privacy guidelines toast for healthcare professionals
+  useEffect(() => {
+    if (settingsLoaded && !isStudentUser) {
+      // Show toast for healthcare professionals
+      toast({
+        title: "🏥 Healthcare Professional: Patient Privacy Guidelines",
+        description: "Please ensure patient consent and follow privacy regulations - patient information will appear exactly as entered.",
+        duration: 8000, // 8 seconds
+      })
+    }
+  }, [settingsLoaded, isStudentUser, toast])
+  
   // Generate anonymous patient ID for students
   const generateAnonymousPatientId = () => {
     const timestamp = Date.now().toString().slice(-4)
@@ -103,10 +119,6 @@ export default function TranscribePage() {
       anonymized: true
     }
   }
-  
-  // Check if current user is a medical student
-  // Only show student UI when we're certain the user is a student AND settings are loaded
-  const isStudentUser = settingsLoaded && anonymizationSettings?.isStudent === true
   
 
 
@@ -133,7 +145,32 @@ export default function TranscribePage() {
       return;
     }
     
-          // Creating note for patient
+    // Check if this is a timeout scenario where note might have been created
+    if (data.isTimeout || data.error?.includes('longer than expected')) {
+      toast({
+        title: "⏰ Processing Timeout",
+        description: "Transcription took longer than expected. Checking if your note was created...",
+        duration: 8000
+      });
+      
+      // Wait a moment and then redirect to notes page to check
+      setTimeout(() => {
+        toast({
+          title: "📋 Check Your Notes",
+          description: "Please check your Notes page - your medical note may have been created successfully.",
+          duration: 10000
+        });
+        router.push('/dashboard/notes?refresh=true');
+      }, 2000);
+      
+      return;
+    }
+    
+    // Show progress notification for successful completion
+    toast({
+      title: "✅ 100% Medical Note Formed",
+      description: "Medical note completed successfully! Redirecting to note page...",
+    });
     
     // Automatically create a draft note in the backend and navigate to it
     try {
@@ -186,66 +223,92 @@ export default function TranscribePage() {
         treatmentPlan: medicalNote.treatmentPlan || data.managementPlan || '',
         noteType: 'consultation' as const,
         audioJobId: data.audioJobId,
+        // 🩺 VITAL SIGNS: Include vital signs from transcription data
+        vitalSigns: data.medicalNote?.vitalSigns || data.vitalSigns || {
+          temperature: medicalNote.temperature || 'Not recorded',
+          pulseRate: medicalNote.pulseRate || 'Not recorded',
+          respiratoryRate: medicalNote.respiratoryRate || 'Not recorded',
+          bloodPressure: medicalNote.bloodPressure || 'Not recorded',
+          oxygenSaturation: medicalNote.oxygenSaturation || 'Not recorded',
+          glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not recorded'
+        },
         // Preserve original transcript to prevent hallucination
         originalTranscript: data.transcript || data.rawTranscript || '',
       };
 
       // Note data prepared for creation
 
+
+      
       const result = await dispatch(createMedicalNote(noteData));
+      
+
       
       if (createMedicalNote.fulfilled.match(result)) {
         const savedNote = result.payload;
-        // Note creation successful
+        console.log('🎉 Note creation successful, savedNote:', savedNote);
         
-        // Navigate directly to the saved note instead of showing transcription view
-        if (savedNote && savedNote.id) {
+        // Check multiple possible ID fields in the response
+        const noteId = savedNote?.id || (savedNote as any)?._id || (savedNote as any)?.noteId;
+        
+        if (noteId) {
           toast({
             title: "🎉 Note Created Successfully",
-            description: `Medical note for ${noteData.patientName} has been created.`,
+            description: `Medical note for ${noteData.patientName} has been created and saved.`,
           });
           
           // Clear the patient form for next recording
           clearPatientForm();
           
-          // Navigate immediately to the proper note page
-          router.push(`/dashboard/notes/${savedNote.id}`);
-          return; // Exit early, don't show any local views
+          // Navigate immediately to the proper note page with proper ID
+          console.log('🧭 Navigating to note page:', `/dashboard/notes/${noteId}`);
+          router.push(`/dashboard/notes/${noteId}`);
+          return;
         } else {
+          // Note was created but ID structure is different - try to navigate anyway
+          console.warn('⚠️ Note created but no ID found in response:', savedNote);
           toast({
-            title: "🎉 Note Finalized",
-            description: "Your note has been created. Redirecting to notes page...",
+            title: "🎉 Note Created",
+            description: "Your note has been created. Opening notes page to locate it...",
           });
           
-          // Clear the patient form for next recording
           clearPatientForm();
           
-          // Navigate to notes page as fallback
-          setTimeout(() => {
-            router.push('/dashboard/notes');
-          }, 1500);
+          // Force refresh of notes page to show the new note
+          router.push('/dashboard/notes?refresh=true');
+          return;
         }
       } else if (createMedicalNote.rejected.match(result)) {
-        // Handle rejected/failed action - but note might still be created
+        // Handle rejected/failed action
         const errorMessage = result.payload || result.error?.message || 'Unknown error';
-        // Note creation API returned error, but note may still be created
+        console.error('❌ Note creation failed:', errorMessage);
         
-        // Show warning instead of error - note might still appear in the list
         toast({
-          title: "🎉 Note Finalized",
-          description: "Transcription completed. Please check your notes page.",
+          title: "❌ Medical Note Creation Failed",
+          description: `Failed to create medical note: ${errorMessage}. Your transcription was completed but the note couldn't be saved.`,
+          variant: "destructive",
+          duration: 8000 // Longer duration for important error
         });
 
-        // Navigate to notes page to see if note was actually created
+        // Show additional guidance
         setTimeout(() => {
-        router.push('/dashboard/notes');
-        }, 1500);
+          toast({
+            title: "💡 What to do next",
+            description: "You can try again with a new transcription, or contact support if the issue persists.",
+            duration: 6000
+          });
+        }, 2000);
+
+        // Navigate to notes page to see if note was partially created
+        setTimeout(() => {
+          router.push('/dashboard/notes');
+        }, 3000);
       } else {
-        // Handle any other case
-        // Unknown Redux result
+        // Handle any other case - this shouldn't happen but let's be safe
+        console.warn('⚠️ Unexpected Redux result state:', result);
         toast({
           title: "⚠️ Unexpected Result",
-          description: "Transcription completed but note status unclear. Check your notes page.",
+          description: "Note status unclear. Please check your notes page.",
         });
         
         setTimeout(() => {
@@ -253,19 +316,30 @@ export default function TranscribePage() {
         }, 2000);
       }
     } catch (error) {
-              // Error creating draft note
+      console.error('💥 Error in handleTranscriptionComplete:', error);
       
-      // Even if note creation fails, show success and try to navigate to notes page
-      // The note might still be created through other means
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
       toast({
-        title: "🎉 Transcription Complete!", 
-        description: "Your note has been processed. Redirecting to notes page...",
+        title: "❌ Transcription Processing Failed", 
+        description: `An unexpected error occurred: ${errorMessage}. Please try transcribing again.`,
+        variant: "destructive",
+        duration: 8000
       });
       
-      // Navigate to notes page as fallback
+      // Show helpful guidance
+      setTimeout(() => {
+        toast({
+          title: "🔧 Troubleshooting Tips",
+          description: "Try using a different audio file, check your internet connection, or contact support if the problem persists.",
+          duration: 10000
+        });
+      }, 2000);
+      
+      // Navigate to notes page as fallback - the note might still be there
       setTimeout(() => {
         router.push('/dashboard/notes');
-      }, 1500);
+      }, 3000);
     }
   }
 
@@ -409,7 +483,7 @@ export default function TranscribePage() {
               <CardContent className="space-y-4">
                 {/* Privacy Warning - Different for Students vs Professionals */}
                 {/* Only show alerts when settings are loaded and we know user type */}
-                {settingsLoaded && (isStudentUser ? (
+                {settingsLoaded && isStudentUser && (
                   <Alert className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950/20">
                     <AlertCircle className="h-4 w-4 text-orange-600" />
                     <AlertTitle className="text-orange-800 dark:text-orange-200">
@@ -432,17 +506,7 @@ export default function TranscribePage() {
                       </p>
                     </AlertDescription>
                   </Alert>
-                ) : (
-                  <Alert className="mb-6 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-                    <AlertCircle className="h-4 w-4 text-blue-600" />
-                    <AlertTitle className="text-blue-800 dark:text-blue-200">
-                      🏥 Healthcare Professional: Patient Privacy Guidelines
-                    </AlertTitle>
-                    <AlertDescription className="text-blue-700 dark:text-blue-300 text-sm">
-                      <p>Please ensure patient consent and follow privacy regulations - patient information will appear exactly as entered.</p>
-                    </AlertDescription>
-                  </Alert>
-                ))}
+                )}
 
                 <div className="grid gap-4">
                   <div className="grid grid-cols-4 items-center gap-4">

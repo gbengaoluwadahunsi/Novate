@@ -100,6 +100,15 @@ export const createMedicalNote = createAsyncThunk(
     }>;
     noteType: 'consultation' | 'follow-up' | 'assessment';
     audioJobId?: string;
+    // 🩺 VITAL SIGNS: Add vital signs support
+    vitalSigns?: {
+      temperature?: string;
+      pulseRate?: string;
+      respiratoryRate?: string;
+      bloodPressure?: string;
+      oxygenSaturation?: string;
+      glucoseLevels?: string;
+    };
   }, { rejectWithValue, getState }) => {
     try {
       // Get current user from auth state
@@ -125,14 +134,11 @@ export const createMedicalNote = createAsyncThunk(
       }
       
       const response = await apiClient.createMedicalNote(noteDataWithDoctor)
+      
       if (response.success) {
-        
-        
-
-        
         return response.data
       } else {
-        // Redux: Note creation failed
+        console.error('❌ REDUX STORE - NOTE CREATION FAILED:', response.error);
         return rejectWithValue(response.error || 'Failed to create medical note')
       }
     } catch (error) {

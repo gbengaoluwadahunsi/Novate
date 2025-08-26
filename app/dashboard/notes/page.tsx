@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +38,7 @@ import { MedicalNoteComprehensive } from '@/types/medical-note-comprehensive'
 
 export default function NotesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const { user } = useAppSelector((state) => state.auth)
 
@@ -253,6 +254,9 @@ export default function NotesPage() {
 
       if (response.success && response.data) {
         const data = response.data
+        
+
+        
         logger.info('🔍 API Response:', {
           hasNotes: 'notes' in data,
           notesLength: data.notes ? data.notes.length : 'No notes array',
@@ -272,6 +276,19 @@ export default function NotesPage() {
           const dateA = new Date(a.createdAt || a.updatedAt || 0);
           const dateB = new Date(b.createdAt || b.updatedAt || 0);
           return dateB.getTime() - dateA.getTime(); // Descending order (newest first)
+        });
+
+        // 🩺 DEBUG: Check vital signs in loaded notes
+        console.log('🩺 CHECKING VITAL SIGNS IN FETCHED NOTES:');
+        filteredNotes.slice(0, 3).forEach((note, index) => {
+          console.log(`Note ${index + 1} (${note.id}):`, {
+            temperature: note.temperature || 'MISSING',
+            pulseRate: note.pulseRate || 'MISSING', 
+            respiratoryRate: note.respiratoryRate || 'MISSING',
+            bloodPressure: note.bloodPressure || 'MISSING',
+            glucose: note.glucose || note.glucoseLevels || 'MISSING',
+            rawNote: note
+          });
         });
 
         // 🚨 ENHANCED DEDUPLICATION: Remove duplicates by ID AND content similarity
@@ -366,7 +383,21 @@ export default function NotesPage() {
     [loadNotes, noteTypeFilter]
   )
 
-  // 🚨 CONSOLIDATED EFFECT: Single useEffect to handle all note loading scenarios
+  // Handle refresh parameter from transcription page
+  useEffect(() => {
+    const refreshParam = searchParams.get('refresh')
+    if (refreshParam === 'true') {
+      toast({
+        title: "📝 Loading Latest Notes",
+        description: "Checking for your newly created note...",
+      })
+      loadNotes(1, '', noteTypeFilter)
+      // Remove the refresh parameter from URL
+      router.replace('/dashboard/notes', { scroll: false })
+    }
+  }, [searchParams, loadNotes, noteTypeFilter, router, toast])
+
+  // 🩺 DEBUG: Log vital signs in fetched notes\n  const debugVitalSigns = (notes: any[]) => {\n    console.log('🩺 CHECKING VITAL SIGNS IN FETCHED NOTES:');\n    notes.forEach((note, index) => {\n      console.log(`Note ${index + 1} (${note.id}):`, {\n        temperature: note.temperature || 'MISSING',\n        pulseRate: note.pulseRate || 'MISSING',\n        respiratoryRate: note.respiratoryRate || 'MISSING',\n        bloodPressure: note.bloodPressure || 'MISSING',\n        glucose: note.glucose || note.glucoseLevels || 'MISSING'\n      });\n    });\n  };\n\n  // 🚨 CONSOLIDATED EFFECT: Single useEffect to handle all note loading scenarios
   useEffect(() => {
     // Handle initial load and filter changes
     if (searchTerm.trim()) {

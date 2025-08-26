@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-08-18T04:47:08.444Z",
+  "timestamp": "2025-08-26T02:40:38.649Z",
   "total_images": 1,
   "mapped_images": 1,
   "coordinates_by_image": {
@@ -9,142 +9,150 @@
       "total_regions": 23,
       "coordinates": {
         "head": {
-          "x": 378,
-          "y": 72,
+          "x": 258,
+          "y": 49,
           "width": 50,
           "height": 50
         },
         "face": {
-          "x": 417,
-          "y": 150,
+          "x": 285,
+          "y": 101,
           "width": 50,
           "height": 50
         },
         "nose": {
-          "x": 450,
-          "y": 153,
+          "x": 307,
+          "y": 103,
           "width": 50,
           "height": 50
         },
         "left_eye": {
-          "x": 426,
-          "y": 129,
+          "x": 291,
+          "y": 87,
           "width": 50,
           "height": 50
         },
         "left_ear": {
-          "x": 363,
-          "y": 153,
+          "x": 248,
+          "y": 103,
           "width": 50,
           "height": 50
         },
         "mouth": {
-          "x": 435,
-          "y": 182,
+          "x": 297,
+          "y": 123,
           "width": 50,
           "height": 50
         },
         "neck": {
-          "x": 366,
-          "y": 227,
+          "x": 250,
+          "y": 153,
           "width": 50,
           "height": 50
         },
         "chest": {
-          "x": 420,
-          "y": 320,
+          "x": 287,
+          "y": 216,
           "width": 50,
           "height": 50
         },
         "back": {
-          "x": 294,
-          "y": 344,
+          "x": 201,
+          "y": 232,
           "width": 50,
           "height": 50
         },
         "abdomen": {
-          "x": 435,
-          "y": 451,
+          "x": 297,
+          "y": 304,
           "width": 50,
           "height": 50
         },
         "spine": {
-          "x": 291,
-          "y": 394,
+          "x": 199,
+          "y": 265,
           "width": 50,
           "height": 50
         },
         "left_shoulder": {
-          "x": 348,
-          "y": 308,
+          "x": 238,
+          "y": 207,
           "width": 50,
           "height": 50
         },
         "left_elbow": {
-          "x": 342,
-          "y": 454,
+          "x": 233,
+          "y": 306,
           "width": 50,
           "height": 50
         },
         "left_arm": {
-          "x": 348,
-          "y": 379,
+          "x": 238,
+          "y": 255,
           "width": 50,
           "height": 50
         },
         "left_forearm": {
-          "x": 378,
-          "y": 523,
+          "x": 258,
+          "y": 352,
           "width": 50,
           "height": 50
         },
         "left_wrist": {
-          "x": 417,
-          "y": 582,
+          "x": 285,
+          "y": 392,
           "width": 50,
           "height": 50
         },
         "left_hand": {
-          "x": 430,
-          "y": 670,
+          "x": 294,
+          "y": 451,
           "width": 50,
           "height": 50
         },
         "left_hip": {
-          "x": 370,
-          "y": 681,
+          "x": 253,
+          "y": 459,
           "width": 50,
           "height": 50
         },
         "left_thigh": {
-          "x": 387,
-          "y": 714,
+          "x": 264,
+          "y": 481,
           "width": 50,
           "height": 50
         },
         "left_knee": {
-          "x": 399,
-          "y": 850,
+          "x": 272,
+          "y": 573,
           "width": 50,
           "height": 50
         },
         "left_calf": {
-          "x": 290,
-          "y": 920,
+          "x": 198,
+          "y": 620,
           "width": 50,
           "height": 50
         },
         "left_ankle": {
-          "x": 351,
-          "y": 1060,
+          "x": 240,
+          "y": 714,
           "width": 50,
           "height": 50
         },
         "left_foot": {
-          "x": 426,
-          "y": 1090,
+          "x": 291,
+          "y": 734,
           "width": 50,
           "height": 50
+        }
+      },
+      "image_dimensions": {
+        "width": 512,
+        "height": 768,
+        "scaled_from": {
+          "width": 750,
+          "height": 1140
         }
       }
     }

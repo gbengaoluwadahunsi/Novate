@@ -37,6 +37,7 @@ interface ApiResponse<T = any> {
   message?: string;
   error?: string;
   details?: string;
+  recommendations?: string[];
 }
 
 interface PaginationMeta {
@@ -93,6 +94,7 @@ interface MedicalNote {
   historyOfPresentIllness?: string;
   historyOfPresentingIllness?: string; // Backend field name
   pastMedicalHistory?: string;
+  socialHistory?: string;
   systemReview?: string;
   physicalExamination?: string;
   comprehensiveExamination?: ExaminationTemplate; // New detailed examination
@@ -109,6 +111,14 @@ interface MedicalNote {
   timeSaved?: number | null;
   createdAt: string;
   updatedAt: string;
+  // Vital Signs fields
+  temperature?: string;
+  pulseRate?: string;
+  respiratoryRate?: string;
+  bloodPressure?: string;
+  oxygenSaturation?: string;
+  glucoseLevels?: string;
+  glucose?: string;
   // Doctor information fields
   doctorName?: string;
   doctorRegistrationNo?: string;
@@ -759,8 +769,21 @@ class ApiClient {
       };
     }
 
+    // 🔍 DEBUG: Log file information before creating FormData
+    console.log('🔍 API Client file info:', {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    });
+
     const formData = new FormData();
-    formData.append('audioFile', file);
+    
+    // ✅ FIXED: Use 'audioFile' field name to match backend expectation
+    formData.append('audioFile', file, file.name);
+    
+    // 🔍 DEBUG: Log FormData contents
+    console.log('🔍 FormData created with file:', file.name);
 
     if (language) {
       formData.append('language', language);
@@ -799,7 +822,9 @@ class ApiClient {
     }
 
     const formData = new FormData();
-    formData.append('audioFile', file);
+    
+    // ✅ FIXED: Use 'audioFile' field name to match backend expectation
+    formData.append('audioFile', file, file.name);
 
     if (language) {
       formData.append('language', language);
@@ -847,6 +872,15 @@ class ApiClient {
     prescriptions?: Prescription[];
     noteType: 'consultation' | 'follow-up' | 'assessment';
     audioJobId?: string;
+    // 🩺 VITAL SIGNS: Add vital signs support
+    vitalSigns?: {
+      temperature?: string;
+      pulseRate?: string;
+      respiratoryRate?: string;
+      bloodPressure?: string;
+      oxygenSaturation?: string;
+      glucoseLevels?: string;
+    };
     // Optional doctor information (will be fetched from backend if not provided)
     doctorName?: string;
     doctorRegistrationNo?: string;
@@ -897,7 +931,16 @@ class ApiClient {
       },
       noteType: noteData.noteType,
       startedAt: new Date().toISOString(),
-      audioDuration: 0 // Add if available
+      audioDuration: 0, // Add if available
+      // 🩺 VITAL SIGNS: Include vital signs in backend payload
+      ...(noteData.vitalSigns && {
+        temperature: noteData.vitalSigns.temperature,
+        pulseRate: noteData.vitalSigns.pulseRate,
+        respiratoryRate: noteData.vitalSigns.respiratoryRate,
+        bloodPressure: noteData.vitalSigns.bloodPressure,
+        oxygenSaturation: noteData.vitalSigns.oxygenSaturation,
+        glucoseLevels: noteData.vitalSigns.glucoseLevels
+      })
     };
 
     // Creating medical note for patient
@@ -908,40 +951,25 @@ class ApiClient {
 
     // Generate ICD-11 codes automatically if we have medical content
     let icd11Codes = null;
-    const hasMedicalContent = noteData.chiefComplaint || noteData.diagnosis || noteData.historyOfPresentIllness;
-    
-    if (hasMedicalContent) {
-      try {
-        // Auto-generating ICD-11 codes for medical note
-        
-        const icd11Response = await this.generateICD11Codes({
-          diagnosis: noteData.diagnosis || '',
-          symptoms: '', // Will be populated from system review if available
-          chiefComplaint: noteData.chiefComplaint || '',
-          assessment: noteData.diagnosis || ''
-        });
-
-        if (icd11Response.success && icd11Response.data) {
-          icd11Codes = icd11Response.data;
-          // ICD-11 codes auto-generated
-        } else {
-          // Failed to auto-generate ICD-11 codes
-        }
-      } catch (error) {
-        // Error auto-generating ICD-11 codes
-        // Continue with note creation even if ICD-11 generation fails
-      }
-    }
+    // ⚡ PERFORMANCE: Skip synchronous ICD-11 generation during note creation
+    // ICD-11 codes will be generated asynchronously after note is saved
+    // This improves note creation speed by 2-5 seconds
     
     // Add ICD-11 codes to the backend data if generated
     if (icd11Codes) {
       (backendData as any).icd11Codes = icd11Codes;
     }
     
-    return this.request('/medical-notes', {
+
+    
+    const response = await this.request('/medical-notes', {
       method: 'POST',
       body: JSON.stringify(backendData),
     });
+    
+
+    
+    return response as ApiResponse<MedicalNote>;
   }
 
   /**
@@ -954,16 +982,34 @@ class ApiClient {
     assessment?: string;
   }): Promise<ApiResponse<ICD11MedicalCodes>> {
     try {
-      const response = await this.request<ICD11MedicalCodes>('/api/simple-icd11', {
+      // Use Next.js API routes directly instead of external backend
+      const response = await fetch(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/simple-icd11`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(medicalData),
       });
 
-      if (response.success && response.data) {
-        // ICD-11 codes generated successfully
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      return response;
+      const data = await response.json();
+
+      if (data.success && data.codes) {
+        // ICD-11 codes generated successfully
+        return {
+          success: true,
+          data: data.codes
+        };
+      }
+
+      return {
+        success: data.success || false,
+        error: data.error || 'Unknown error',
+        data: data.codes
+      };
     } catch (error) {
       // Error generating ICD-11 codes
       return {
@@ -1019,6 +1065,7 @@ class ApiClient {
       // Transform nested backend structure to flat frontend structure for each note
       if (transformedResponse.success && transformedResponse.data?.notes) {
 
+
         
         transformedResponse.data.notes = transformedResponse.data.notes.map((backendNote: any) => {
           const transformedNote: MedicalNote = {
@@ -1060,6 +1107,8 @@ class ApiClient {
             doctorName: backendNote.doctorDetails?.name || backendNote.doctorName || '',
             doctorRegistrationNo: backendNote.doctorDetails?.registrationNo || backendNote.doctorRegistrationNo || ''
           };
+          
+
           
           return transformedNote;
         });

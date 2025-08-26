@@ -543,64 +543,27 @@ export default function HomePage() {
         style={{ opacity: heroOpacity, scale: heroScale, y: heroY }}
         className="relative min-h-screen flex flex-col items-center justify-center px-2 sm:px-4 py-20 overflow-hidden"
       >
-        {/* Gradient background */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-sky-900/20 via-blue-900/5 to-transparent"></div>
-
-        {/* Animated gradient circles - disabled on iOS for performance */}
-        {!isIOS && (
-          <>
-            <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-            <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-blue-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-            <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-sky-600/30 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
-          </>
-        )}
-
-        {/* iOS-optimized static gradient */}
-        {isIOS && (
-          <div className="absolute inset-0 bg-gradient-to-br from-sky-600/10 via-blue-600/5 to-transparent"></div>
-        )}
+        {/* Hero background with blob colors */}
+        <div className="absolute inset-0 bg-gradient-to-br from-sky-600/20 via-blue-600/15 to-sky-500/10"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-white/60 via-white/40 to-transparent dark:from-gray-900/80 dark:via-gray-900/60 dark:to-transparent"></div>
 
         <div className="container mx-auto max-w-6xl relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: isIOS ? 0 : -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: isIOS ? 0.3 : 0.6, delay: 0 }}
-            >
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0 }}
-                className="mb-4 sm:mb-6 flex justify-center lg:justify-start"
-              >
+            <div>
+              <div className="mb-4 sm:mb-6 flex justify-center lg:justify-start">
                 <span className="px-3 py-1 rounded-full text-xs sm:text-sm font-medium bg-[#0ea5e9]/20 text-[#0ea5e9] dark:text-[#0ea5e9] border border-[#0ea5e9]/30 whitespace-nowrap">
                   AI-Powered Medical Documentation
                 </span>
-              </motion.div>
+              </div>
 
-              <motion.h1
-                initial={{ opacity: 0, y: isIOS ? 0 : -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isIOS ? 0.3 : 0.5, delay: isIOS ? 0 : 0.1 }}
-                className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-[#0ea5e9] text-center lg:text-left"
-              >
+              <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 sm:mb-6 text-[#0ea5e9] text-center lg:text-left">
                 NovateScribe<sup className="text-black dark:text-white font-normal">TM</sup>
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: isIOS ? 0 : -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isIOS ? 0.3 : 0.5, delay: isIOS ? 0 : 0.2 }}
-                className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 text-center lg:text-left"
-              >
+              </h1>
+              <p className="text-lg sm:text-xl md:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 text-center lg:text-left">
                 Transform your medical voice notes into perfectly structured digital records in seconds.
-              </motion.p>
+              </p>
               
-              <motion.div
-                initial={{ opacity: 0, y: isIOS ? 0 : -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: isIOS ? 0.3 : 0.5, delay: isIOS ? 0 : 0.3 }}
-                className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start"
-              >
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
                 <Button size="lg" className="bg-[#0ea5e9] hover:bg-[#0284c7] text-white w-full sm:w-auto" asChild>
                   <Link href={isAuthenticated ? "/dashboard" : "/register"}>
                     {isAuthenticated ? "Dashboard" : "Get Started"} <ArrowRight className="ml-2 h-5 w-5" />
@@ -611,39 +574,23 @@ export default function HomePage() {
                     Learn More <ChevronRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
 
-            <motion.div
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="h-[300px] sm:h-[400px] lg:h-[500px] w-full relative"
-            >
+            <div className="h-[300px] sm:h-[400px] lg:h-[500px] w-full relative">
               <div className="absolute inset-0 bg-gradient-to-r from-sky-600/10 to-blue-500/10 rounded-3xl"></div>
               <div className="h-full w-full rounded-3xl overflow-hidden p-2 sm:p-4">
                 <MedicalNoteVisual />
               </div>
-            </motion.div>
+            </div>
           </div>
         </div>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="absolute bottom-10 left-1/2 transform -translate-x-1/2"
-        >
+        <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2">
           <div className="flex flex-col items-center">
-            <span className="text-gray-500 dark:text-gray-400 mb-2">Scroll to explore</span>
-            <motion.div
-              animate={{ y: [0, 10, 0] }}
-              transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, repeatType: "loop" }}
-            >
               <ChevronRight className="h-6 w-6 text-sky-500 transform rotate-90" />
-            </motion.div>
           </div>
-        </motion.div>
+        </div>
       </motion.section>
 
       {/* Features Section */}

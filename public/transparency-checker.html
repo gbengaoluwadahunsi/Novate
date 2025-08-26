@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medical Images Transparency Checker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .image-test-card {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        .image-header {
+            background: #f8f9fa;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            text-align: center;
+            font-weight: bold;
+            color: #333;
+        }
+        .image-backgrounds {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            height: 200px;
+        }
+        .bg-test {
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .bg-white { 
+            background: white; 
+        }
+        .bg-checkerboard {
+            background-image: 
+                repeating-conic-gradient(#ccc 0% 25%, white 0% 50%);
+            background-size: 20px 20px;
+        }
+        .bg-dark { 
+            background: #333; 
+        }
+        .test-image {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        .bg-label {
+            position: absolute;
+            top: 5px;
+            left: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .transparency-status {
+            padding: 10px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .transparent { background: #d4edda; color: #155724; }
+        .not-transparent { background: #f8d7da; color: #721c24; }
+        .unknown { background: #fff3cd; color: #856404; }
+        
+        .stats {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: #e3f2fd;
+            border-radius: 8px;
+        }
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #1976d2;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            text-align: center;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.success { background: #28a745; }
+        .btn.danger { background: #dc3545; }
+        
+        .legend {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .legend h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .legend-item {
+            display: inline-block;
+            margin-right: 20px;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 15px;
+            margin-right: 5px;
+            border-radius: 3px;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Medical Images Transparency Checker</h1>
+        <p>Testing all medical images for transparent backgrounds. Each image is shown on 3 backgrounds to reveal transparency.</p>
+        
+        <div class="legend">
+            <h3>📋 Background Tests</h3>
+            <div class="legend-item">
+                <span class="legend-color" style="background: white; border: 1px solid #ccc;"></span>
+                <strong>White:</strong> Standard background
+            </div>
+            <div class="legend-item">
+                <span class="legend-color bg-checkerboard"></span>
+                <strong>Checkerboard:</strong> Reveals transparency
+            </div>
+            <div class="legend-item">
+                <span class="legend-color" style="background: #333;"></span>
+                <strong>Dark:</strong> Shows non-transparent areas
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <div class="stat-number" id="totalImages">12</div>
+                <div class="stat-label">Total Images</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="transparentCount">0</div>
+                <div class="stat-label">Transparent</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="nonTransparentCount">0</div>
+                <div class="stat-label">Non-Transparent</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-number" id="errorCount">0</div>
+                <div class="stat-label">Load Errors</div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button class="btn" onclick="checkAllImages()">🔄 Recheck All Images</button>
+            <button class="btn success" onclick="showOnlyTransparent()">✅ Show Only Transparent</button>
+            <button class="btn danger" onclick="showOnlyNonTransparent()">❌ Show Only Non-Transparent</button>
+            <button class="btn" onclick="showAll()">👁️ Show All</button>
+        </div>
+
+        <div class="image-grid" id="imageGrid">
+            <!-- Images will be loaded here -->
+        </div>
+    </div>
+
+    <script>
+        const medicalImages = [
+            'femaleabdominallinguinal.png',
+            'femaleback.png', 
+            'femalecardiorespi.png',
+            'femalefront.png',
+            'femaleleftside.png',
+            'femalerightside.png',
+            'maleabdominallinguinal.png',
+            'maleback.png',
+            'malecardiorespi.png', 
+            'malefront.png',
+            'maleleftside.png',
+            'malerightside.png'
+        ];
+
+        let imageResults = {};
+
+        function createImageCard(imageName) {
+            const card = document.createElement('div');
+            card.className = 'image-test-card';
+            card.id = `card-${imageName}`;
+            
+            card.innerHTML = `
+                <div class="image-header">
+                    ${imageName.replace('.png', '').replace(/([a-z])([A-Z])/g, '$1 $2').toUpperCase()}
+                </div>
+                <div class="image-backgrounds">
+                    <div class="bg-test bg-white">
+                        <div class="bg-label">White</div>
+                        <img src="medical-images/${imageName}" alt="${imageName}" class="test-image" 
+                             onerror="handleImageError('${imageName}', this)">
+                    </div>
+                    <div class="bg-test bg-checkerboard">
+                        <div class="bg-label">Pattern</div>
+                        <img src="medical-images/${imageName}" alt="${imageName}" class="test-image"
+                             onerror="handleImageError('${imageName}', this)">
+                    </div>
+                    <div class="bg-test bg-dark">
+                        <div class="bg-label">Dark</div>
+                        <img src="medical-images/${imageName}" alt="${imageName}" class="test-image"
+                             onerror="handleImageError('${imageName}', this)" 
+                             onload="analyzeTransparency('${imageName}', this)">
+                    </div>
+                </div>
+                <div class="transparency-status unknown" id="status-${imageName}">
+                    🔄 Analyzing...
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function handleImageError(imageName, imgElement) {
+            console.error(`Failed to load: ${imageName}`);
+            imageResults[imageName] = 'error';
+            updateImageStatus(imageName, 'error', '❌ Failed to load image');
+            updateStats();
+        }
+
+        function analyzeTransparency(imageName, imgElement) {
+            try {
+                // Create a canvas to analyze the image
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                canvas.width = imgElement.naturalWidth;
+                canvas.height = imgElement.naturalHeight;
+                
+                ctx.drawImage(imgElement, 0, 0);
+                
+                // Sample pixels to detect transparency
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const pixels = imageData.data;
+                
+                let transparentPixels = 0;
+                let totalPixels = pixels.length / 4;
+                let blackPixels = 0;
+                
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const alpha = pixels[i + 3];
+                    const r = pixels[i];
+                    const g = pixels[i + 1];
+                    const b = pixels[i + 2];
+                    
+                    // Count transparent pixels
+                    if (alpha < 255) {
+                        transparentPixels++;
+                    }
+                    
+                    // Count black/very dark pixels
+                    if (r < 30 && g < 30 && b < 30 && alpha === 255) {
+                        blackPixels++;
+                    }
+                }
+                
+                const transparencyRatio = transparentPixels / totalPixels;
+                const blackRatio = blackPixels / totalPixels;
+                
+                // Determine transparency status
+                let status, message;
+                if (transparencyRatio > 0.1) {
+                    status = 'transparent';
+                    message = `✅ Transparent (${(transparencyRatio * 100).toFixed(1)}% transparent pixels)`;
+                } else if (blackRatio > 0.3) {
+                    status = 'not-transparent';
+                    message = `❌ Non-Transparent (${(blackRatio * 100).toFixed(1)}% black pixels)`;
+                } else {
+                    status = 'transparent';
+                    message = `✅ Appears Transparent (${(transparencyRatio * 100).toFixed(1)}% transparent)`;
+                }
+                
+                imageResults[imageName] = status;
+                updateImageStatus(imageName, status, message);
+                updateStats();
+                
+            } catch (error) {
+                console.error(`Error analyzing ${imageName}:`, error);
+                imageResults[imageName] = 'error';
+                updateImageStatus(imageName, 'error', '❌ Analysis failed');
+                updateStats();
+            }
+        }
+
+        function updateImageStatus(imageName, status, message) {
+            const statusElement = document.getElementById(`status-${imageName}`);
+            if (statusElement) {
+                statusElement.className = `transparency-status ${status}`;
+                statusElement.textContent = message;
+            }
+        }
+
+        function updateStats() {
+            const transparent = Object.values(imageResults).filter(r => r === 'transparent').length;
+            const nonTransparent = Object.values(imageResults).filter(r => r === 'not-transparent').length;
+            const errors = Object.values(imageResults).filter(r => r === 'error').length;
+            
+            document.getElementById('transparentCount').textContent = transparent;
+            document.getElementById('nonTransparentCount').textContent = nonTransparent;
+            document.getElementById('errorCount').textContent = errors;
+        }
+
+        function checkAllImages() {
+            imageResults = {};
+            loadImages();
+        }
+
+        function showOnlyTransparent() {
+            medicalImages.forEach(imageName => {
+                const card = document.getElementById(`card-${imageName}`);
+                card.style.display = imageResults[imageName] === 'transparent' ? 'block' : 'none';
+            });
+        }
+
+        function showOnlyNonTransparent() {
+            medicalImages.forEach(imageName => {
+                const card = document.getElementById(`card-${imageName}`);
+                card.style.display = imageResults[imageName] === 'not-transparent' ? 'block' : 'none';
+            });
+        }
+
+        function showAll() {
+            medicalImages.forEach(imageName => {
+                const card = document.getElementById(`card-${imageName}`);
+                card.style.display = 'block';
+            });
+        }
+
+        function loadImages() {
+            const grid = document.getElementById('imageGrid');
+            grid.innerHTML = '';
+            
+            medicalImages.forEach(imageName => {
+                const card = createImageCard(imageName);
+                grid.appendChild(card);
+            });
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', function() {
+            loadImages();
+        });
+    </script>
+</body>
+</html>

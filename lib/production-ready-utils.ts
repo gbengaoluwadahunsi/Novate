@@ -110,7 +110,7 @@ async function checkServiceAvailability(): Promise<Array<ProductionReadinessRepo
   
   try {
     // Check Simple ICD-11 API
-    const simpleIcd11Response = await fetch('/api/simple-icd11', { method: 'GET' });
+    const simpleIcd11Response = await fetch(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/simple-icd11`, { method: 'GET' });
     checks.push({
       category: 'Services',
       name: 'Simple ICD-11 API',

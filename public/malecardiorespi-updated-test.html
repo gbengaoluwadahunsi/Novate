@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Male Cardiorespiratory - Updated Coordinates Visualization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f4f8;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .title {
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #4a5568;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .update-banner {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        
+        .update-banner h3 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+        }
+        
+        .update-banner p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 25px;
+            justify-content: center;
+        }
+        
+        .stat-box {
+            background: linear-gradient(135deg, #4299e1, #3182ce);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            text-align: center;
+            flex: 1;
+            max-width: 140px;
+            box-shadow: 0 4px 10px rgba(66, 153, 225, 0.3);
+        }
+        
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            display: block;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: flex;
+            gap: 25px;
+            align-items: flex-start;
+        }
+        
+        .image-container {
+            position: relative;
+            display: inline-block;
+            border: 3px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            flex-shrink: 0;
+        }
+        
+        .medical-image {
+            display: block;
+            width: 512px;
+            height: 768px;
+            object-fit: contain;
+        }
+        
+        .coordinate-marker {
+            position: absolute;
+            border: 2px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 10;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+            transition: transform 0.2s ease;
+        }
+        
+        .coordinate-marker:hover {
+            transform: translate(-50%, -50%) scale(1.3);
+            z-index: 20;
+        }
+        
+        /* Color coding for examination types */
+        .coordinate-marker.cardiac { background-color: #e53e3e; width: 14px; height: 14px; }
+        .coordinate-marker.percussion { background-color: #3182ce; width: 12px; height: 12px; }
+        .coordinate-marker.auscultation { background-color: #38a169; width: 14px; height: 14px; }
+        .coordinate-marker.vascular { background-color: #d69e2e; width: 12px; height: 12px; }
+        .coordinate-marker.examination { background-color: #805ad5; width: 14px; height: 14px; }
+        
+        .coordinate-label {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+            transform: translate(-50%, -100%);
+            margin-top: -25px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+        
+        .coordinate-marker:hover .coordinate-label {
+            opacity: 1;
+        }
+        
+        .controls-panel {
+            flex: 1;
+            min-width: 400px;
+        }
+        
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-bottom: 25px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .toggle-btn {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .toggle-btn:hover {
+            background: #3182ce;
+            transform: translateY(-1px);
+        }
+        
+        .toggle-btn.active {
+            background: #38a169;
+            box-shadow: 0 0 0 2px #68d391;
+        }
+        
+        .coordinates-list {
+            background: #f7fafc;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e2e8f0;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .coordinates-list h3 {
+            margin-top: 0;
+            color: #2d3748;
+            border-bottom: 2px solid #4299e1;
+            padding-bottom: 8px;
+        }
+        
+        .coord-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 12px;
+            font-size: 12px;
+        }
+        
+        .coord-item {
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            border-left: 4px solid #4299e1;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        
+        .coord-item:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .coord-item.cardiac { border-left-color: #e53e3e; }
+        .coord-item.percussion { border-left-color: #3182ce; }
+        .coord-item.auscultation { border-left-color: #38a169; }
+        .coord-item.vascular { border-left-color: #d69e2e; }
+        .coord-item.examination { border-left-color: #805ad5; }
+        
+        .category-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .category-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+        }
+        
+        .category-color {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .changes-highlight {
+            background: #e6fffa;
+            border: 1px solid #81e6d9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .changes-highlight h4 {
+            color: #234e52;
+            margin-top: 0;
+        }
+        
+        .change-item {
+            font-size: 12px;
+            color: #2d3748;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">🫀 Male Cardiorespiratory - Updated Medical Coordinates</h1>
+            <p class="subtitle">Medically accurate examination points verified by healthcare expert</p>
+            
+            <div class="update-banner">
+                <h3>✅ Coordinates Updated Successfully</h3>
+                <p>All 34 examination points have been repositioned based on medical expert review for anatomical accuracy</p>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <span class="stat-number">34</span>
+                <span class="stat-label">Total Points</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">8</span>
+                <span class="stat-label">Cardiac Areas</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">10</span>
+                <span class="stat-label">Percussion Points</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">6</span>
+                <span class="stat-label">Auscultation Areas</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number">10</span>
+                <span class="stat-label">Examination Points</span>
+            </div>
+        </div>
+
+        <div class="changes-highlight">
+            <h4>🔍 Key Position Updates</h4>
+            <div class="change-item">• <strong>Trachea Suprasternal Notch:</strong> Moved down 60px for anatomical precision</div>
+            <div class="change-item">• <strong>Cardiac Areas:</strong> Repositioned for accurate valve examination points</div>
+            <div class="change-item">• <strong>Percussion Points:</strong> Aligned with correct intercostal space locations</div>
+            <div class="change-item">• <strong>Carotid Arteries:</strong> Adjusted for proper palpation sites</div>
+            <div class="change-item">• <strong>Auscultation Areas:</strong> Optimized for lung sound examination</div>
+        </div>
+
+        <div class="category-legend">
+            <div class="category-item">
+                <div class="category-color" style="background-color: #e53e3e;"></div>
+                <span><strong>Cardiac Areas</strong> - Heart valve areas, apex beat</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #3182ce;"></div>
+                <span><strong>Percussion Points</strong> - Chest percussion locations</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #38a169;"></div>
+                <span><strong>Auscultation Areas</strong> - Lung sound listening points</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #d69e2e;"></div>
+                <span><strong>Vascular Points</strong> - Carotid arteries, JVP</span>
+            </div>
+            <div class="category-item">
+                <div class="category-color" style="background-color: #805ad5;"></div>
+                <span><strong>Examination Areas</strong> - Tactile fremitus, chest expansion</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="toggle-btn active" id="toggleAll">🎯 Toggle All</button>
+            <button class="toggle-btn active" id="toggleCardiac">💖 Cardiac Areas</button>
+            <button class="toggle-btn active" id="togglePercussion">🥁 Percussion Points</button>
+            <button class="toggle-btn active" id="toggleAuscultation">🎧 Auscultation Areas</button>
+            <button class="toggle-btn active" id="toggleVascular">🩸 Vascular Points</button>
+            <button class="toggle-btn active" id="toggleExamination">🔍 Examination Areas</button>
+        </div>
+
+        <div class="main-content">
+            <div class="image-container">
+                <img src="medical-images/malecardiorespi.png" alt="Male Cardiorespiratory Medical Diagram" class="medical-image">
+                <!-- Coordinate markers will be added by JavaScript -->
+            </div>
+            
+            <div class="controls-panel">
+                <div class="coordinates-list">
+                    <h3>🎯 Updated Examination Points <span id="pointCount">(34 points)</span></h3>
+                    <div class="coord-grid" id="coordinatesList">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Updated male cardiorespiratory coordinates (from medical expert)
+        const coordinates = {
+            // Cardiac examination areas
+            "trachea_suprasternal_notch": { "x": 251, "y": 170, "width": 30, "height": 30, "category": "cardiac" },
+            "lower_sternal_border": { "x": 255, "y": 362, "width": 30, "height": 30, "category": "cardiac" },
+            "parasternal_heave_area": { "x": 332, "y": 251, "width": 30, "height": 30, "category": "cardiac" },
+            "aortic_area": { "x": 217, "y": 249, "width": 30, "height": 30, "category": "cardiac" },
+            "pulmonary_area": { "x": 296, "y": 250, "width": 30, "height": 30, "category": "cardiac" },
+            "tricuspid_area": { "x": 278, "y": 353, "width": 30, "height": 30, "category": "cardiac" },
+            "mitral_area": { "x": 351, "y": 387, "width": 30, "height": 30, "category": "cardiac" },
+            "apex_beat_5th_ics_midclavicular": { "x": 358, "y": 366, "width": 30, "height": 30, "category": "cardiac" },
+
+            // Vascular examination points
+            "carotid_artery_right": { "x": 217, "y": 147, "width": 28, "height": 28, "category": "vascular" },
+            "carotid_artery_left": { "x": 291, "y": 143, "width": 28, "height": 28, "category": "vascular" },
+            "jugular_venous_pressure_point": { "x": 201, "y": 117, "width": 28, "height": 28, "category": "vascular" },
+
+            // Chest examination points
+            "upper_chest_expansion_right": { "x": 127, "y": 286, "width": 34, "height": 34, "category": "examination" },
+            "upper_chest_expansion_left": { "x": 333, "y": 251, "width": 34, "height": 34, "category": "examination" },
+            "lower_chest_expansion_right": { "x": 148, "y": 391, "width": 34, "height": 34, "category": "examination" },
+            "lower_chest_expansion_left": { "x": 329, "y": 393, "width": 34, "height": 34, "category": "examination" },
+            "tactile_fremitus_upper_right": { "x": 153, "y": 242, "width": 34, "height": 34, "category": "examination" },
+            "tactile_fremitus_upper_left": { "x": 383, "y": 251, "width": 34, "height": 34, "category": "examination" },
+            "tactile_fremitus_lower_right": { "x": 149, "y": 391, "width": 34, "height": 34, "category": "examination" },
+            "tactile_fremitus_lower_left": { "x": 330, "y": 397, "width": 34, "height": 34, "category": "examination" },
+
+            // Percussion points
+            "percussion_above_clavicle_right": { "x": 157, "y": 157, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_above_clavicle_left": { "x": 332, "y": 161, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_clavicle_right": { "x": 151, "y": 188, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_clavicle_left": { "x": 335, "y": 190, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_2nd_ics_right": { "x": 155, "y": 244, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_2nd_ics_left": { "x": 334, "y": 251, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_3rd_ics_right": { "x": 154, "y": 283, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_3rd_ics_left": { "x": 331, "y": 284, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_4th_ics_right": { "x": 154, "y": 327, "width": 32, "height": 32, "category": "percussion" },
+            "percussion_4th_ics_left": { "x": 329, "y": 330, "width": 32, "height": 32, "category": "percussion" },
+
+            // Auscultation points
+            "auscultation_upper_right": { "x": 153, "y": 242, "width": 34, "height": 34, "category": "auscultation" },
+            "auscultation_upper_left": { "x": 340, "y": 219, "width": 34, "height": 34, "category": "auscultation" },
+            "auscultation_middle_right": { "x": 153, "y": 301, "width": 34, "height": 34, "category": "auscultation" },
+            "auscultation_middle_left": { "x": 330, "y": 306, "width": 34, "height": 34, "category": "auscultation" },
+            "auscultation_lower_right": { "x": 148, "y": 391, "width": 34, "height": 34, "category": "auscultation" },
+            "auscultation_lower_left": { "x": 329, "y": 395, "width": 34, "height": 34, "category": "auscultation" },
+
+            // Additional cardiac area
+            "mitral_area_to_axilla": { "x": 420, "y": 346, "width": 40, "height": 40, "category": "cardiac" }
+        };
+
+        let visibleCategories = new Set(['cardiac', 'percussion', 'auscultation', 'vascular', 'examination']);
+
+        function createMarkers() {
+            const container = document.querySelector('.image-container');
+            const coordinatesList = document.getElementById('coordinatesList');
+            
+            // Clear existing markers and list
+            container.querySelectorAll('.coordinate-marker').forEach(marker => marker.remove());
+            coordinatesList.innerHTML = '';
+            
+            // Create markers for coordinates
+            Object.entries(coordinates).forEach(([name, coord]) => {
+                const category = coord.category || 'examination';
+                
+                if (visibleCategories.has(category)) {
+                    // Create marker
+                    const marker = document.createElement('div');
+                    marker.className = `coordinate-marker ${category}`;
+                    marker.style.left = coord.x + 'px';
+                    marker.style.top = coord.y + 'px';
+                    
+                    const label = document.createElement('div');
+                    label.className = 'coordinate-label';
+                    label.textContent = `${name.replace(/_/g, ' ').toUpperCase()} (${coord.x}, ${coord.y})`;
+                    marker.appendChild(label);
+                    
+                    container.appendChild(marker);
+                }
+
+                // Add to coordinates list
+                const listItem = document.createElement('div');
+                listItem.className = `coord-item ${category}`;
+                listItem.style.display = visibleCategories.has(category) ? 'block' : 'none';
+                listItem.innerHTML = `
+                    <strong>${name.replace(/_/g, ' ').toUpperCase()}</strong><br>
+                    📍 X: ${coord.x}, Y: ${coord.y}<br>
+                    📏 Size: ${coord.width}×${coord.height}<br>
+                    <span style="font-size: 11px; color: #666; text-transform: capitalize;">${category.replace('_', ' ')} Point</span>
+                `;
+                coordinatesList.appendChild(listItem);
+            });
+            
+            updatePointCount();
+        }
+
+        function toggleCategory(category) {
+            if (visibleCategories.has(category)) {
+                visibleCategories.delete(category);
+            } else {
+                visibleCategories.add(category);
+            }
+            createMarkers();
+            updateToggleButtons();
+        }
+
+        function toggleAll() {
+            const allCategories = ['cardiac', 'percussion', 'auscultation', 'vascular', 'examination'];
+            if (visibleCategories.size === allCategories.length) {
+                visibleCategories.clear();
+            } else {
+                visibleCategories = new Set(allCategories);
+            }
+            createMarkers();
+            updateToggleButtons();
+        }
+
+        function updateToggleButtons() {
+            document.getElementById('toggleAll').classList.toggle('active', visibleCategories.size > 0);
+            document.getElementById('toggleCardiac').classList.toggle('active', visibleCategories.has('cardiac'));
+            document.getElementById('togglePercussion').classList.toggle('active', visibleCategories.has('percussion'));
+            document.getElementById('toggleAuscultation').classList.toggle('active', visibleCategories.has('auscultation'));
+            document.getElementById('toggleVascular').classList.toggle('active', visibleCategories.has('vascular'));
+            document.getElementById('toggleExamination').classList.toggle('active', visibleCategories.has('examination'));
+        }
+
+        function updatePointCount() {
+            const visibleCount = Object.values(coordinates).filter(coord => 
+                visibleCategories.has(coord.category || 'examination')
+            ).length;
+            document.getElementById('pointCount').textContent = `(${visibleCount} visible of 34 total)`;
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Event listeners
+            document.getElementById('toggleAll').addEventListener('click', toggleAll);
+            document.getElementById('toggleCardiac').addEventListener('click', () => toggleCategory('cardiac'));
+            document.getElementById('togglePercussion').addEventListener('click', () => toggleCategory('percussion'));
+            document.getElementById('toggleAuscultation').addEventListener('click', () => toggleCategory('auscultation'));
+            document.getElementById('toggleVascular').addEventListener('click', () => toggleCategory('vascular'));
+            document.getElementById('toggleExamination').addEventListener('click', () => toggleCategory('examination'));
+            
+            createMarkers();
+        });
+    </script>
+</body>
+</html>

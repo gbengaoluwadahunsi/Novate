@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Save, FileText, Upload, X, User, Brain, Stethoscope, Activity, Heart, Pill, Users, FileSearch } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import EnhancedMedicalDiagram from '@/components/medical-diagram/enhanced-medical-diagram'
+import SimpleMedicalDiagram from '@/components/medical-diagram/simple-medical-diagram'
 
 // ICD-11 Codes Interface
 interface ICD11Codes {
@@ -174,6 +174,8 @@ export default function CleanMedicalNoteEditor({
   const updateField = (field: keyof CleanMedicalNote, value: string) => {
     setNote(prev => ({ ...prev, [field]: value }))
   }
+
+
 
   const handleSave = () => {
     if (onSave) {
@@ -474,7 +476,7 @@ export default function CleanMedicalNoteEditor({
               <div>
                 <Label className="text-xs">Temperature</Label>
                 <Input
-                  value={note.temperature}
+                  value={(note as any).vitalSigns?.temperature || note.temperature || ''}
                   onChange={(e) => updateField('temperature', e.target.value)}
                   disabled={!isEditing}
                   placeholder="e.g., 37.5°C"
@@ -484,7 +486,7 @@ export default function CleanMedicalNoteEditor({
               <div>
                 <Label className="text-xs">Pulse Rate</Label>
                 <Input
-                  value={note.pulseRate}
+                  value={(note as any).vitalSigns?.pulseRate || note.pulseRate || ''}
                   onChange={(e) => updateField('pulseRate', e.target.value)}
                   disabled={!isEditing}
                   placeholder="e.g., 80 bpm"
@@ -494,7 +496,7 @@ export default function CleanMedicalNoteEditor({
               <div>
                 <Label className="text-xs">Respiratory Rate</Label>
                 <Input
-                  value={note.respiratoryRate}
+                  value={(note as any).vitalSigns?.respiratoryRate || note.respiratoryRate || ''}
                   onChange={(e) => updateField('respiratoryRate', e.target.value)}
                   disabled={!isEditing}
                   placeholder="e.g., 18/min"
@@ -504,7 +506,7 @@ export default function CleanMedicalNoteEditor({
               <div>
                 <Label className="text-xs">Blood Pressure</Label>
                 <Input
-                  value={note.bloodPressure}
+                  value={(note as any).vitalSigns?.bloodPressure || note.bloodPressure || ''}
                   onChange={(e) => updateField('bloodPressure', e.target.value)}
                   disabled={!isEditing}
                   placeholder="e.g., 120/80"
@@ -514,7 +516,7 @@ export default function CleanMedicalNoteEditor({
               <div>
                 <Label className="text-xs">Glucose Levels</Label>
                 <Input
-                  value={note.glucose}
+                  value={(note as any).vitalSigns?.glucoseLevels || note.glucose || ''}
                   onChange={(e) => updateField('glucose', e.target.value)}
                   disabled={!isEditing}
                   placeholder="e.g., 5.5 mmol/L"
@@ -540,19 +542,10 @@ export default function CleanMedicalNoteEditor({
           
           {/* Medical Diagram - Only show if there are findings */}
           {hasPhysicalExaminationFindings(note) ? (
-            <div className="p-4 border rounded-lg bg-gray-50">
-              <EnhancedMedicalDiagram
-                examinationData={{
-                  generalExamination: (note.physicalExamination || '').replace(/\}\}/g, ''),
-                  cardiovascularExamination: '', 
-                  respiratoryExamination: '', 
-                  abdominalExamination: '', 
-                  otherSystemsExamination: ''
-                }}
-                patientGender={determinePatientGender(note.patientGender)}
-                medicalNoteText={`${note.chiefComplaint || ''} ${note.historyOfPresentingIllness || ''} ${note.physicalExamination || ''} ${note.assessment || ''}`}
-              />
-            </div>
+            <SimpleMedicalDiagram
+              patientGender={determinePatientGender(note.patientGender)}
+              medicalNoteText={`${note.chiefComplaint || ''} ${note.historyOfPresentingIllness || ''} ${note.physicalExamination || ''} ${note.assessment || ''}`}
+            />
           ) : (
             <div className="text-center py-8 text-gray-500">
               <Stethoscope className="h-12 w-12 mx-auto mb-2 text-gray-300" />
