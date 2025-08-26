@@ -813,7 +813,19 @@ class ApiClient {
       patientGender?: string;
     },
     language?: string
-  ): Promise<ApiResponse<{ message: string; jobId: string; patientInfo: any; language: string }>> {
+  ): Promise<ApiResponse<{ 
+    message: string; 
+    jobId: string; 
+    patientInfo: any; 
+    language: string;
+    transcript?: string;
+    medicalNote?: {
+      chiefComplaint: string;
+      historyOfPresentIllness: string;
+      diagnosis: string;
+      treatmentPlan: string;
+    };
+  }>> {
     if (!file) {
       return {
         success: false,
@@ -881,6 +893,7 @@ class ApiClient {
       oxygenSaturation?: string;
       glucoseLevels?: string;
     };
+
     // Optional doctor information (will be fetched from backend if not provided)
     doctorName?: string;
     doctorRegistrationNo?: string;
@@ -954,6 +967,10 @@ class ApiClient {
     // Creating medical note for patient
 
     // Log the complete request body for debugging validation issues
+    console.log('🔍 API Client - Backend data being sent:', {
+      dataKeys: Object.keys(backendData),
+      hasMedicalContent: !!(backendData.assessmentAndDiagnosis || backendData.chiefComplaint || backendData.physicalExamination)
+    });
 
     // Log diagnosis data for consistency tracking
 
@@ -975,6 +992,15 @@ class ApiClient {
       body: JSON.stringify(backendData),
     });
     
+    console.log('🔍 API Client - Backend response received:', {
+      success: response.success,
+      hasData: !!response.data,
+      dataKeys: Object.keys(response.data || {}),
+      hasICD11Codes: !!(response.data as any)?.icd11Codes,
+      icd11Codes: (response.data as any)?.icd11Codes,
+      noteId: (response.data as any)?.id
+    });
+    
 
     
     return response as ApiResponse<MedicalNote>;
@@ -982,58 +1008,17 @@ class ApiClient {
 
   /**
    * Generate ICD-11 codes based on medical content (using WHO ICD-11 API)
+   * REMOVED: ICD-11 generation moved to backend only
    */
-  async generateICD11Codes(medicalData: {
-    diagnosis?: string;
-    symptoms?: string;
-    chiefComplaint?: string;
-    assessment?: string;
-  }): Promise<ApiResponse<ICD11MedicalCodes>> {
-    try {
-      // Use Next.js API routes directly instead of external backend
-      const response = await fetch(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/api/simple-icd11`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(medicalData),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      if (data.success && data.codes) {
-        // ICD-11 codes generated successfully
-        return {
-          success: true,
-          data: data.codes
-        };
-      }
-
-      return {
-        success: data.success || false,
-        error: data.error || 'Unknown error',
-        data: data.codes
-      };
-    } catch (error) {
-      // Error generating ICD-11 codes
-      return {
-        success: false,
-        error: 'Failed to generate ICD-11 codes',
-        data: {
-          primary: [],
-          secondary: [],
-          suggestions: [],
-          extractedTerms: [],
-          processingTime: 0,
-          lastUpdated: new Date().toISOString()
-        }
-      };
-    }
-  }
+  // async generateICD11Codes(medicalData: {
+  //   diagnosis?: string;
+  //   symptoms?: string;
+  //   chiefComplaint?: string;
+  //   assessment?: string;
+  // }): Promise<ApiResponse<ICD11MedicalCodes>> {
+  //   // REMOVED: This functionality has been moved to the backend
+  //   // ICD-11 codes are now generated server-side during note creation/update
+  // }
 
   async getMedicalNotes(params?: {
     page?: number;
@@ -1217,31 +1202,14 @@ class ApiClient {
   }
 
   async updateMedicalNote(noteId: string, noteData: Partial<MedicalNote>): Promise<ApiResponse<MedicalNote>> {
-    // Generate ICD-11 codes automatically if medical content has changed
-    const hasMedicalContent = noteData.chiefComplaint || noteData.assessmentAndDiagnosis || noteData.systemReview;
-    const needsICD11Update = hasMedicalContent && !noteData.icd11Codes;
+    // Check if medical content has changed and needs ICD-11 update
+    const needsICD11Update = noteData.assessmentAndDiagnosis || 
+                            noteData.systemReview || 
+                            noteData.chiefComplaint;
     
-    if (needsICD11Update) {
-      try {
-        // Auto-generating ICD-11 codes for updated medical note
-        
-        const icd11Response = await this.generateICD11Codes({
-          diagnosis: noteData.assessmentAndDiagnosis || '',
-          symptoms: noteData.systemReview || '',
-          chiefComplaint: noteData.chiefComplaint || '',
-          assessment: noteData.assessmentAndDiagnosis || ''
-        });
-
-        if (icd11Response.success && icd11Response.data) {
-          noteData.icd11Codes = icd11Response.data;
-        } else {
-          // Failed to auto-generate ICD-11 codes for update
-        }
-      } catch (error) {
-        // Error auto-generating ICD-11 codes for update
-        // Continue with note update even if ICD-11 generation fails
-      }
-    }
+    // REMOVED: ICD-11 generation moved to backend
+    // The backend will handle ICD-11 code generation automatically
+    // when medical content is updated
     
     return this.request(`/medical-notes/${noteId}`, {
       method: 'PUT',

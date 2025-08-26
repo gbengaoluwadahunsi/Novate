@@ -425,6 +425,52 @@ export default function DocumentStyleNoteViewer({
     }
   };
 
+  const renderICD11Codes = () => {
+    // Display ICD-11 codes from backend
+    if ((note as any).icd11CodesText) {
+      return <div>{(note as any).icd11CodesText}</div>;
+    }
+
+    // Handle structured form { primary: [{ code, title, definition? }], ... }
+    if (note.icd11Codes && note.icd11Codes.primary && note.icd11Codes.primary.length > 0) {
+      return (
+        <div className="space-y-2">
+          {note.icd11Codes.primary.map((item, index) => (
+            <div key={index}>
+              <span className="font-medium">{item.code}</span>
+              {item.title ? <span> - {item.title}</span> : null}
+              {item.definition ? (
+                <div className="text-xs text-gray-600 mt-1">{item.definition}</div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // Handle raw backend shape: icd11Codes: string[] + optional icd11Titles: string[] + icd11SourceSentence
+    const rawCodes = (note as any).icd11Codes;
+    if (Array.isArray(rawCodes) && rawCodes.length > 0) {
+      const titles: string[] = (note as any).icd11Titles || [];
+      const sourceSentence: string | null = (note as any).icd11SourceSentence || null;
+      return (
+        <div className="space-y-2">
+          {rawCodes.map((code: string, idx: number) => (
+            <div key={idx}>
+              <span className="font-medium">{code}</span>
+              {titles[idx] ? <span> - {titles[idx]}</span> : null}
+            </div>
+          ))}
+          {sourceSentence ? (
+            <div className="text-xs text-gray-600 mt-2">{sourceSentence}</div>
+          ) : null}
+        </div>
+      );
+    }
+
+    return <div>No ICD-11 codes specified</div>;
+  };
+
   return (
     <div className="max-w-4xl mx-auto bg-white border border-gray-200" style={{ fontFamily: 'Georgia, serif' }}>
       {/* Time Remaining Indicator - Only show if document is signed */}
@@ -533,7 +579,7 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div><strong>Name:</strong> {note.doctorName ? `Dr. ${note.doctorName}` : `Dr. ${getCurrentUserName()}`}</div>
+                <div><strong>Name:</strong> {note.doctorName ? (note.doctorName.startsWith('Dr. ') ? note.doctorName : `Dr. ${note.doctorName}`) : `Dr. ${getCurrentUserName()}`}</div>
                 <div><strong>Role:</strong> DOCTOR</div>
               </div>
             )}
@@ -1225,17 +1271,7 @@ export default function DocumentStyleNoteViewer({
               />
             ) : (
               <div className="text-sm">
-                {(note as any).icd11CodesText ? (
-                  <div>{(note as any).icd11CodesText}</div>
-                ) : note.icd11Codes && note.icd11Codes.primary && note.icd11Codes.primary.length > 0 ? (
-                  note.icd11Codes.primary.map((code, index) => (
-                    <div key={index}>
-                      {code.code} - {code.title}
-                    </div>
-                  ))
-                ) : (
-                  <div>No ICD-11 codes specified</div>
-                )}
+                {renderICD11Codes()}
               </div>
             )}
           </CardContent>

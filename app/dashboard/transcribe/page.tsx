@@ -8,14 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User } from "lucide-react"
+import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User, Check } from "lucide-react"
 import { Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
 import AudioUpload from "@/components/audio-upload"
 import { useToast } from "@/hooks/use-toast"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
-import { createMedicalNote } from "@/store/features/notesSlice"
+import { createMedicalNote, getMedicalNotes } from "@/store/features/notesSlice"
 
 
 interface QueuedRecording {
@@ -47,6 +47,7 @@ export default function TranscribePage() {
     age: '',
     gender: ''
   })
+  const [isCreatingNote, setIsCreatingNote] = useState(false) // Add loading state for note creation
   const dispatch = useAppDispatch()
   const router = useRouter()
   const { toast } = useToast()
@@ -66,9 +67,10 @@ export default function TranscribePage() {
           // Check if user is a student based on role or userType
           // Only consider users with explicit STUDENT roles as students
           const isStudent = user?.role === 'STUDENT' || 
-                           user?.role === 'MEDICAL_STUDENT' || 
-                           (user as any)?.userType === 'STUDENT'
-          
+                         user?.role === 'MEDICAL_STUDENT' || 
+                         (user as any)?.userType === 'STUDENT'
+        
+
 
           
           setAnonymizationSettings({
@@ -93,7 +95,7 @@ export default function TranscribePage() {
       setSettingsLoaded(true)
     }
   }, [user])
-  
+
   // Check if current user is a medical student
   // Only show student UI when we're certain the user is a student AND settings are loaded
   const isStudentUser = settingsLoaded && anonymizationSettings?.isStudent === true
@@ -139,6 +141,8 @@ export default function TranscribePage() {
   }
 
   const handleTranscriptionComplete = async (data: any) => {
+    console.log('🎯 handleTranscriptionComplete called with data:', data);
+    
     // Check if it's a minimal/error response
     if (data.isMinimal) {
       // Minimal transcription, not creating note
@@ -169,8 +173,20 @@ export default function TranscribePage() {
     // Show progress notification for successful completion
     toast({
       title: "✅ 100% Medical Note Formed",
-      description: "Medical note completed successfully! Redirecting to note page...",
+      description: "Medical note completed successfully! Creating note and redirecting...",
     });
+    
+    console.log('📝 Starting note creation process...');
+    
+    // Show loading state for note creation
+    toast({
+      title: "🔄 Creating Medical Note",
+      description: "Saving your medical note to the database...",
+      duration: 3000,
+    });
+    
+    // Set loading state
+    setIsCreatingNote(true);
     
     // Automatically create a draft note in the backend and navigate to it
     try {
@@ -178,6 +194,9 @@ export default function TranscribePage() {
       const transcribedPatientInfo = data.patientInfo || data.patientInformation || {};
       const medicalNote = data.medicalNote || {};
       
+      
+      
+      // Prepare note data for backend
       const noteData = {
         // Prioritize manual patient information over transcribed data, but anonymize for students
         patientName: (() => {
@@ -188,8 +207,8 @@ export default function TranscribePage() {
           if (isStudentUser) {
             // Generate anonymous ID if real names detected
             const hasRealName = /^[A-Z][a-z]+\s+[A-Z][a-z]+$/.test(originalName) && 
-                               !originalName.toLowerCase().includes('patient') && 
-                               !originalName.toLowerCase().includes('case');
+                             !originalName.toLowerCase().includes('patient') && 
+                             !originalName.toLowerCase().includes('case');
             
             if (hasRealName || originalName === 'Unknown Patient') {
               const anonymousId = generateAnonymousPatientId();
@@ -219,7 +238,7 @@ export default function TranscribePage() {
         physicalExamination: typeof data.physicalExamination === 'object' 
           ? JSON.stringify(data.physicalExamination) 
           : data.physicalExamination || '',
-        diagnosis: medicalNote.assessmentAndDiagnosis || medicalNote.diagnosis || data.diagnosis || '',
+        diagnosis: medicalNote.assessmentAndDiagnosis || medicalNote.diagnosis || data.diagnosis || data.medicalNote?.diagnosis || 'Clinical assessment pending based on examination findings',
         treatmentPlan: medicalNote.treatmentPlan || data.managementPlan || '',
         noteType: 'consultation' as const,
         audioJobId: data.audioJobId,
@@ -231,51 +250,75 @@ export default function TranscribePage() {
           bloodPressure: medicalNote.bloodPressure || 'Not recorded',
           oxygenSaturation: medicalNote.oxygenSaturation || 'Not recorded',
           glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not recorded'
-        },
-        // Preserve original transcript to prevent hallucination
-        originalTranscript: data.transcript || data.rawTranscript || '',
+        }
       };
 
-      // Note data prepared for creation
-
-
+      console.log('📝 Prepared note data for backend:', noteData);
+      
+      // 🧠 ICD-11 codes will be generated by the backend during medical note processing
+      console.log('✅ Note data prepared for backend processing (ICD-11 codes will be generated server-side)');
+      
+      // Show progress notification
+      toast({
+        title: "📝 Creating Medical Note",
+        description: "Saving your medical note to the database...",
+      });
       
       const result = await dispatch(createMedicalNote(noteData));
       
-
       
+      
+      // BACKEND SAVE RESPONSE
+      
+      // CRITICAL: Update local state with transformed response
       if (createMedicalNote.fulfilled.match(result)) {
         const savedNote = result.payload;
         console.log('🎉 Note creation successful, savedNote:', savedNote);
         
         // Check multiple possible ID fields in the response
-        const noteId = savedNote?.id || (savedNote as any)?._id || (savedNote as any)?.noteId;
-        
-        if (noteId) {
+        if (savedNote && savedNote.id) {
+          const noteId = savedNote.id;
+          console.log('✅ Note created successfully with ID:', noteId);
+          
+          // Show success message
           toast({
-            title: "🎉 Note Created Successfully",
-            description: `Medical note for ${noteData.patientName} has been created and saved.`,
+            title: "🎉 Medical Note Created!",
+            description: "Your medical note has been created successfully. Opening it now...",
+            duration: 5000,
           });
           
-          // Clear the patient form for next recording
           clearPatientForm();
           
           // Navigate immediately to the proper note page with proper ID
           console.log('🧭 Navigating to note page:', `/dashboard/notes/${noteId}`);
-          router.push(`/dashboard/notes/${noteId}`);
+          
+          // Use router.replace for immediate navigation without back button
+          router.replace(`/dashboard/notes/${noteId}`);
           return;
         } else {
-          // Note was created but ID structure is different - try to navigate anyway
+          // Note was created but ID structure is different - try to locate the most recent note
           console.warn('⚠️ Note created but no ID found in response:', savedNote);
           toast({
             title: "🎉 Note Created",
-            description: "Your note has been created. Opening notes page to locate it...",
+            description: "Locating your new note...",
           });
-          
+
+          try {
+            const notesResult = await dispatch(getMedicalNotes({ page: 1, limit: 1 }));
+            if (getMedicalNotes.fulfilled.match(notesResult)) {
+              const latest = notesResult.payload?.notes?.[0];
+              if (latest?.id) {
+                clearPatientForm();
+                router.replace(`/dashboard/notes/${latest.id}`);
+                return;
+              }
+            }
+          } catch (_) {
+            // Ignore and fall back to notes list
+          }
+
           clearPatientForm();
-          
-          // Force refresh of notes page to show the new note
-          router.push('/dashboard/notes?refresh=true');
+          router.replace('/dashboard/notes?refresh=true');
           return;
         }
       } else if (createMedicalNote.rejected.match(result)) {
@@ -340,6 +383,8 @@ export default function TranscribePage() {
       setTimeout(() => {
         router.push('/dashboard/notes');
       }, 3000);
+    } finally {
+      setIsCreatingNote(false);
     }
   }
 
@@ -484,25 +529,14 @@ export default function TranscribePage() {
                 {/* Privacy Warning - Different for Students vs Professionals */}
                 {/* Only show alerts when settings are loaded and we know user type */}
                 {settingsLoaded && isStudentUser && (
-                  <Alert className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950/20">
-                    <AlertCircle className="h-4 w-4 text-orange-600" />
-                    <AlertTitle className="text-orange-800 dark:text-orange-200">
-                      🎓 Medical Student: Automatic Patient Anonymization Active
+                  <Alert className="mb-4 border-green-200 bg-green-50 dark:bg-green-950/20">
+                    <Check className="h-4 w-4 text-green-600" />
+                    <AlertTitle className="text-green-800 dark:text-green-200">
+                      🎓 Student Mode: Privacy Protected
                     </AlertTitle>
-                    <AlertDescription className="text-orange-700 dark:text-orange-300 space-y-3">
-                      <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-lg border border-green-200 dark:border-green-800">
-                        <p className="font-semibold text-green-800 dark:text-green-200 mb-2">
-                          🔒 Privacy Protection Enabled
-                        </p>
-                        <ul className="list-disc list-inside space-y-1 text-sm text-green-700 dark:text-green-300">
-                          <li>Patient names will be <strong>automatically anonymized</strong> in the PDF</li>
-                          <li>Real names will be replaced with "Patient Case-XXXX"</li>
-                          <li>Age and gender information will be preserved for medical accuracy</li>
-                          <li>All identifying information will be removed from documentation</li>
-                        </ul>
-                      </div>
-                      <p className="text-xs italic">
-                        ✅ You can enter any information - our system will automatically protect patient privacy in the final documentation.
+                    <AlertDescription className="text-green-700 dark:text-green-300">
+                      <p className="text-sm">
+                        Patient names automatically anonymized in final notes • Medical data preserved
                       </p>
                     </AlertDescription>
                   </Alert>
@@ -523,7 +557,7 @@ export default function TranscribePage() {
                       value={patientInfo.firstName}
                       onChange={(e) => setPatientInfo({ ...patientInfo, firstName: e.target.value })}
                       className="col-span-3"
-                      placeholder={isStudentUser ? "Patient / Mr. A / Ms. B (DO NOT use real names)" : "Enter patient's first name"}
+                      placeholder={isStudentUser ? "Patient A, Mr. B, etc." : "Enter patient's first name"}
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -540,7 +574,7 @@ export default function TranscribePage() {
                       value={patientInfo.lastName}
                       onChange={(e) => setPatientInfo({ ...patientInfo, lastName: e.target.value })}
                       className="col-span-3"
-                      placeholder={isStudentUser ? "Case-001 / Anonymous (DO NOT use real surnames)" : "Enter patient's last name"}
+                      placeholder={isStudentUser ? "Case-001, Anonymous, etc." : "Enter patient's last name"}
                     />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -581,10 +615,10 @@ export default function TranscribePage() {
                       </div>
                       <div>
                         <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
-                          Why Patient Anonymization Matters
+                          Privacy Protection
                         </h4>
                         <p className="text-xs text-gray-600 dark:text-gray-400">
-                          Anonymizing patient information protects privacy, ensures HIPAA compliance, and allows safe use of AI tools for medical education and practice improvement without compromising patient confidentiality.
+                          Ensures HIPAA compliance and safe learning.
                         </p>
                       </div>
                     </div>
@@ -620,12 +654,35 @@ export default function TranscribePage() {
               </Alert>
             )}
 
-        <AudioUpload
-          onTranscriptionComplete={handleTranscriptionComplete}
-          onRecordingComplete={addToQueue}
-          disabled={!isPatientInfoValid()}
-          patientInfo={patientInfo}
-        />
+          {/* Audio Upload Component */}
+          <AudioUpload
+            onTranscriptionComplete={handleTranscriptionComplete}
+            onRecordingComplete={addToQueue}
+            disabled={isCreatingNote}
+            patientInfo={patientInfo}
+          />
+
+          {/* Note Creation Loading State */}
+          {isCreatingNote && (
+            <div className="bg-blue-50 dark:bg-blue-950/10 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                <span className="text-lg font-medium text-blue-900 dark:text-blue-100">
+                  📝 Creating Medical Note
+                </span>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="h-2 bg-blue-100 dark:bg-blue-900/50 rounded-full overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full animate-pulse"></div>
+                </div>
+                
+                <div className="text-sm text-blue-700 dark:text-blue-300">
+                  Saving your medical note and preparing to redirect...
+                </div>
+              </div>
+            </div>
+          )}
           </div>
 
           {/* Right Column - Recording Queue */}

@@ -843,8 +843,30 @@ export default function NotePage() {
                 return planParts.length > 0 ? planParts.join('\n\n') : note.treatmentPlan || '';
               })(),
               
-              // ICD-11 Codes (optional)
-              icd11Codes: note.icd11Codes,
+              // ICD-11 Codes (normalize backend array form into structured object)
+              icd11Codes: (() => {
+                const backendCodes: any = (note as any).icd11Codes;
+                const backendTitles: any[] = (note as any).icd11Titles || [];
+                const sourceSentence: string | null = (note as any).icd11SourceSentence || null;
+                if (backendCodes && Array.isArray(backendCodes)) {
+                  const primary = backendCodes.map((code: string, idx: number) => ({
+                    code,
+                    title: backendTitles[idx] || '',
+                    definition: sourceSentence || undefined,
+                    uri: '',
+                    matchType: 'related' as const,
+                  }));
+                  return {
+                    primary,
+                    secondary: [],
+                    suggestions: [],
+                    extractedTerms: [],
+                    processingTime: 0,
+                    lastUpdated: new Date().toISOString(),
+                  };
+                }
+                return (note as any).icd11Codes;
+              })(),
               
               // Doctor Information
               doctorName: note.doctorName || '',
