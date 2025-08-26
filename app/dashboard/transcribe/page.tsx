@@ -629,31 +629,6 @@ export default function TranscribePage() {
 
 
 
-            {/* Recording Privacy Guidance - Only for Students */}
-            {isStudentUser && isPatientInfoValid() && (
-              <Alert className="mb-4 border-blue-200 bg-blue-50 dark:bg-blue-950/20">
-                <Info className="h-4 w-4 text-blue-600" />
-                <AlertTitle className="text-blue-800 dark:text-blue-200">
-                  🎙️ Recording Privacy Guidelines
-                </AlertTitle>
-                <AlertDescription className="text-blue-700 dark:text-blue-300">
-                  <div className="space-y-2">
-                    <p className="font-semibold">When recording your consultation:</p>
-                    <ul className="list-disc list-inside text-sm space-y-1">
-                      <li>Say "The patient" instead of using real names</li>
-                      <li>Avoid mentioning specific hospital/clinic names</li>
-                      <li>Do not include registration numbers or ID numbers</li>
-                      <li>Focus on symptoms, examination findings, and clinical decisions</li>
-                    </ul>
-                    <p className="text-xs italic mt-2">
-                      ✅ Good: "The patient is a 28-year-old male presenting with sore throat..."<br/>
-                      ❌ Avoid: "John Smith from Ward 3A, ID 12345, is presenting with..."
-                    </p>
-                  </div>
-                </AlertDescription>
-              </Alert>
-            )}
-
           {/* Audio Upload Component */}
           <AudioUpload
             onTranscriptionComplete={handleTranscriptionComplete}
