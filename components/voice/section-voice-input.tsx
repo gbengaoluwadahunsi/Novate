@@ -1,9 +1,10 @@
 'use client'
 
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { Mic, MicOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { apiClient } from '@/lib/api-client'
 
 interface SectionVoiceInputProps {
   sectionName: string
@@ -24,6 +25,15 @@ export default function SectionVoiceInput({
   const [isProcessing, setIsProcessing] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current)
+      }
+    }
+  }, [])
 
   const startRecording = async () => {
     try {
@@ -63,35 +73,69 @@ export default function SectionVoiceInput({
     }
   }
 
-  const processAudio = async (audioBlob: Blob) => {
+  const pollTranscriptionStatus = async (jobId: string) => {
     try {
-      const formData = new FormData()
-      formData.append('audio', audioBlob, 'recording.wav')
-      formData.append('section', sectionField)
-      formData.append('currentValue', currentValue || '')
+      const response = await apiClient.getTranscriptionResult(jobId)
+      if (response.success && response.data) {
+        const result = response.data
+        if (result.status === 'COMPLETED') {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
 
-      const response = await fetch('/api/voice/transcribe', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error('Transcription failed')
-      }
-
-      const data = await response.json()
-      
-      if (data.transcription) {
-        // Update the section with the new transcription
-        onUpdate(data.transcription)
-        toast.success(`${sectionName} updated successfully`)
+          if (result.transcript) {
+            onUpdate(result.transcript)
+            toast.success(`${sectionName} updated successfully`)
+          } else {
+            toast.error('No speech detected. Please try again.')
+          }
+          setIsProcessing(false)
+        } else if (result.status === 'FAILED') {
+          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+          pollingIntervalRef.current = null
+          toast.error('Failed to process audio. Please try again.')
+          setIsProcessing(false)
+        }
       } else {
-        toast.error('No speech detected. Please try again.')
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+        pollingIntervalRef.current = null
+        toast.error(
+          'Failed to get transcription status. Please try again.'
+        )
+        setIsProcessing(false)
       }
     } catch (error) {
-      // Error processing audio
+      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
+      pollingIntervalRef.current = null
+      toast.error('Error polling transcription status. Please try again.')
+      setIsProcessing(false)
+    }
+  }
+
+  const startPolling = (jobId: string) => {
+    pollingIntervalRef.current = setInterval(() => {
+      pollTranscriptionStatus(jobId)
+    }, 2000)
+  }
+
+  const processAudio = async (audioBlob: Blob) => {
+    try {
+      const audioFile = new File([audioBlob], 'recording.wav', { type: 'audio/wav' });
+      const response = await apiClient.startTranscription(
+        audioFile,
+        undefined,
+        undefined,
+        sectionField,
+        currentValue
+      )
+
+      if (response.success && response.data?.jobId) {
+        startPolling(response.data.jobId)
+      } else {
+        toast.error('Failed to start transcription. Please try again.')
+        setIsProcessing(false)
+      }
+    } catch (error) {
       toast.error('Failed to process audio. Please try again.')
-    } finally {
       setIsProcessing(false)
     }
   }

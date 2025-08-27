@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { Upload, FileAudio, Mic, Play, Pause, Sparkles, Languages, Wand2, AlertCircle, Check, Zap } from "lucide-react"
+import { Upload, FileAudio, Mic, Play, Pause, Sparkles, Languages, Wand2, AlertCircle, Check, Zap, CheckCircle, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent } from "@/components/ui/card"
@@ -67,6 +67,7 @@ interface ICD11Codes {
 interface AudioUploadProps {
   onTranscriptionComplete: (transcription: any) => void
   onRecordingComplete?: (file: File, duration: number) => void
+  onAddToQueue?: () => void
   disabled?: boolean
   patientInfo?: {
     firstName: string
@@ -825,7 +826,7 @@ const formatManagementPlan = (managementPlan: any): string => {
     : 'Treatment plan to be determined';
 };
 
-export default function AudioUpload({ onTranscriptionComplete, onRecordingComplete, disabled = false, patientInfo }: AudioUploadProps) {
+export default function AudioUpload({ onTranscriptionComplete, onRecordingComplete, onAddToQueue, disabled = false, patientInfo }: AudioUploadProps) {
   // Get user's preferred language from auth state
   const { user } = useAppSelector((state) => state.auth)
   
@@ -848,6 +849,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const [overallProgress, setOverallProgress] = useState(0)
   const [processingFailed, setProcessingFailed] = useState(false)
   const [failureMessage, setFailureMessage] = useState<string>('')
+  const [recordingCompleted, setRecordingCompleted] = useState(false)
+  const [completedRecording, setCompletedRecording] = useState<{file: File, duration: number} | null>(null)
   
   // Add patient information state
   const [patientName, setPatientName] = useState("")
@@ -977,6 +980,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       setDetectedKeywords([])
       setTranscriptionComplete(false)
       
+
+      
       // Optionally clear patient form for new file
       // clearPatientForm()
     }
@@ -1080,15 +1085,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         
         // Check if recording is long enough
         if (recordingTimeRef.current > 10) { // Increased minimum to 10 seconds for medical content
-          // If onRecordingComplete callback is provided, add to queue instead of auto-processing
-          if (onRecordingComplete) {
-            onRecordingComplete(audioFile, recordingTimeRef.current)
-          } else {
-            // Fallback: auto-process if no callback provided (backwards compatibility)
-          setTimeout(() => {
-              processAudioWithFile(audioFile)
-            }, 500)
-          }
+          // File is ready for processing - buttons will show automatically
+          setCompletedRecording({ file: audioFile, duration: recordingTimeRef.current })
         } else {
           toast({
             title: "Recording Too Short",
@@ -1852,6 +1850,64 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     }
   }
 
+  const handleRecordingChoice = (choice: 'queue' | 'process') => {
+    if (!completedRecording) return;
+    
+    if (choice === 'queue') {
+      // Add to queue
+      if (onRecordingComplete) {
+        onRecordingComplete(completedRecording.file, completedRecording.duration);
+      }
+      
+      // Call the onAddToQueue callback to clear parent form
+      if (onAddToQueue) {
+        onAddToQueue();
+      }
+      
+      toast({
+        title: "📝 Recording Queued",
+        description: `${completedRecording.file.name} has been added to your processing queue.`,
+      });
+      
+      // Clear the current file and reset form for next recording
+      setFile(null);
+      if (audioRef.current) {
+        audioRef.current.src = '';
+      }
+      setDetectedKeywords([]);
+      setTranscriptionComplete(false);
+      setProgress(0);
+      setWhatsappWarning(null);
+    } else {
+      // Process immediately
+      processAudioWithFile(completedRecording.file);
+      
+      // Clear the current file and reset form after starting processing
+      setFile(null);
+      if (audioRef.current) {
+        audioRef.current.src = '';
+      }
+      setDetectedKeywords([]);
+      setTranscriptionComplete(false);
+      setProgress(0);
+      setWhatsappWarning(null);
+      
+      // Call the onAddToQueue callback to clear parent form
+      if (onAddToQueue) {
+        onAddToQueue();
+      }
+    }
+    
+    // Reset the recording completion state
+    setRecordingCompleted(false);
+    setCompletedRecording(null);
+  };
+
+  const clearRecordingChoice = () => {
+    setRecordingCompleted(false);
+    setCompletedRecording(null);
+  };
+
   // Demo audio file for the pre-recorded example
   const loadDemoFile = () => {
     // Enable demo mode when demo file is loaded
@@ -2173,28 +2229,38 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
 
 
-                {!transcriptionComplete && !isProcessing ? (
-                  <Button
-                    className="w-full flex items-center justify-center gap-2 text-white transition-all duration-300 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 disabled:cursor-not-allowed"
-                    onClick={processAudio}
-                    disabled={isProcessing || disabled}
-                  >
-                    {disabled ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Creating Medical Note...
-                      </>
-                    ) : isProcessing ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                        Transcribing Audio...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 size={18} /> Transcribe Audio
-                      </>
-                    )}
-                  </Button>
+                {!transcriptionComplete && !isProcessing && file ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      className="flex items-center justify-center gap-2 text-white transition-all duration-300 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 disabled:cursor-not-allowed"
+                      onClick={processAudio}
+                      disabled={isProcessing || disabled}
+                    >
+                      {disabled ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Creating Medical Note...
+                        </>
+                      ) : isProcessing ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                          Transcribing Audio...
+                        </>
+                      ) : (
+                        <>
+                          <Wand2 size={18} /> Transcribe Audio
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      className="flex items-center justify-center gap-2 text-white transition-all duration-300 bg-green-500 hover:bg-green-600 disabled:bg-green-400 disabled:cursor-not-allowed"
+                      onClick={() => handleRecordingChoice('queue')}
+                      disabled={isProcessing || disabled}
+                    >
+                      <Clock className="h-4 w-4" />
+                      Add to Queue
+                    </Button>
+                  </div>
                 ) : transcriptionComplete ? (
                   <Button
                     className="w-full flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white"
@@ -2381,6 +2447,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
               </div>
             </div>
           )}
+
+
+
+
         </motion.div>
       </CardContent>
     </Card>

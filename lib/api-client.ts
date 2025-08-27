@@ -812,7 +812,9 @@ class ApiClient {
       patientAge?: string;
       patientGender?: string;
     },
-    language?: string
+    language?: string,
+    section?: string,
+    currentValue?: string
   ): Promise<ApiResponse<{ 
     message: string; 
     jobId: string; 
@@ -849,6 +851,12 @@ class ApiClient {
     }
     if (patientData?.patientGender) {
       formData.append('patientGender', patientData.patientGender);
+    }
+    if (section) {
+      formData.append('section', section);
+    }
+    if (currentValue) {
+      formData.append('currentValue', currentValue);
     }
 
     return this.request('/transcribe/start', {
