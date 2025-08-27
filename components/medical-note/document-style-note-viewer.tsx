@@ -1250,10 +1250,10 @@ export default function DocumentStyleNoteViewer({
         <Card className="mb-6">
           <CardContent className="p-6">
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>ICD-11 Codes</h2>
+              <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>ICD-11 Code</h2>
               {isEditMode && (
                 <SectionVoiceInput
-                  sectionName="ICD-11 Codes"
+                  sectionName="ICD-11 Code"
                   sectionField="icd11Codes"
                   currentValue={(editedNote as any).icd11CodesText || ''}
                   onUpdate={(value) => updateField('icd11CodesText', value)}
