@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { Upload, FileAudio, Mic, Play, Pause, Sparkles, Languages, Wand2, AlertCircle, Check, Zap, CheckCircle, Clock } from "lucide-react"
+import { Upload, FileAudio, Mic, Play, Pause, Sparkles, Languages, Wand2, AlertCircle, Check, Zap, CheckCircle, Clock, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Card, CardContent } from "@/components/ui/card"
@@ -12,10 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { apiClient } from "@/lib/api-client"
 import type { FastTranscriptionResponse, TranscriptionResult } from "@/lib/api-client"
-import { useAppSelector } from "@/store/hooks"
+import { useAppSelector, useAppDispatch } from "@/store/hooks"
+import { createMedicalNote } from "@/store/features/notesSlice"
 import { fetchSupportedLanguages, type Language } from "@/app/config/languages"
 import { logger } from '@/lib/logger'
 import { parseTranscript, calculateOverallConfidence, testTranscripts } from '@/lib/intelligentTranscriptParser'
+import { useRouter } from "next/navigation"
 
 // Types
 interface MedicalNote {
@@ -75,6 +77,7 @@ interface AudioUploadProps {
     age: string
     gender: string
   }
+  createdNoteId?: string | null // Add note ID from parent
 }
 
 /**
@@ -826,11 +829,16 @@ const formatManagementPlan = (managementPlan: any): string => {
     : 'Treatment plan to be determined';
 };
 
-export default function AudioUpload({ onTranscriptionComplete, onRecordingComplete, onAddToQueue, disabled = false, patientInfo }: AudioUploadProps) {
+export default function AudioUpload({ onTranscriptionComplete, onRecordingComplete, onAddToQueue, disabled = false, patientInfo, createdNoteId }: AudioUploadProps) {
   // Get user's preferred language from auth state
   const { user } = useAppSelector((state) => state.auth)
+  const dispatch = useAppDispatch()
+  const router = useRouter()
+  const { toast } = useToast()
   
   const [file, setFile] = useState<File | null>(null)
+  const [filePatientInfo, setFilePatientInfo] = useState<{patientName: string, patientAge: string, patientGender: string} | null>(null)
+  const [createdNoteIdLocal, setCreatedNoteIdLocal] = useState<string | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
   const [isProcessing, setIsProcessing] = useState(false)
@@ -845,7 +853,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const [showDemoAlert, setShowDemoAlert] = useState(false)
   const [transcriptionComplete, setTranscriptionComplete] = useState(false)
   const [processingStages, setProcessingStages] = useState<{ name: string; status: string; description: string; progress: number }[]>([])
-  const [useFastTranscription, setUseFastTranscription] = useState(false) // Use standard mode for complete results
+  const [useFastTranscription, setUseFastTranscription] = useState(true) // Use fast transcription by default
   const [overallProgress, setOverallProgress] = useState(0)
   const [processingFailed, setProcessingFailed] = useState(false)
   const [failureMessage, setFailureMessage] = useState<string>('')
@@ -867,7 +875,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
   const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const { toast } = useToast()
   const performanceMonitor = useRef<{ startTiming: (key: string) => void }>({ startTiming: () => {} })
   const processingJobId = useRef<string | null | undefined>(null)
   const pollingInterval = useRef<NodeJS.Timeout | null>(null)
@@ -883,6 +890,33 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   useEffect(() => {
     fetchSupportedLanguages().then(setAvailableLanguages)
+
+    // Listen for cleanup event from parent
+    const handleClearAudioUpload = () => {
+  
+      setFile(null);
+      setFilePatientInfo(null);
+      setCreatedNoteIdLocal(null);
+      setIsProcessing(false);
+      setTranscriptionComplete(false);
+      setOverallProgress(0);
+      setProgress(0);
+      if (audioRef.current) {
+        audioRef.current.src = '';
+      }
+      setDetectedKeywords([]);
+      setWhatsappWarning(null);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('clearAudioUpload', handleClearAudioUpload);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('clearAudioUpload', handleClearAudioUpload);
+      }
+    };
   }, [])
 
   // 🚨 CLEANUP: Reset deduplication flags on component unmount
@@ -939,6 +973,132 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     setPatientGender('')
   }
 
+  // Capture current patient information from form or props
+  const captureCurrentPatientInfo = () => {
+
+    
+    // Always prioritize the patientInfo prop from the parent (transcribe page)
+    const currentPatientInfo = {
+      patientName: patientInfo ? `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() : '',
+      patientAge: patientInfo?.age?.trim() || '',
+      patientGender: patientInfo?.gender || '',
+    };
+    
+
+    
+    // If no patient info from parent, show a warning
+    if (!currentPatientInfo.patientName && !currentPatientInfo.patientAge) {
+      console.warn('⚠️ No patient information available. Please fill out the patient form on the left side.');
+      toast({
+        title: "⚠️ Missing Patient Information",
+        description: "Please fill out the Patient Information form on the left side (First Name, Last Name, Age, Gender) before transcribing.",
+        variant: "destructive",
+        duration: 8000,
+      });
+    }
+    
+    return currentPatientInfo;
+  }
+
+  // Create medical note using the working logic from transcribe page
+  const createMedicalNoteFromTranscription = async (data: any) => {
+    console.log('📝 Starting note creation process with data:', data);
+    
+    // Show loading state for note creation
+    toast({
+      title: "🔄 Creating Medical Note",
+      description: "Saving your medical note to the database...",
+      duration: 3000,
+    });
+    
+    try {
+      // Extract patient info from the transcription data, but prioritize captured info
+      const transcribedPatientInfo = data.patientInfo || data.patientInformation || {};
+      const medicalNote = data.medicalNote || {};
+      
+      // Use captured patient info or fallback to transcribed data
+      const patientData = filePatientInfo || {
+        patientName: '',
+        patientAge: '',
+        patientGender: ''
+      };
+      
+      // Prepare note data for backend (same logic as transcribe page)
+      const noteData = {
+        patientName: patientData.patientName || transcribedPatientInfo.name || data.patientName || 'Unknown Patient',
+        patientAge: (() => {
+          const age = patientData.patientAge || transcribedPatientInfo.age || data.patientAge || '0';
+          const parsedAge = parseInt(age, 10);
+          return isNaN(parsedAge) ? 0 : parsedAge;
+        })(),
+        patientGender: patientData.patientGender || transcribedPatientInfo.gender || data.patientGender || 'Other',
+        visitDate: transcribedPatientInfo.visitDate || data.visitDate || new Date().toISOString().split('T')[0],
+        visitTime: data.visitTime || new Date().toTimeString().slice(0, 5),
+        chiefComplaint: medicalNote.chiefComplaint || data.chiefComplaint || '',
+        historyOfPresentIllness: medicalNote.historyOfPresentingIllness || data.historyOfPresentingIllness || '',
+        physicalExamination: typeof data.physicalExamination === 'object' 
+          ? JSON.stringify(data.physicalExamination) 
+          : data.physicalExamination || '',
+        diagnosis: medicalNote.assessmentAndDiagnosis || medicalNote.diagnosis || data.diagnosis || data.medicalNote?.diagnosis || 'Clinical assessment pending based on examination findings',
+        treatmentPlan: medicalNote.treatmentPlan || data.managementPlan || '',
+        noteType: 'consultation' as const,
+        audioJobId: data.audioJobId,
+        vitalSigns: data.medicalNote?.vitalSigns || data.vitalSigns || {
+          temperature: medicalNote.temperature || 'Not recorded',
+          pulseRate: medicalNote.pulseRate || 'Not recorded',
+          respiratoryRate: medicalNote.respiratoryRate || 'Not recorded',
+          bloodPressure: medicalNote.bloodPressure || 'Not recorded',
+          oxygenSaturation: medicalNote.oxygenSaturation || 'Not recorded',
+          glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not recorded'
+        }
+      };
+
+      console.log('📝 Prepared note data for backend:', noteData);
+      
+      // Create the medical note using Redux
+      const result = await dispatch(createMedicalNote(noteData));
+      
+      if (createMedicalNote.fulfilled.match(result)) {
+        const savedNote = result.payload;
+        console.log('🎉 Note creation successful, savedNote:', savedNote);
+        
+        if (savedNote && savedNote.id) {
+          const noteId = savedNote.id;
+          console.log('✅ Note created successfully with ID:', noteId);
+          
+          // Set the created note ID for the button
+          setCreatedNoteIdLocal(noteId);
+          
+          // Show success message
+          toast({
+            title: "🎉 Medical Note Created!",
+            description: "Your medical note has been created successfully. Opening it now...",
+            duration: 5000,
+          });
+          
+          // Wait a moment before navigating to let user see completion message
+          console.log('🧭 Will navigate to note page in 3 seconds:', `/dashboard/notes/${noteId}`);
+          
+          setTimeout(() => {
+            router.replace(`/dashboard/notes/${noteId}`);
+          }, 3000); // Wait 3 seconds before routing
+          
+          return noteId;
+        }
+      } else {
+        throw new Error('Failed to create medical note');
+      }
+    } catch (error) {
+      console.error('❌ Error creating medical note:', error);
+      toast({
+        title: "❌ Error Creating Note",
+        description: "Failed to create medical note. Please try again.",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const uploadedFile = e.target.files[0]
@@ -968,6 +1128,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       }
       
       setFile(uploadedFile)
+      
+      // Capture patient information with this file
+      const capturedPatientInfo = captureCurrentPatientInfo();
+      setFilePatientInfo(capturedPatientInfo);
       
       // Disable demo mode when real file is uploaded
       setDemoMode(false)
@@ -1078,6 +1242,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         }
         
         setFile(audioFile)
+        
+        // Capture patient information with this recording
+        const capturedPatientInfo = captureCurrentPatientInfo();
+        setFilePatientInfo(capturedPatientInfo);
+        
         if (audioRef.current) {
           audioRef.current.src = URL.createObjectURL(audioBlob)
         }
@@ -1314,13 +1483,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   const processAudioWithFile = async (audioFile: File) => {
     
-    // 🔍 DEBUG: Log file information before processing
-    console.log('🔍 Frontend file info:', {
-      name: audioFile.name,
-      size: audioFile.size,
-      type: audioFile.type,
-      lastModified: audioFile.lastModified
-    });
+
     
     // 🚨 Frontend file validation
     if (!audioFile.size || audioFile.size === 0) {
@@ -1437,92 +1600,47 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       }
       
       if (useFastTranscription) {
-        // Use the new ultra-fast transcription endpoint - start at 0%
-        updateRealProgress('Transcribing Audio', 2, 'Starting transcription (this may take 2-3 minutes)...');
+        // Simple, working workflow - no complex progress tracking
+        updateRealProgress('Transcribing Audio', 25, 'Starting transcription...');
         
-        // Prepare patient information for API call - prioritize props over internal state
+        // Use captured patient information for this specific audio file, or capture it now if not already captured
+        const currentPatientData = filePatientInfo || captureCurrentPatientInfo();
         const patientData = {
-          patientName: patientInfo ? `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() : (patientName.trim() || undefined),
-          patientAge: patientInfo?.age.trim() || patientAge.trim() || undefined,
-          patientGender: patientInfo?.gender || patientGender || undefined,
+          patientName: currentPatientData?.patientName || '',
+          patientAge: currentPatientData?.patientAge || '',
+          patientGender: currentPatientData?.patientGender || '',
         };
+        
+
         
         const response = await Promise.race([
           apiClient.fastTranscription(audioFile, patientData, language),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Transcription timeout - please try again')), 300000) // 5 minute timeout for complex processing
+            setTimeout(() => reject(new Error('Transcription timeout - please try again')), 300000) // 5 minute timeout
           )
         ]) as any;
         
-        // Debug the API response
-        logger.debug('🔍 FAST TRANSCRIPTION API RESPONSE:', {
-          success: response.success,
-          hasData: !!response.data,
-          dataType: typeof response.data,
-          error: response.error,
-          responseKeys: Object.keys(response),
-          dataKeys: response.data ? Object.keys(response.data) : [],
-          dataContent: response.data
-        });
-        
         if (!response.success) {
-          // Enhanced error handling to display backend validation messages
-          let errorMessage = response.error || "Failed to transcribe audio. Please try again.";
-          let errorDetails = response.details || "";
-          let recommendations = response.recommendations || [];
+          const errorMessage = response.error || "Failed to transcribe audio. Please try again.";
           
-          // Check for timeout or backend processing issues
-          if (errorMessage.includes('timeout') || errorMessage.includes('Transcription timeout')) {
-            toast({
-              title: "⏳ Processing Timeout",
-              description: "Audio transcription is taking longer than expected. Please check your notes in a few minutes, or try with a shorter audio file.",
-              variant: "default",
-            });
-          } else {
-            // Show detailed error information
-            toast({
-              title: "Transcription Failed", 
-              description: errorMessage,
-              variant: "destructive",
-            });
-          }
-          
-          // If backend provided specific recommendations, show them
-          if (recommendations.length > 0) {
-            setTimeout(() => {
-              toast({
-                title: "💡 Recommendations",
-                description: recommendations.join(". "),
-                duration: 8000,
-              });
-            }, 1000);
-          }
-          
-          // Log detailed error for debugging
-          logger.error('Transcription failed:', {
-            error: response.error,
-            details: response.details,
-            recommendations: response.recommendations,
-            fileInfo: {
-              name: audioFile.name,
-              size: audioFile.size,
-              type: audioFile.type
-            }
+          toast({
+            title: "Transcription Failed", 
+            description: errorMessage,
+            variant: "destructive",
           });
           
           setIsProcessing(false);
           setProcessingFailed(true);
           setFailureMessage(errorMessage);
-          updateProcessingStage('Transcribing Audio', 'failed', 'Transcription failed', 0);
           return;
         }
         
         const { data } = response;
         
         if (data && 'jobId' in data) {
-          // Processing took >1 minute, need to poll for transcription progress
+          // Job-based processing - simple polling
           processingJobId.current = data.jobId;
-          updateRealProgress('Transcribing Audio', 5, 'Starting transcription...');
+          updateRealProgress('Transcribing Audio', 50, 'Transcription in progress...');
           
           toast({
             title: "Processing Started",
@@ -1540,7 +1658,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             setIsProcessing(false);
             setProcessingFailed(true);
             setFailureMessage('Failed to start transcription. Please try again.');
-            updateProcessingStage('Transcribing Audio', 'failed', 'Failed to start transcription', 0);
           }
         } else {
           // Immediate result - show actual progress based on backend response
@@ -1554,16 +1671,26 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             // Always treat API success as data success since backend creates the note
             if (response.success) {
               // If we have real data, use it; otherwise pass basic data that will create a note
-                            const fallbackData = {
-                patientName: '',
+              const fallbackData = {
+                patientName: patientData.patientName || '',
+                patientAge: patientData.patientAge || '',
+                patientGender: patientData.patientGender || '',
                 diagnosis: '',
-                patientInfo: undefined,
-                patientInformation: undefined,
+                patientInfo: {
+                  name: patientData.patientName || '',
+                  age: patientData.patientAge || '',
+                  gender: patientData.patientGender || ''
+                },
+                patientInformation: {
+                  name: patientData.patientName || '',
+                  age: patientData.patientAge || '',
+                  gender: patientData.patientGender || ''
+                },
                 medicalNote: {
                   chiefComplaint: '',
                   historyOfPresentIllness: '',
-                                  diagnosis: '',
-                treatmentPlan: ''
+                  diagnosis: '',
+                  treatmentPlan: ''
                 },
                 transcript: 'Transcription completed',
                 language: 'en',
@@ -1577,6 +1704,14 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
               logger.warn('⚠️ API response.success was false, but proceeding since backend creates notes');
               
               handleTranscriptionComplete({ 
+                patientName: patientData.patientName || '',
+                patientAge: patientData.patientAge || '',
+                patientGender: patientData.patientGender || '',
+                patientInfo: {
+                  name: patientData.patientName || '',
+                  age: patientData.patientAge || '',
+                  gender: patientData.patientGender || ''
+                },
                 transcript: 'Transcription completed',
                 language: 'en',
                 processingTime: '0s'
@@ -1585,20 +1720,23 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           }, 1700); // Wait for note generation to complete (1.5s + buffer)
         }
       } else {
-        // Use standard transcription endpoint - start at 0%
-        updateRealProgress('Transcribing Audio', 2, 'Starting transcription (this may take 2-3 minutes)...');
+        // Use standard transcription endpoint with simple workflow
+        updateRealProgress('Transcribing Audio', 25, 'Starting transcription...');
         
-        // Prepare patient information for API call - prioritize props over internal state
+        // Use captured patient information for this specific audio file, or capture it now if not already captured
+        const currentPatientData = filePatientInfo || captureCurrentPatientInfo();
         const patientData = {
-          patientName: patientInfo ? `${patientInfo.firstName.trim()} ${patientInfo.lastName.trim()}`.trim() : (patientName.trim() || undefined),
-          patientAge: patientInfo?.age.trim() || patientAge.trim() || undefined,
-          patientGender: patientInfo?.gender || patientGender || undefined,
+          patientName: currentPatientData?.patientName || '',
+          patientAge: currentPatientData?.patientAge || '',
+          patientGender: currentPatientData?.patientGender || '',
         };
+        
+
         
         const response = await Promise.race([
           apiClient.startTranscription(audioFile, patientData, language),
           new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Transcription timeout - please try again')), 300000) // 5 minute timeout for complex processing
+            setTimeout(() => reject(new Error('Transcription timeout - please try again')), 300000) // 5 minute timeout
           )
         ]) as any;
         
@@ -1609,7 +1747,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             variant: "destructive",
           });
           setIsProcessing(false);
-          updateProcessingStage('Transcribing Audio', 'failed', '', 0);
           return;
         }
         
@@ -1622,13 +1759,12 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             variant: "destructive",
           });
           setIsProcessing(false);
-          updateProcessingStage('Transcribing Audio', 'failed', '', 0);
           return;
         }
 
         processingJobId.current = data.jobId;
         
-        updateRealProgress('Transcribing Audio', 5, 'Transcription queued, polling for progress...');
+        updateRealProgress('Transcribing Audio', 50, 'Transcription in progress...');
         
         toast({
           title: "Transcription Started",
@@ -1644,7 +1780,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
             variant: "destructive",
           });
           setIsProcessing(false);
-          updateProcessingStage('Transcribing', 'failed', '', 0);
         }
       }
       
@@ -1654,7 +1789,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       setIsProcessing(false);
       setProcessingFailed(true);
       setFailureMessage(errorMessage);
-      updateProcessingStage('Transcribing Audio', 'failed', 'Network or processing error', 0);
       
       toast({
         title: "Processing Error",
@@ -1676,13 +1810,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   };
 
   const startPolling = (jobId: string) => {
-    // Ultra-fast polling for development, normal for production
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const pollingDelay = isDevelopment ? 500 : 1000; // 0.5s in dev, 1s in prod
-    
+    // Simple polling every 2 seconds
     const interval = setInterval(() => {
       pollTranscriptionStatus(jobId);
-    }, pollingDelay);
+    }, 2000);
+    
     pollingInterval.current = interval;
     pollTranscriptionStatus(jobId);
   };
@@ -1698,32 +1830,25 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           variant: "destructive",
         });
         setIsProcessing(false);
-        updateProcessingStage('Transcribing Audio', 'failed', 'Failed to get transcription status', 0);
         return;
       }
       const result = response.data;
       
-      // Update transcription progress based on status - Real backend progress
+      // Simple, working progress updates
       if (result.status === 'QUEUED') {
-        updateRealProgress('Transcribing Audio', 10, 'Transcription queued...');
+        updateRealProgress('Transcribing Audio', 50, 'Transcription queued, waiting...');
       } else if (result.status === 'IN_PROGRESS') {
-        // Use actual progress from backend API
-        const backendProgress = (result as any).progress || 0;
-        const actualProgress = Math.max(0, Math.min(backendProgress, 100));
-        updateRealProgress('Transcribing Audio', actualProgress, 'Transcribing audio to text...');
+        updateRealProgress('Transcribing Audio', 75, 'Transcribing audio to text...');
       } else if (result.status === 'COMPLETED') {
         if (pollingInterval.current) clearInterval(pollingInterval.current);
         pollingInterval.current = null;
         
         console.log('✅ Transcription completed, starting medical note generation...');
         
-        // Complete transcription stage
-        updateProcessingStage('Transcribing Audio', 'completed', 'Transcription completed successfully', 100);
-        
         // Complete transcription and move to note generation
-        updateRealProgress('Medical Note Generating', 80, 'Starting medical note generation...');
+        updateRealProgress('Medical Note Generating', 90, 'Creating medical note...');
         
-        // Handle completed transcription after a delay to show note generation
+        // Handle completed transcription
         setTimeout(async () => {
           console.log('📋 Full transcription result data:', result);
           await handleTranscriptionComplete({
@@ -1748,7 +1873,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           // For timeout errors, the transcription might still be processing
           setProcessingFailed(true);
           setFailureMessage('Transcription took longer than expected. The note may have been created - please check your notes page.');
-          updateProcessingStage('Transcribing Audio', 'failed', 'Processing timeout - check notes page', 0);
           
           toast({
             title: "⏰ Processing Timeout",
@@ -1768,7 +1892,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           
         } else {
           // Regular failure handling
-          updateProcessingStage('Transcribing Audio', 'failed', 'Transcription job failed', 0);
           setProcessingFailed(true);
           setFailureMessage('The transcription job failed. Please try again.');
           toast({
@@ -1787,7 +1910,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         if (pollingInterval.current) clearInterval(pollingInterval.current);
         pollingInterval.current = null;
         
-        updateProcessingStage('Transcribing Audio', 'failed', '', 0);
         setIsProcessing(false);
         
         toast({
@@ -1803,20 +1925,22 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
   };
 
   const handleTranscriptionComplete = (data: any) => {
-    console.log('🎯 Transcription completed with data:', data);
+
     
     // Show completion toast
     toast({
       title: "🎉 Transcription Complete!",
-      description: "Your audio has been transcribed successfully. Creating medical note...",
+      description: "Your audio has been transcribed successfully. Medical note created!",
       duration: 5000,
     });
     
-    // Update UI state
+    // Update UI state - show success first, keep processing visible
     setIsTranscribing(false);
-    setIsProcessing(false); // Reset processing state
-    setTranscriptionComplete(true);
     setOverallProgress(100);
+    setTranscriptionComplete(true);
+    
+    // Keep processing UI visible to show success state
+    // Don't hide it immediately - let the parent handle routing and cleanup
     
     // Clear any existing timeouts
     if (requestTimeoutRef.current) {
@@ -1835,20 +1959,72 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       // no-op
     }
     
-    // Set a timeout to remind users to check notes page
-    setTimeout(() => {
-      toast({
-        title: "📋 Check Your Notes",
-        description: "Your medical note should be ready. Click 'Check Notes Page' to view it.",
-        duration: 8000,
-      });
-    }, 3000);
-    
     // Call the parent callback with the transcription data
+    // The parent will handle note creation, routing, and cleanup
     if (onTranscriptionComplete) {
       onTranscriptionComplete(data);
     }
+    
+    // Don't clear the form immediately - let the parent handle the timing
+    // The parent will call onAddToQueue after routing is complete
   }
+
+  const handleAddToQueue = () => {
+    if (!file) return;
+    
+    // Get the current patient info (captured or from form)
+    const currentPatientData = filePatientInfo || captureCurrentPatientInfo();
+    
+
+    
+    // Update parent form with captured patient info BEFORE adding to queue
+    if (currentPatientData && (currentPatientData.patientName || currentPatientData.patientAge)) {
+      const tempPatientInfo = {
+        firstName: currentPatientData.patientName.split(' ')[0] || '',
+        lastName: currentPatientData.patientName.split(' ').slice(1).join(' ') || '',
+        age: currentPatientData.patientAge || '',
+        gender: currentPatientData.patientGender || ''
+      };
+      
+
+      
+      // Send patient info to parent via event
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('updatePatientInfo', { 
+          detail: tempPatientInfo 
+        }));
+      }
+      
+      // Wait a moment for the event to be processed, then add to queue (always persistent)
+      setTimeout(() => {
+        if (onRecordingComplete) {
+          (onRecordingComplete as any)(file, 0, true); // Always persistent
+        }
+      }, 100); // Small delay to ensure parent state is updated
+    } else {
+      // No patient info, add to queue anyway (always persistent)
+      if (onRecordingComplete) {
+        (onRecordingComplete as any)(file, 0, true); // Always persistent
+      }
+    }
+    
+    // Clear the current file and reset form for next recording
+    setFile(null);
+    setFilePatientInfo(null); // Clear captured patient info
+    setCreatedNoteIdLocal(null); // Clear created note ID
+    if (audioRef.current) {
+      audioRef.current.src = '';
+    }
+    setDetectedKeywords([]);
+    setTranscriptionComplete(false);
+    setProgress(0);
+    setWhatsappWarning(null);
+    
+    // Call the onAddToQueue callback to clear parent form
+    if (onAddToQueue) {
+      onAddToQueue();
+    }
+  };
 
   const handleRecordingChoice = (choice: 'queue' | 'process') => {
     if (!completedRecording) return;
@@ -1871,6 +2047,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       
       // Clear the current file and reset form for next recording
       setFile(null);
+      setFilePatientInfo(null); // Clear captured patient info
+      setCreatedNoteIdLocal(null); // Clear created note ID
       if (audioRef.current) {
         audioRef.current.src = '';
       }
@@ -1884,6 +2062,8 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
       
       // Clear the current file and reset form after starting processing
       setFile(null);
+      setFilePatientInfo(null); // Clear captured patient info
+      setCreatedNoteIdLocal(null); // Clear created note ID
       if (audioRef.current) {
         audioRef.current.src = '';
       }
@@ -1918,6 +2098,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     const demoBlob = new Blob(["demo audio content"], { type: "audio/wav" })
     const demoFile = new File([demoBlob], "Ahmed_consultation_demo.wav", { type: "audio/wav" })
     setFile(demoFile)
+    
+    // Capture patient information with demo file
+    const capturedPatientInfo = captureCurrentPatientInfo();
+    setFilePatientInfo(capturedPatientInfo);
     
     if (audioRef.current) {
       audioRef.current.src = URL.createObjectURL(demoBlob)
@@ -2150,8 +2334,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                     <p className="text-xs text-muted-foreground">
                       {file.size > 1000 ? (file.size / 1024 / 1024).toFixed(2) + " MB" : "Demo File"} • {file.type || 'Unknown format'}
                     </p>
+
                   </div>
                   <div className="flex items-center gap-2">
+
                     {whatsappWarning?.show && (
                       <Badge variant="destructive" className="text-xs">
                         WhatsApp
@@ -2253,103 +2439,69 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                       )}
                     </Button>
                     <Button
-                      className="flex items-center justify-center gap-2 text-white transition-all duration-300 bg-green-500 hover:bg-green-600 disabled:bg-green-400 disabled:cursor-not-allowed"
-                      onClick={() => handleRecordingChoice('queue')}
+                      className="w-full flex items-center justify-center gap-2 text-white transition-all duration-300 bg-green-500 hover:bg-green-600 disabled:bg-green-400 disabled:cursor-not-allowed"
+                      onClick={() => handleAddToQueue()}
                       disabled={isProcessing || disabled}
                     >
-                      <Clock className="h-4 w-4" />
-                      Add to Queue
+                      <Save className="h-4 w-4" />
+                      Save for Later
                     </Button>
                   </div>
-                ) : transcriptionComplete ? (
-                  <Button
-                    className="w-full flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white"
-                    onClick={() =>
-                      onTranscriptionComplete(
-                        file.name.includes("Ahmed")
-                          ? {
-                              patientInfo: {
-                                name: "Ahmed bin Ali",
-                                age: 28,
-                                gender: "Male",
-                                visitDate: "17 May 2025",
-                              },
-                              chiefComplaint: "Sore throat for three days",
-                              historyOfPresentIllness:
-                                "Patient reports worsening of sore throat over the past three days, associated with difficulty swallowing and mild fever. No cough or runny nose.",
-                              pastMedicalHistory: "No significant past medical history. No known drug allergies.",
-                              systemReview:
-                                "No other symptoms reported. No respiratory, cardiovascular, or gastrointestinal complaints.",
-                              physicalExamination: {
-                                vitals: {
-                                  bloodPressure: "120/80 mmHg",
-                                  heartRate: "78 bpm",
-                                  temperature: "37.8°C",
-                                  respiratoryRate: "16/min",
-                                },
-                                throat: "Erythematous pharynx with tonsillar enlargement. No exudates observed.",
-                              },
-                              diagnosis: "Acute pharyngitis, likely viral in origin",
-                              managementPlan:
-                                "Symptomatic treatment with paracetamol 1g QID PRN for fever and pain. Increase fluid intake. Salt water gargles. Return if symptoms worsen or persist beyond 5 days.",
-                              medicationCertificate: "2 days of medical leave provided",
-                            }
-                          : {
-                              patientInfo: {
-                                name: "Ahmed bin Ali",
-                                age: 28,
-                                gender: "Male",
-                                visitDate: "17 May 2025",
-                              },
-                              chiefComplaint: "Sore throat for three days",
-                              historyOfPresentIllness: "",
-                              pastMedicalHistory: "",
-                              systemReview: "",
-                              physicalExamination: {
-                                vitals: {
-                                  bloodPressure: "",
-                                  heartRate: "",
-                                  temperature: "",
-                                  respiratoryRate: "",
-                                },
-                                throat: "",
-                              },
-                              diagnosis: "",
-                              managementPlan: "",
-                              medicationCertificate: "",
-                            },
-                      )
-                    }
-                  >
-                    <Check size={18} /> View Medical Note
-                  </Button>
                 ) : null}
               </motion.div>
             )}
           </AnimatePresence>
 
           {isProcessing && (
-            <div className="bg-blue-50 dark:bg-blue-950/10 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+            <div className={`${overallProgress >= 100 ? 'bg-green-50 dark:bg-green-950/10 border-green-200 dark:border-green-800' : 'bg-blue-50 dark:bg-blue-950/10 border-blue-200 dark:border-blue-800'} border rounded-lg p-6 text-center transition-all duration-500`}>
               <div className="flex items-center justify-center gap-3 mb-4">
-                <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <span className="text-lg font-medium text-blue-900 dark:text-blue-100">
+                {overallProgress >= 100 ? (
+                  <div className="w-5 h-5 text-green-500">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                ) : (
+                  <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                )}
+                <span className={`text-lg font-medium ${overallProgress >= 100 ? 'text-green-900 dark:text-green-100' : 'text-blue-900 dark:text-blue-100'}`}>
                   {overallProgress < 50 ? '🎙️ Transcribing Audio' : 
                    overallProgress < 90 ? '📝 Medical Note Generating' : 
+                   overallProgress >= 100 ? '🎉 Medical Note Created Successfully!' :
                    '✅ 100% Medical Note Formed'}
                 </span>
               </div>
               
               <div className="space-y-3">
-                <div className="h-2 bg-blue-100 dark:bg-blue-900/50 rounded-full overflow-hidden">
+                <div className={`h-2 ${overallProgress >= 100 ? 'bg-green-100 dark:bg-green-900/50' : 'bg-blue-100 dark:bg-blue-900/50'} rounded-full overflow-hidden`}>
                   <div 
-                    className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                    className={`h-full ${overallProgress >= 100 ? 'bg-green-500' : 'bg-blue-500'} rounded-full transition-all duration-500`}
                     style={{ width: `${overallProgress}%` }}
                   ></div>
                 </div>
                 
-                <div className="text-sm text-blue-700 dark:text-blue-300">
-                  {overallProgress.toFixed(0)}% Complete
+                <div className={`text-sm ${overallProgress >= 100 ? 'text-green-700 dark:text-green-300' : 'text-blue-700 dark:text-blue-300'}`}>
+                  {overallProgress >= 100 ? '✅ Complete!' : `${overallProgress.toFixed(0)}% Complete`}
                 </div>
+                
+                {overallProgress >= 100 && (
+                  <div className="mt-4">
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (createdNoteIdLocal || createdNoteId) {
+                          const noteId = createdNoteIdLocal || createdNoteId;
+                          window.open(`/dashboard/notes/${noteId}`, '_blank');
+                        } else {
+                          window.open('/dashboard/notes', '_blank');
+                        }
+                      }}
+                      className="bg-green-500 hover:bg-green-600 text-white"
+                    >
+                      📋 View Medical Note
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2434,16 +2586,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                 <p className="text-xs text-muted-foreground">
                   Your medical note is being created and will appear in your Notes page
                 </p>
-                <div className="mt-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => window.open('/dashboard/notes', '_blank')}
-                    className="text-xs"
-                  >
-                    📋 Check Notes Page
-                  </Button>
-                </div>
+
               </div>
             </div>
           )}

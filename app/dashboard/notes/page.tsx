@@ -279,17 +279,7 @@ export default function NotesPage() {
         });
 
         // 🩺 DEBUG: Check vital signs in loaded notes
-        console.log('🩺 CHECKING VITAL SIGNS IN FETCHED NOTES:');
-        filteredNotes.slice(0, 3).forEach((note, index) => {
-          console.log(`Note ${index + 1} (${note.id}):`, {
-            temperature: note.temperature || 'MISSING',
-            pulseRate: note.pulseRate || 'MISSING', 
-            respiratoryRate: note.respiratoryRate || 'MISSING',
-            bloodPressure: note.bloodPressure || 'MISSING',
-            glucose: note.glucose || note.glucoseLevels || 'MISSING',
-            rawNote: note
-          });
-        });
+
 
         // 🚨 ENHANCED DEDUPLICATION: Remove duplicates by ID AND content similarity
         const uniqueNotes = filteredNotes.filter((note, index, array) => {
@@ -397,7 +387,7 @@ export default function NotesPage() {
     }
   }, [searchParams, loadNotes, noteTypeFilter, router, toast])
 
-  // 🩺 DEBUG: Log vital signs in fetched notes\n  const debugVitalSigns = (notes: any[]) => {\n    console.log('🩺 CHECKING VITAL SIGNS IN FETCHED NOTES:');\n    notes.forEach((note, index) => {\n      console.log(`Note ${index + 1} (${note.id}):`, {\n        temperature: note.temperature || 'MISSING',\n        pulseRate: note.pulseRate || 'MISSING',\n        respiratoryRate: note.respiratoryRate || 'MISSING',\n        bloodPressure: note.bloodPressure || 'MISSING',\n        glucose: note.glucose || note.glucoseLevels || 'MISSING'\n      });\n    });\n  };\n\n  // 🚨 CONSOLIDATED EFFECT: Single useEffect to handle all note loading scenarios
+  // 🚨 CONSOLIDATED EFFECT: Single useEffect to handle all note loading scenarios
   useEffect(() => {
     // Handle initial load and filter changes
     if (searchTerm.trim()) {

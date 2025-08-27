@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User, Check } from "lucide-react"
+import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User, Check, Wand2 } from "lucide-react"
 import { Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -18,26 +18,69 @@ import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { createMedicalNote, getMedicalNotes } from "@/store/features/notesSlice"
 import { apiClient } from "@/lib/api-client"
 
-const fileToBase64 = (file: File): Promise<string> => {
+// IndexedDB helper functions for persistent queue items
+const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
+    const request = indexedDB.open('AudioQueueDB', 1);
+    
+    request.onerror = () => reject(request.error);
+    request.onsuccess = () => resolve(request.result);
+    
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains('audioFiles')) {
+        db.createObjectStore('audioFiles', { keyPath: 'id' });
+      }
+    };
   });
 };
 
-const dataUrlToFile = (dataUrl: string, filename: string, fileType: string): File => {
-  const arr = dataUrl.split(',');
-  const mimeMatch = arr[0].match(/:(.*?);/);
-  const mime = mimeMatch ? mimeMatch[1] : fileType;
-  const bstr = atob(arr[1].trim());
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
+const saveFileToIndexedDB = async (id: string, file: File): Promise<void> => {
+  const db = await openDB();
+  const transaction = db.transaction(['audioFiles'], 'readwrite');
+  const store = transaction.objectStore('audioFiles');
+  
+  await new Promise<void>((resolve, reject) => {
+    const request = store.put({ id, file, savedAt: Date.now() });
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+};
+
+const loadFileFromIndexedDB = async (id: string): Promise<File | null> => {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(['audioFiles'], 'readonly');
+    const store = transaction.objectStore('audioFiles');
+    
+    return new Promise<File | null>((resolve, reject) => {
+      const request = store.get(id);
+      request.onsuccess = () => {
+        const result = request.result;
+        resolve(result ? result.file : null);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error('Failed to load file from IndexedDB:', error);
+    return null;
   }
-  return new File([u8arr], filename, { type: mime });
+};
+
+const deleteFileFromIndexedDB = async (id: string): Promise<void> => {
+  try {
+    const db = await openDB();
+    const transaction = db.transaction(['audioFiles'], 'readwrite');
+    const store = transaction.objectStore('audioFiles');
+    
+    await new Promise<void>((resolve, reject) => {
+      const request = store.delete(id);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  } catch (error) {
+    console.error('Failed to delete file from IndexedDB:', error);
+  }
 };
 
 
@@ -48,12 +91,16 @@ interface QueuedRecording {
   recordedAt: string
   duration: number
   status: 'recorded' | 'processing' | 'completed' | 'failed'
+  progress?: number
+  progressMessage?: string
   patientInfo?: {
     name?: string
     age?: number
     gender?: string
   }
   noteId?: string
+  isPersistent?: boolean // User chose to save this item for later
+  blobUrl?: string // For persistent items, store as blob URL
 }
 
 interface PatientInfo {
@@ -73,60 +120,137 @@ export default function TranscribePage() {
     gender: ''
   })
   const [isCreatingNote, setIsCreatingNote] = useState(false) // Add loading state for note creation
+  const [createdNoteId, setCreatedNoteId] = useState<string | null>(null) // Track created note ID
   const dispatch = useAppDispatch()
   const router = useRouter()
   const { toast } = useToast()
   const pollingIntervals = useRef<Record<string, NodeJS.Timeout>>({}).current
 
   useEffect(() => {
-    const loadQueueFromStorage = async () => {
-      const storedQueueJSON = localStorage.getItem('queuedRecordings');
-      if (storedQueueJSON) {
-        try {
-          const storableQueue: any[] = JSON.parse(storedQueueJSON);
-          const reconstructedQueue: QueuedRecording[] = storableQueue.map(item => {
-            const { fileDataUrl, fileType, ...rest } = item;
-            return {
-              ...rest,
-              file: dataUrlToFile(fileDataUrl, item.filename, fileType),
-            };
-          });
-          setQueuedRecordings(reconstructedQueue);
-        } catch (error) {
-          console.error("Failed to load queue from local storage", error);
-          localStorage.removeItem('queuedRecordings');
+    const loadQueueState = async () => {
+      try {
+        // Clean up old storage format
+        localStorage.removeItem('queuedRecordings');
+        
+        const storedMetadata = localStorage.getItem('queueMetadata');
+        if (storedMetadata) {
+          const parsedMetadata = JSON.parse(storedMetadata);
+          console.log('📋 Found queue metadata for', parsedMetadata.length, 'items');
+          
+          const restoredItems: QueuedRecording[] = [];
+          
+          for (const metadata of parsedMetadata) {
+            if (metadata.isPersistent && metadata.status !== 'completed') {
+              // Try to restore persistent files from IndexedDB
+              const file = await loadFileFromIndexedDB(metadata.id);
+              if (file) {
+                restoredItems.push({
+                  ...metadata,
+                  file,
+                } as QueuedRecording);
+                console.log('✅ Restored persistent file:', metadata.filename);
+              } else {
+                console.log('❌ Could not restore file:', metadata.filename);
+                // Keep metadata but mark as needing re-upload
+                restoredItems.push({
+                  ...metadata,
+                  file: new File([], metadata.filename, { type: metadata.fileType }),
+                  status: 'failed' as const,
+                  progressMessage: 'File needs to be re-uploaded'
+                } as QueuedRecording);
+              }
+            }
+            // Skip temporary items - they're lost on page refresh (expected)
+          }
+          
+          if (restoredItems.length > 0) {
+            setQueuedRecordings(restoredItems);
+            const persistentCount = restoredItems.filter(r => r.file.size > 0).length;
+            const failedCount = restoredItems.length - persistentCount;
+            
+            toast({
+              title: "📋 Queue Restored",
+              description: `Restored ${persistentCount} saved items${failedCount > 0 ? `, ${failedCount} need re-upload` : ''}.`,
+            });
+          }
         }
+      } catch (error) {
+        console.error('Failed to load queue state:', error);
+        localStorage.removeItem('queueMetadata');
       }
     };
-    loadQueueFromStorage();
+    loadQueueState();
+
+    // Listen for patient info updates from audio upload component
+    const handlePatientInfoUpdate = (event: CustomEvent) => {
+      const tempPatientInfo = event.detail;
+      setPatientInfo(tempPatientInfo);
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('updatePatientInfo', handlePatientInfoUpdate as EventListener);
+    }
+
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('updatePatientInfo', handlePatientInfoUpdate as EventListener);
+      }
+    };
   }, []);
 
+  // Hybrid persistence: IndexedDB for persistent items, memory for temporary
   useEffect(() => {
-    const saveQueueToStorage = async () => {
-      if (queuedRecordings.some(r => r.status === 'processing')) {
-        return; 
-      }
-      if (queuedRecordings.length > 0) {
-        try {
-          const storableQueuePromises = queuedRecordings.map(async (recording) => {
-            const fileDataUrl = await fileToBase64(recording.file);
-            const { file, ...rest } = recording;
-            return {
-              ...rest,
-              fileDataUrl,
-              fileType: file.type,
-            };
-          });
-          const storableQueue = await Promise.all(storableQueuePromises);
-          localStorage.setItem('queuedRecordings', JSON.stringify(storableQueue));
-        } catch (error) {
-          console.error("Failed to save queue to local storage", error);
+    const saveQueueState = async () => {
+      try {
+        // Separate persistent and temporary items
+        const persistentItems = queuedRecordings.filter(r => r.isPersistent);
+        const temporaryItems = queuedRecordings.filter(r => !r.isPersistent);
+        
+        // Save persistent files to IndexedDB
+        for (const item of persistentItems) {
+          if (item.file && item.status !== 'completed') {
+            await saveFileToIndexedDB(item.id, item.file);
+          }
         }
-      } else {
-        localStorage.removeItem('queuedRecordings');
+        
+        // Save metadata for all items to localStorage
+        const queueMetadata = queuedRecordings.map(recording => ({
+          id: recording.id,
+          filename: recording.filename,
+          recordedAt: recording.recordedAt,
+          duration: recording.duration,
+          status: recording.status,
+          patientInfo: recording.patientInfo,
+          fileType: recording.file?.type,
+          fileSize: recording.file?.size,
+          isPersistent: recording.isPersistent,
+          noteId: recording.noteId,
+        }));
+        
+        if (queueMetadata.length > 0) {
+          localStorage.setItem('queueMetadata', JSON.stringify(queueMetadata));
+
+        } else {
+          localStorage.removeItem('queueMetadata');
+        }
+      } catch (error) {
+        console.error('Failed to save queue state:', error);
+        // Fallback to metadata only
+        try {
+          const basicMetadata = queuedRecordings.map(r => ({
+            id: r.id,
+            filename: r.filename,
+            status: r.status,
+            isPersistent: r.isPersistent
+          }));
+          localStorage.setItem('queueMetadata', JSON.stringify(basicMetadata));
+        } catch {
+          localStorage.removeItem('queueMetadata');
+        }
       }
     };
-    saveQueueToStorage();
+    
+    saveQueueState();
   }, [queuedRecordings]);
 
   useEffect(() => {
@@ -183,7 +307,7 @@ export default function TranscribePage() {
     if (recordingId) {
       setQueuedRecordings(prev =>
         prev.map(r =>
-          r.id === recordingId ? { ...r, status: 'completed', noteId } : r
+          r.id === recordingId ? { ...r, status: 'completed' as const, noteId } : r
         )
       )
     }
@@ -207,7 +331,6 @@ export default function TranscribePage() {
       toast({
         title: "🏥 Healthcare Professional: Patient Privacy Guidelines",
         description: "Please ensure patient consent and follow privacy regulations - patient information will appear exactly as entered.",
-        duration: 8000, // 8 seconds
       })
     }
   }, [settingsLoaded, isStudentUser, toast])
@@ -231,6 +354,7 @@ export default function TranscribePage() {
       age: '',
       gender: ''
     })
+    setCreatedNoteId(null) // Clear note ID for next transcription
   }
 
   const isPatientInfoValid = () => {
@@ -241,7 +365,7 @@ export default function TranscribePage() {
   }
 
   const handleTranscriptionComplete = async (data: any, recordingId?: string) => {
-    console.log('🎯 handleTranscriptionComplete called with data:', data);
+  
     
     // Check if it's a minimal/error response
     if (data.isMinimal) {
@@ -254,7 +378,7 @@ export default function TranscribePage() {
       toast({
         title: "⏰ Processing Timeout",
         description: "Transcription took longer than expected. Checking if your note was created...",
-        duration: 8000
+
       });
       
       // Wait a moment and then redirect to notes page to check
@@ -276,7 +400,7 @@ export default function TranscribePage() {
       description: "Medical note completed successfully! Creating note and redirecting...",
     });
     
-    console.log('📝 Starting note creation process...');
+
     
     // Show loading state for note creation
     toast({
@@ -353,10 +477,7 @@ export default function TranscribePage() {
         }
       };
 
-      console.log('📝 Prepared note data for backend:', noteData);
-      
       // 🧠 ICD-11 codes will be generated by the backend during medical note processing
-      console.log('✅ Note data prepared for backend processing (ICD-11 codes will be generated server-side)');
       
       // Show progress notification
       toast({
@@ -373,37 +494,58 @@ export default function TranscribePage() {
       // CRITICAL: Update local state with transformed response
       if (createMedicalNote.fulfilled.match(result)) {
         const savedNote = result.payload;
-        console.log('🎉 Note creation successful, savedNote:', savedNote);
-        
         // Check multiple possible ID fields in the response
         if (savedNote && savedNote.id) {
           const noteId = savedNote.id;
-          console.log('✅ Note created successfully with ID:', noteId);
           
           if (recordingId) {
+            // For queue items, show success and route after delay
             setQueuedRecordings(prev =>
               prev.map(r =>
-                r.id === recordingId ? { ...r, status: 'completed', noteId } : r
+                r.id === recordingId ? { ...r, status: 'completed' as const, noteId, progressMessage: '🎉 Medical Note Created!' } : r
               )
             )
             toast({
               title: "🎉 Medical Note Created!",
-              description: "Your medical note has been created successfully.",
-              duration: 5000,
+              description: "Your medical note has been created successfully. Opening it now...",
+      
             });
+            
+            // Wait before routing and then cleanup
+            setTimeout(() => {
+              router.replace(`/dashboard/notes/${noteId}`);
+              
+              // Remove from queue after routing
+              setTimeout(() => {
+                setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
+              }, 1000);
+            }, 3000); // Wait 3 seconds before routing
           } else {
             // Show success message
             toast({
               title: "🎉 Medical Note Created!",
               description: "Your medical note has been created successfully. Opening it now...",
-              duration: 5000,
+      
             });
             
-            // Navigate immediately to the proper note page with proper ID
-            console.log('🧭 Navigating to note page:', `/dashboard/notes/${noteId}`);
+            // Set the created note ID for the audio upload component
+            setCreatedNoteId(noteId);
             
-            // Use router.replace for immediate navigation without back button
-            router.replace(`/dashboard/notes/${noteId}`);
+            // Wait a moment before navigating to let user see completion message
+  
+            
+            setTimeout(() => {
+              router.replace(`/dashboard/notes/${noteId}`);
+              
+              // Clear the form and reset audio upload component after routing
+              setTimeout(() => {
+                clearPatientForm();
+                // Trigger cleanup of audio upload component
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('clearAudioUpload'));
+                }
+              }, 1000); // Clear after routing
+            }, 3000); // Wait 3 seconds before routing
           }
           
           // Always clear the patient form after successful note creation
@@ -423,13 +565,38 @@ export default function TranscribePage() {
               const latest = notesResult.payload?.notes?.[0];
               if (latest?.id) {
                 if (recordingId) {
+                  // For queue items, show success and route after delay
                   setQueuedRecordings(prev =>
                     prev.map(r =>
-                      r.id === recordingId ? { ...r, status: 'completed', noteId: latest.id } : r
+                      r.id === recordingId ? { ...r, status: 'completed' as const, noteId: latest.id, progressMessage: '🎉 Medical Note Created!' } : r
                     )
                   )
+                  
+                  // Wait before routing and then cleanup
+                  setTimeout(() => {
+                    router.replace(`/dashboard/notes/${latest.id}`);
+                    
+                    // Remove from queue after routing
+                    setTimeout(() => {
+                      setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
+                    }, 1000);
+                  }, 3000); // Wait 3 seconds before routing
                 } else {
-                  router.replace(`/dashboard/notes/${latest.id}`);
+                  setCreatedNoteId(latest.id);
+                  
+                  // Wait a moment before navigating to let user see completion message
+                  setTimeout(() => {
+                    router.replace(`/dashboard/notes/${latest.id}`);
+                    
+                    // Clear the form and reset audio upload component after routing
+                    setTimeout(() => {
+                      clearPatientForm();
+                      // Trigger cleanup of audio upload component
+                      if (typeof window !== 'undefined') {
+                        window.dispatchEvent(new CustomEvent('clearAudioUpload'));
+                      }
+                    }, 1000); // Clear after routing
+                  }, 3000); // Wait 3 seconds before routing
                 }
                 
                 // Always clear the patient form after successful note creation
@@ -444,7 +611,7 @@ export default function TranscribePage() {
           if (recordingId) {
             setQueuedRecordings(prev =>
               prev.map(r =>
-                r.id === recordingId ? { ...r, status: 'completed' } : r
+                r.id === recordingId ? { ...r, status: 'completed' as const } : r
               )
             )
           } else {
@@ -464,7 +631,7 @@ export default function TranscribePage() {
           title: "❌ Medical Note Creation Failed",
           description: `Failed to create medical note: ${errorMessage}. Your transcription was completed but the note couldn't be saved.`,
           variant: "destructive",
-          duration: 8000 // Longer duration for important error
+   // Longer duration for important error
         });
 
         // Show additional guidance
@@ -501,7 +668,7 @@ export default function TranscribePage() {
         title: "❌ Transcription Processing Failed", 
         description: `An unexpected error occurred: ${errorMessage}. Please try transcribing again.`,
         variant: "destructive",
-        duration: 8000
+
       });
       
       // Show helpful guidance
@@ -525,8 +692,78 @@ export default function TranscribePage() {
 
 
 
+  // Function to check for completed note after timeout
+  const checkForCompletedNote = async (recordingId: string, jobId?: string) => {
+    try {
+
+      
+      // Try to get the latest notes using Redux
+      const notesResult = await dispatch(getMedicalNotes({ page: 1, limit: 10 }));
+      
+      if (getMedicalNotes.fulfilled.match(notesResult)) {
+        const recentNotes = notesResult.payload?.notes || [];
+        const recording = queuedRecordings.find(r => r.id === recordingId);
+        
+        if (recording && recentNotes.length > 0) {
+          // Look for a recently created note (within last 5 minutes)
+          const matchingNote = recentNotes.find((note: any) => {
+            const noteTime = new Date(note.createdAt).getTime();
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+            const recordingTime = new Date(recording.recordedAt).getTime();
+            
+            // Check if note was created after recording and within last 5 minutes
+            return noteTime > recordingTime && noteTime > fiveMinutesAgo;
+          });
+          
+          if (matchingNote) {
+            console.log('✅ Found recently created note:', matchingNote.id);
+            
+            // Clear polling interval if provided
+            if (jobId && pollingIntervals[jobId]) {
+              clearInterval(pollingIntervals[jobId]);
+              delete pollingIntervals[jobId];
+            }
+            
+            setQueuedRecordings(prev =>
+              prev.map(r => (r.id === recordingId ? { ...r, status: 'completed' as const, noteId: matchingNote.id } : r))
+            )
+            
+            toast({
+              title: "✅ Note Found!",
+              description: "Your medical note was created successfully.",
+            });
+            
+            // Route to the note after a delay
+            setTimeout(() => {
+              router.replace(`/dashboard/notes/${matchingNote.id}`);
+              setTimeout(() => {
+                setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
+              }, 1000);
+            }, 3000);
+            
+            return true;
+          }
+        }
+      }
+      
+      // No note found, mark as failed
+      setQueuedRecordings(prev =>
+        prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' as const, progressMessage: 'No note was created' } : r))
+      )
+      
+      return false;
+      
+    } catch (error) {
+      console.error('Error checking for completed note:', error);
+      setQueuedRecordings(prev =>
+        prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' as const, progressMessage: 'Failed to verify completion' } : r))
+      )
+      return false;
+    }
+  };
+
   // Function to add a recording to the queue
-  const addToQueue = (file: File, duration: number) => {
+  const addToQueue = (file: File, duration: number, isPersistent: boolean = false) => {
     setQueuedRecordings(prev => {
       const newRecording: QueuedRecording = {
         id: Date.now().toString(),
@@ -534,7 +771,8 @@ export default function TranscribePage() {
         file: file,
         recordedAt: new Date().toISOString(),
         duration: duration,
-        status: 'recorded',
+        status: 'recorded' as const,
+        isPersistent: isPersistent,
         patientInfo: {
           name: `${patientInfo.firstName} ${patientInfo.lastName}`.trim() || `Medical Case ${String(prev.length + 1).padStart(3, '0')}`,
           age: patientInfo.age ? parseInt(patientInfo.age) : undefined,
@@ -544,24 +782,34 @@ export default function TranscribePage() {
       return [newRecording, ...prev];
     });
 
+    // Show feedback
+    toast({
+      title: "💾 Audio Saved",
+      description: `${file.name} saved for later processing.`,
+    });
+
     // Reset the patient form after adding to queue
     clearPatientForm();
-
-    toast({
-      title: "📝 Recording Saved",
-      description: `${file.name} has been added to your processing queue with patient information.`,
-    });
   };
 
   // Function to process a recording from the queue
   const processQueuedRecording = async (recordingId: string) => {
     const recording = queuedRecordings.find(r => r.id === recordingId)
-    if (!recording) return
+    if (!recording) {
+      console.error(`🚨 Recording ${recordingId} not found in queue!`);
+      return;
+    }
 
-    // Update status to processing
-    setQueuedRecordings(prev => 
-      prev.map(r => r.id === recordingId ? { ...r, status: 'processing' } : r)
-    )
+    // Update status to processing with initial progress
+    setQueuedRecordings(prev => {
+      const updated = prev.map(r => r.id === recordingId ? { 
+        ...r, 
+        status: 'processing' as const,
+        progress: 5,
+        progressMessage: 'Starting transcription...'
+      } : r);
+      return updated;
+    });
 
     try {
       toast({
@@ -569,30 +817,79 @@ export default function TranscribePage() {
         description: `Processing ${recording.filename}. This will take 30-90 seconds.`,
       })
 
-      // Use patient info stored with the recording, or fall back to current form if available
-      const patientData = recording.patientInfo?.name ? {
-        patientName: recording.patientInfo.name,
-        patientAge: recording.patientInfo.age?.toString() || '',
-        patientGender: recording.patientInfo.gender || ''
-      } : {
-        patientName: `${patientInfo.firstName} ${patientInfo.lastName}`.trim(),
-        patientAge: patientInfo.age,
-        patientGender: patientInfo.gender
+      // Always use patient info stored with the recording (captured when added to queue)
+      const patientData = {
+        patientName: recording.patientInfo?.name || '',
+        patientAge: recording.patientInfo?.age?.toString() || '',
+        patientGender: recording.patientInfo?.gender || ''
       };
+      
 
-      const response = await apiClient.startTranscription(
+      
+      const response = await apiClient.fastTranscription(
         recording.file,
         patientData
       )
 
-      if (response.success && response.data?.jobId) {
-        startPolling(response.data.jobId, recording.id)
+
+
+      if (response.success && response.data?.savedNoteId) {
+        // Direct transcription completed successfully
+        const noteId = response.data.savedNoteId;
+        
+        setQueuedRecordings(prev =>
+          prev.map(r =>
+            r.id === recordingId ? { ...r, status: 'completed' as const, noteId, progressMessage: '🎉 Medical Note Created!' } : r
+          )
+        )
+        
+        toast({
+          title: "🎉 Medical Note Created!",
+          description: "Your medical note has been created successfully. Opening it now...",
+        });
+        
+        // Wait before routing and then cleanup
+        setTimeout(() => {
+          router.replace(`/dashboard/notes/${noteId}`);
+          setTimeout(() => {
+            setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
+          }, 1000);
+        }, 3000);
+      } else if (response.error?.includes('TIMEOUT') || response.details === 'TIMEOUT') {
+        // Handle timeout - transcription might still complete in background
+        console.log('⏰ Transcription timeout, but note might still be created');
+        
+        setQueuedRecordings(prev =>
+          prev.map(r =>
+            r.id === recordingId ? { 
+              ...r, 
+              status: 'processing' as const, 
+              progressMessage: '⏰ Processing taking longer than expected...' 
+            } : r
+          )
+        )
+        
+        toast({
+          title: "⏰ Processing Taking Longer",
+          description: "Your transcription is taking longer than expected. We'll check for completion shortly.",
+        });
+        
+        // Check for completed note after a delay
+        setTimeout(() => {
+          checkForCompletedNote(recordingId);
+        }, 10000); // Check after 10 seconds
+        
       } else {
-        throw new Error(response.error || 'Failed to start transcription job.')
+        throw new Error(response.error || 'Failed to complete transcription.')
       }
     } catch (error) {
       setQueuedRecordings(prev => 
-        prev.map(r => r.id === recordingId ? { ...r, status: 'failed' } : r)
+        prev.map(r => r.id === recordingId ? { 
+          ...r, 
+          status: 'failed' as const,
+          progress: 0,
+          progressMessage: 'Processing failed'
+        } : r)
       )
       toast({
         title: "❌ Processing Failed",
@@ -608,67 +905,30 @@ export default function TranscribePage() {
     }, 5000)
     
     // Add a timeout to prevent infinite polling (10 minutes)
-    setTimeout(() => {
+    setTimeout(async () => {
       if (pollingIntervals[jobId]) {
         console.log(`Polling timeout for job ${jobId}, checking if note was created...`);
         clearInterval(pollingIntervals[jobId])
         delete pollingIntervals[jobId]
         
         // Check if a note was actually created despite the timeout
-        checkForCompletedNote(recordingId, jobId)
+        const noteFound = await checkForCompletedNote(recordingId, jobId)
+        
+        if (!noteFound) {
+          setQueuedRecordings(prev =>
+            prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' as const } : r))
+          )
+          toast({
+            title: "⏰ Processing Timeout",
+            description: "Transcription took longer than expected. Please check your notes page.",
+            variant: "destructive"
+          });
+        }
       }
     }, 600000) // 10 minutes
   }
 
-  const checkForCompletedNote = async (recordingId: string, jobId: string) => {
-    try {
-      // Try to get the latest notes to see if one was created
-      const notesResult = await dispatch(getMedicalNotes({ page: 1, limit: 5 }));
-      if (getMedicalNotes.fulfilled.match(notesResult)) {
-        const recentNotes = notesResult.payload?.notes || [];
-        const recording = queuedRecordings.find(r => r.id === recordingId);
-        
-        if (recording && recentNotes.length > 0) {
-          // Check if any recent note matches the patient info from the recording
-          const matchingNote = recentNotes.find(note => {
-            const notePatientName = note.patientName || '';
-            const recordingPatientName = recording.patientInfo?.name || '';
-            return notePatientName.includes(recordingPatientName) || 
-                   recordingPatientName.includes(notePatientName) ||
-                   note.createdAt > recording.recordedAt;
-          });
-          
-          if (matchingNote) {
-            console.log(`Found matching note for recording ${recordingId}:`, matchingNote.id);
-            setQueuedRecordings(prev =>
-              prev.map(r => (r.id === recordingId ? { ...r, status: 'completed', noteId: matchingNote.id } : r))
-            )
-            toast({
-              title: "✅ Note Found!",
-              description: "Your medical note was created successfully.",
-              duration: 5000,
-            });
-            return;
-          }
-        }
-      }
-      
-      // If no matching note found, mark as failed
-      setQueuedRecordings(prev =>
-        prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' } : r))
-      )
-      toast({
-        title: "⏰ Processing Timeout",
-        description: "Transcription took longer than expected. Please check your notes page.",
-        variant: "destructive"
-      });
-    } catch (error) {
-      console.error('Error checking for completed note:', error);
-      setQueuedRecordings(prev =>
-        prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' } : r))
-      )
-    }
-  }
+
 
   const pollTranscriptionStatus = async (jobId: string, recordingId: string) => {
     try {
@@ -683,38 +943,66 @@ export default function TranscribePage() {
           
           console.log(`Transcription completed for recording ${recordingId}`);
           
-          // Update status to completed immediately
+          // Update status to completed with 100% progress
           setQueuedRecordings(prev =>
-            prev.map(r => (r.id === recordingId ? { ...r, status: 'completed' } : r))
+            prev.map(r => (r.id === recordingId ? { 
+              ...r, 
+              status: 'completed' as const,
+              progress: 100,
+              progressMessage: 'Transcription completed!'
+            } : r))
           )
           
           await handleTranscriptionComplete(response.data, recordingId)
         } else if (response.data.status === 'FAILED') {
-          clearInterval(pollingIntervals[jobId])
-          delete pollingIntervals[jobId]
-          console.log(`Transcription failed for recording ${recordingId}`);
+          console.log(`Transcription status is FAILED for recording ${recordingId}`);
           
-          setQueuedRecordings(prev =>
-            prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' } : r))
-          )
-          toast({
-            title: 'Transcription Failed',
-            description: 'The audio processing failed.',
-            variant: 'destructive'
-          })
+          // Before marking as failed, check if a note was actually created
+          const noteFound = await checkForCompletedNote(recordingId, jobId)
+          
+          if (!noteFound) {
+            clearInterval(pollingIntervals[jobId])
+            delete pollingIntervals[jobId]
+            
+            setQueuedRecordings(prev =>
+              prev.map(r => (r.id === recordingId ? { 
+                ...r, 
+                status: 'failed' as const,
+                progress: 0,
+                progressMessage: 'Processing failed'
+              } : r))
+            )
+            toast({
+              title: 'Transcription Failed',
+              description: 'The audio processing failed.',
+              variant: 'destructive'
+            })
+          }
         } else if (response.data.status === 'IN_PROGRESS' || response.data.status === 'QUEUED') {
-          // Continue polling for these statuses
+          // Continue polling for these statuses and update progress
           console.log(`Transcription still in progress for recording ${recordingId}: ${response.data.status}`);
+          
+          // Update progress to show it's still working
+          setQueuedRecordings(prev =>
+            prev.map(r => (r.id === recordingId ? { 
+              ...r, 
+              progress: 75, // Fixed progress for in-progress
+              progressMessage: (response.data as any).status === 'IN_PROGRESS' ? 'Transcribing audio...' : 'Job queued, waiting...'
+            } : r))
+          )
+          
+          // Also check if a note was created even while in progress (sometimes backend completes but doesn't update status)
+          await checkForCompletedNote(recordingId, jobId)
         } else {
-          // Unknown status - continue polling but log it
+          // Unknown status - check if note was created and continue polling
           console.log(`Unknown transcription status for recording ${recordingId}: ${response.data.status}`);
+          await checkForCompletedNote(recordingId, jobId)
         }
       } else {
-        // If we get a successful response but no data, or if the response indicates success
-        // but the status is unclear, we should check if a note was actually created
+        // If we get a successful response but no data, check if a note was created
         if (response.success) {
-          // Give it a bit more time before marking as failed
-          console.log('Transcription response received but status unclear, continuing to poll...')
+          console.log('Transcription response received but status unclear, checking for completed note...')
+          await checkForCompletedNote(recordingId, jobId)
           return
         }
         
@@ -722,27 +1010,14 @@ export default function TranscribePage() {
         delete pollingIntervals[jobId]
         console.log(`Polling failed for recording ${recordingId}`);
         
-        setQueuedRecordings(prev =>
-          prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' } : r))
-        )
-        toast({
-          title: 'Transcription Status Unclear',
-          description: 'Could not determine transcription status.',
-          variant: 'destructive'
-        })
+        // Before marking as failed, do a final check for completed note
+        await checkForCompletedNote(recordingId, jobId)
       }
     } catch (error) {
       console.error('Error polling transcription status:', error)
-      clearInterval(pollingIntervals[jobId])
-      delete pollingIntervals[jobId]
-      setQueuedRecordings(prev =>
-        prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' } : r))
-      )
-      toast({
-        title: 'Polling Error',
-        description: 'Error checking transcription status.',
-        variant: 'destructive'
-      })
+      
+      // Before marking as failed due to polling error, check if note was created
+      await checkForCompletedNote(recordingId, jobId)
     }
   }
 
@@ -921,7 +1196,9 @@ export default function TranscribePage() {
             onAddToQueue={clearPatientForm}
             disabled={isCreatingNote}
             patientInfo={patientInfo}
+            createdNoteId={createdNoteId}
           />
+
 
           {/* Note Creation Loading State */}
           {isCreatingNote && (
@@ -999,12 +1276,26 @@ export default function TranscribePage() {
                         </div>
                         
                         <div className="text-xs text-gray-500 mb-2">
-                          <div>Duration: {formatDuration(recording.duration)}</div>
-                          <div>Recorded: {new Date(recording.recordedAt).toLocaleTimeString()}</div>
                           {recording.patientInfo?.name && (
                             <div>Patient: {recording.patientInfo.name}</div>
                           )}
                         </div>
+                        
+                        {/* Progress bar for processing recordings */}
+                        {recording.status === 'processing' && recording.progress !== undefined && (
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
+                              <span>{recording.progressMessage || 'Processing...'}</span>
+                              <span>{recording.progress}%</span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                              <div 
+                                className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${recording.progress}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="flex items-center gap-2">
                           {recording.status === 'recorded' && (
@@ -1014,8 +1305,8 @@ export default function TranscribePage() {
                               onClick={() => processQueuedRecording(recording.id)}
                               className="flex items-center gap-1 text-xs"
                             >
-                              <Play className="h-3 w-3" />
-                              Process
+                              <Wand2 className="h-3 w-3" />
+                              Transcribe Audio
                             </Button>
                           )}
                           

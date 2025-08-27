@@ -93,31 +93,9 @@ export default function NotePage() {
       setIsLoading(true)
       const response = await apiClient.getMedicalNote(noteId)
       
-      // 🚨 DEBUG: Show individual note data from backend
-      console.log('📄 INDIVIDUAL NOTE API RESPONSE:', JSON.stringify(response, null, 2));
-      
       if (response.success && response.data) {
-        console.log('🔍 INDIVIDUAL NOTE DATA STRUCTURE:', JSON.stringify(response.data, null, 2));
-        console.log('👤 PATIENT INFO FROM BACKEND:', {
-          name: response.data.patientName,
-          age: response.data.patientAge,
-          gender: response.data.patientGender
-        });
-        console.log('📋 MEDICAL CONTENT FROM BACKEND:', {
-          chiefComplaint: response.data.chiefComplaint,
-          diagnosis: response.data.diagnosis,
-          assessment: response.data.assessmentAndDiagnosis,
-          treatmentPlan: response.data.treatmentPlan,
-          managementPlan: response.data.managementPlan
-        });
-        console.log('👨‍⚕️ DOCTOR INFO FROM BACKEND:', {
-          name: response.data.doctorName,
-          registration: response.data.doctorRegistrationNo,
-          department: response.data.doctorDepartment
-        });
+        setNote(response.data || null)
       }
-      
-      setNote(response.data || null)
     } catch (error) {
       // Error fetching note
       toast({

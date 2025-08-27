@@ -210,6 +210,7 @@ interface FastTranscriptionResponse {
   language: string;
   processingTime: string;
   jobId?: string; // Only returned if processing takes >1 minute
+  savedNoteId?: string; // ID of the saved medical note
 }
 
 // Version History & Audit Interfaces
@@ -769,33 +770,21 @@ class ApiClient {
       };
     }
 
-    // 🔍 DEBUG: Log file information before creating FormData
-    console.log('🔍 API Client file info:', {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      lastModified: file.lastModified
-    });
-
     const formData = new FormData();
-    
-    // ✅ FIXED: Use 'audioFile' field name to match backend expectation
     formData.append('audioFile', file, file.name);
-    
-    // 🔍 DEBUG: Log FormData contents
-    console.log('🔍 FormData created with file:', file.name);
 
     if (language) {
       formData.append('language', language);
     }
-    if (patientData?.patientName) {
-      formData.append('patientName', patientData.patientName);
+    // Always send patient data, even if empty strings
+    if (patientData?.patientName !== undefined) {
+      formData.append('patientName', patientData.patientName || '');
     }
-    if (patientData?.patientAge) {
-      formData.append('patientAge', patientData.patientAge);
+    if (patientData?.patientAge !== undefined) {
+      formData.append('patientAge', patientData.patientAge || '');
     }
-    if (patientData?.patientGender) {
-      formData.append('patientGender', patientData.patientGender);
+    if (patientData?.patientGender !== undefined) {
+      formData.append('patientGender', patientData.patientGender || '');
     }
 
     return this.request('/transcribe/fast', {
@@ -843,15 +832,10 @@ class ApiClient {
     if (language) {
       formData.append('language', language);
     }
-    if (patientData?.patientName) {
-      formData.append('patientName', patientData.patientName);
-    }
-    if (patientData?.patientAge) {
-      formData.append('patientAge', patientData.patientAge);
-    }
-    if (patientData?.patientGender) {
-      formData.append('patientGender', patientData.patientGender);
-    }
+    // Always send patient data, even if empty
+    formData.append('patientName', patientData?.patientName || '');
+    formData.append('patientAge', patientData?.patientAge || '');
+    formData.append('patientGender', patientData?.patientGender || '');
     if (section) {
       formData.append('section', section);
     }
@@ -974,12 +958,6 @@ class ApiClient {
 
     // Creating medical note for patient
 
-    // Log the complete request body for debugging validation issues
-    console.log('🔍 API Client - Backend data being sent:', {
-      dataKeys: Object.keys(backendData),
-      hasMedicalContent: !!(backendData.assessmentAndDiagnosis || backendData.chiefComplaint || backendData.physicalExamination)
-    });
-
     // Log diagnosis data for consistency tracking
 
     // Generate ICD-11 codes automatically if we have medical content
@@ -1000,14 +978,7 @@ class ApiClient {
       body: JSON.stringify(backendData),
     });
     
-    console.log('🔍 API Client - Backend response received:', {
-      success: response.success,
-      hasData: !!response.data,
-      dataKeys: Object.keys(response.data || {}),
-      hasICD11Codes: !!(response.data as any)?.icd11Codes,
-      icd11Codes: (response.data as any)?.icd11Codes,
-      noteId: (response.data as any)?.id
-    });
+
     
 
     
