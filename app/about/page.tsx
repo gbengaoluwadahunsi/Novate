@@ -257,9 +257,7 @@ export default function AboutPage() {
               or are interested in partnerships, reach out to us:
             </p>
             <div className="space-y-2 text-blue-700">
-              <p><strong>General Inquiries:</strong> <a href="mailto:novatescribe@mynovateai.com" className="underline hover:text-blue-900">novatescribe@mynovateai.com</a></p>
-              <p><strong>Support:</strong> <a href="mailto:novatescribe@mynovateai.com" className="underline hover:text-blue-900">novatescribe@mynovateai.com</a></p>
-              <p><strong>Website:</strong> <a href="https://www.novatescribe.com/" className="underline hover:text-blue-900" target="_blank" rel="noopener noreferrer">https://www.novatescribe.com/</a></p>
+              <p><strong>General Inquiries and Support:</strong> <a href="mailto:novatescribe@mynovateai.com" className="underline hover:text-blue-900">novatescribe@mynovateai.com</a></p>
             </div>
           </CardContent>
         </Card>

@@ -317,35 +317,17 @@ export default function ContactPage() {
 
           {/* Contact Information */}
           <div className="space-y-6">
-            {/* General Contact */}
+            {/* General Inquiries and Support */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-xl text-blue-600 flex items-center gap-2">
                   <Mail className="w-5 h-5" />
-                  General Inquiries
+                  General Inquiries and Support
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-4">
-                  For general questions about our services, pricing, or partnerships:
-                </p>
-                <a href="mailto:novatescribe@mynovateai.com" className="text-blue-600 hover:underline">
-                  novatescribe@mynovateai.com
-                </a>
-              </CardContent>
-            </Card>
-
-            {/* Technical Support */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl text-blue-600 flex items-center gap-2">
-                  <MessageCircle className="w-5 h-5" />
-                  Technical Support
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-600 mb-4">
-                  Need help with your account or experiencing technical issues?
+                  For general questions about our services, pricing, technical support, or account assistance:
                 </p>
                 <a href="mailto:novatescribe@mynovateai.com" className="text-blue-600 hover:underline">
                   novatescribe@mynovateai.com
@@ -363,10 +345,10 @@ export default function ContactPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600 mb-4">
-                  Interested in enterprise solutions or partnerships?
+                  For enterprise solutions, partnerships, or business inquiries:
                 </p>
-                <a href="mailto:novatescribe@mynovateai.com" className="text-blue-600 hover:underline">
-                  novatescribe@mynovateai.com
+                <a href="mailto:ceo@mynovateai.com" className="text-blue-600 hover:underline">
+                  ceo@mynovateai.com
                 </a>
               </CardContent>
             </Card>
@@ -413,10 +395,7 @@ export default function ContactPage() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3 text-gray-600">
-                  <p><strong>Live Chat:</strong> Available on our website during business hours</p>
-                  <p><strong>Community Forum:</strong> Join discussions with other users</p>
-                  <p><strong>Documentation:</strong> Comprehensive guides and tutorials</p>
-                  <p><strong>Video Tutorials:</strong> Step-by-step walkthroughs</p>
+                  <p><strong>Live Chat:</strong> Coming Soon</p>
                 </div>
               </CardContent>
             </Card>

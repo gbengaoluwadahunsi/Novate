@@ -1,158 +1,387 @@
-import { Metadata } from "next"
-import Link from "next/link"
-import { ArrowLeft } from "lucide-react"
-import { Button } from "@/components/ui/button"
+"use client";
 
-export const metadata: Metadata = {
-  title: "Terms of Service - NovateScribe",
-  description: "Terms of Service for NovateScribe medical documentation platform",
-}
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, FileText, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function TermsOfServicePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white dark:from-gray-950 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-12 px-4">
+      <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <Link href="/">
             <Button variant="ghost" className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Home
             </Button>
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Terms of Service
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Last updated: {new Date().toLocaleDateString()}
-          </p>
+          <div className="text-center">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <FileText className="w-8 h-8 text-blue-600" />
+              <h1 className="text-4xl font-bold text-gray-900">
+                Terms and Conditions
+              </h1>
+            </div>
+            <p className="text-xl text-gray-600">
+              Effective date: 2nd September 2025
+            </p>
+            <p className="text-lg text-gray-500">
+              Last Updated: 2nd September 2025
+            </p>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="prose prose-gray dark:prose-invert max-w-none">
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">1. Acceptance of Terms</h2>
-            <p>
-              By accessing and using NovateScribe ("the Service"), you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.
-            </p>
-          </section>
+        {/* Terms Content */}
+        <Card className="mb-8">
+          <CardContent className="prose prose-gray max-w-none pt-6">
+            <div className="space-y-8">
+              
+              {/* Section 1: Acceptance of Terms */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">1. Acceptance of Terms</h2>
+                <p className="text-gray-700 mb-3">
+                  By accessing or subscribing to NovateScribe (the "Service"), you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions ("Terms"). If you do not agree with any part of these Terms, you must not use the Service. These Terms form a binding agreement between you and NovateScribe (referred to as "NovateScribe", "we", "us", or "our").
+                </p>
+                <p className="text-gray-700">
+                  We may update these Terms from time to time, and will post the latest version on our website. Your continued use of the Service after changes are posted constitutes your acceptance of the revised Terms.
+                </p>
+              </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">2. Description of Service</h2>
-            <p>
-              NovateScribe is a medical documentation platform that provides healthcare professionals with AI-powered transcription and note-taking services. The Service includes:
-            </p>
-            <ul className="list-disc pl-6 mt-2">
-              <li>Audio transcription for medical consultations</li>
-              <li>AI-generated medical notes and summaries</li>
-              <li>Patient information management</li>
-              <li>Medical document generation and export</li>
-              <li>Healthcare professional collaboration tools</li>
-            </ul>
-          </section>
+              {/* Section 2: Description of Service */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">2. Description of Service</h2>
+                <p className="text-gray-700 mb-3">
+                  NovateScribe is a semi-autonomous AI-powered platform designed for medical documentation. The Service uses automated speech recognition (ASR) to transcribe voice recordings into structured medical notes, enhances notes with labeled medical images, and suggests ICD-11 diagnostic codes and analytics using a large language model.
+                </p>
+                <p className="text-gray-700 mb-3">
+                  The Service is available in different versions tailored for:
+                </p>
+                <ul className="list-disc pl-6 text-gray-700 mb-3 space-y-1">
+                  <li><strong>Patients:</strong> for personal use in transcribing health-related notes or conversations.</li>
+                  <li><strong>Medical Students:</strong> for educational use, where patient-identifying information in notes is automatically anonymized.</li>
+                  <li><strong>Doctors and Healthcare Providers:</strong> for clinical use in documenting patient encounters with transcription, coding, and analytic support.</li>
+                </ul>
+                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-3">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-yellow-400 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-yellow-800 font-medium">Editing of Notes:</p>
+                      <p className="text-sm text-yellow-700">
+                        Patients may view and download their transcriptions and related content but cannot edit or alter medical notes generated by the Service. Only doctors and authorized healthcare provider accounts have the ability to edit, correct, or finalize notes. Patients may only annotate their records in separate designated sections, if that functionality is available.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-red-50 border-l-4 border-red-400 p-4">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-red-800 font-medium">Important:</p>
+                      <p className="text-sm text-red-700">
+                        NovateScribe is not a healthcare provider and does not practice medicine or any other licensed profession. The Service is a documentation aid and not a substitute for professional medical judgment.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">3. User Eligibility</h2>
-            <p>
-              The Service is intended for use by qualified healthcare professionals, including:
-            </p>
-            <ul className="list-disc pl-6 mt-2">
-              <li>Licensed medical doctors</li>
-              <li>Registered nurses</li>
-              <li>Other licensed healthcare professionals</li>
-              <li>Medical and healthcare students under supervision</li>
-            </ul>
-            <p className="mt-4">
-              Users must provide accurate professional credentials and maintain valid licensing as required by their jurisdiction.
-            </p>
-          </section>
+              {/* Section 3: Account Registration and Eligibility */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">3. Account Registration and Eligibility</h2>
+                <p className="text-gray-700 mb-3">
+                  To use NovateScribe, you must create an account and subscribe to a plan. You agree to provide truthful, accurate, and current information during registration and to keep your account information updated.
+                </p>
+                <p className="text-gray-700 mb-3">
+                  You are responsible for maintaining the confidentiality of your login credentials and for all activities that occur under your account. If you become aware of any unauthorized use of your account, you must notify us immediately.
+                </p>
+                <p className="text-gray-700 mb-3">
+                  <strong>Eligibility:</strong> You must have the legal capacity to form a binding contract in your jurisdiction. The Service is intended for users who are at least 18 years old or the age of majority in your location. By registering, you represent that you meet these eligibility requirements.
+                </p>
+                <p className="text-gray-700">
+                  If you are registering on behalf of an organization (such as a clinic or hospital), you represent that you have the authority to bind that organization to these Terms.
+                </p>
+              </section>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">4. Medical Disclaimer</h2>
-            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-              <p className="font-semibold text-yellow-800 dark:text-yellow-200">
-                IMPORTANT MEDICAL DISCLAIMER
-              </p>
+              {/* Section 4: Subscription Plans and Payment */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">4. Subscription Plans and Payment</h2>
+                <p className="text-gray-700 mb-3">
+                  NovateScribe is offered as a paid subscription service with different plans tailored to Patients, Medical Students, and Doctors/Clinics/Hospitals.
+                </p>
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    <strong>Fees:</strong> You agree to pay all subscription fees applicable to your chosen plan. Prices are exclusive of taxes unless stated otherwise. You are responsible for paying applicable taxes in your jurisdiction.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Billing Cycle:</strong> Subscription fees are billed in advance on a recurring basis (monthly, semi-annual (6 months) or annually) and will auto-renew unless you cancel before renewal.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Payment Method:</strong> You must provide a valid payment method and authorize us to charge subscription fees to that method. If payment fails, we may suspend or terminate your account.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Cancellation:</strong> You may cancel at any time, effective at the end of the billing cycle. Prepaid fees are non-refundable unless required by law.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Changes to Fees:</strong> We may change subscription prices with prior notice. You may cancel before the new rate takes effect if you do not agree.
+                  </p>
+                </div>
+              </section>
+
+              {/* Section 5: Permitted Use and User Obligations */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">5. Permitted Use and User Obligations</h2>
+                <p className="text-gray-700 mb-3">
+                  We grant you a limited, non-exclusive, non-transferable license to use the Service. You agree that you will not:
+                </p>
+                <ul className="list-disc pl-6 text-gray-700 mb-3 space-y-1">
+                  <li>Upload or transmit unlawful, defamatory, obscene, infringing, or harmful content.</li>
+                  <li>Use the Service for processing personal data without proper legal basis (e.g., consent).</li>
+                  <li>Attempt to interfere with or disrupt the Service or gain unauthorized access.</li>
+                  <li>Reverse engineer or copy the Service's technology.</li>
+                  <li>Share your account with unauthorized users.</li>
+                  <li>Misrepresent your identity or affiliation.</li>
+                  <li>Use AI features to generate prohibited content (e.g., hate speech, explicit material).</li>
+                </ul>
+                <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-3">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 mr-2 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-red-800 font-medium">Editing of Notes by Patients:</p>
+                      <p className="text-sm text-red-700">
+                        Patients are expressly prohibited from altering, editing, or deleting medical notes generated by the Service. Only licensed doctors or authorized healthcare providers may edit or finalize notes. Patients may only add separate annotations if available, but these will not modify official notes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p className="text-gray-700">
+                  NovateScribe reserves the right to monitor usage and may suspend or terminate accounts for violations.
+                </p>
+              </section>
+
+              {/* Section 6: User Data, Privacy, and Confidentiality */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">6. User Data, Privacy, and Confidentiality</h2>
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    <strong>Ownership:</strong> You retain all rights in the User Data you upload.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>License:</strong> You grant NovateScribe a license to process, host, and use your data to provide and improve the Service.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>De-Identified Data:</strong> We may anonymize and use de-identified data for research, analytics, and service improvement.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Privacy Compliance:</strong> We comply with Malaysia's PDPA, EU GDPR, UAE data protection laws, and other applicable regulations.
+                  </p>
+                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
+                    <div className="flex items-start">
+                      <AlertTriangle className="w-5 h-5 text-blue-400 mt-0.5 mr-2 flex-shrink-0" />
+                      <div>
+                        <p className="text-sm text-blue-800 font-medium">AI Transparency:</p>
+                        <p className="text-sm text-blue-700">
+                          AI-generated transcriptions, codes, images, and analytics are produced automatically without human oversight, based on probabilistic models. They may contain inaccuracies. Users retain the right to request independent human verification from their healthcare provider.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-gray-700">
+                    <strong>Data Processor Role:</strong> For healthcare providers, we act as a data processor on your behalf and only process patient data as instructed.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Confidentiality:</strong> All User Data is treated as confidential and disclosed only as necessary for Service provision or as required by law.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Security:</strong> We employ reasonable safeguards (encryption, access controls). However, no system is 100% secure.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Retention:</strong> Data is retained as long as needed to provide the Service or comply with legal obligations. Deleted accounts are purged or anonymized within a reasonable time.
+                  </p>
+                </div>
+              </section>
+
+              {/* Section 7: Intellectual Property Rights */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">7. Intellectual Property Rights</h2>
+                <p className="text-gray-700 mb-3">
+                  All rights in NovateScribe's technology, software, algorithms, trademarks, and content belong to NovateScribe or its licensors. You are granted only a limited license to use the Service.
+                </p>
+                <p className="text-gray-700 mb-3">
+                  You may not copy, distribute, or modify Service content.
+                </p>
+                <p className="text-gray-700 mb-3">
+                  Transcriptions and outputs derived from your data belong to you, but proprietary templates and features remain NovateScribe's property.
+                </p>
+                <p className="text-gray-700">
+                  Feedback you provide may be used freely by NovateScribe.
+                </p>
+              </section>
+
+              {/* Section 8: Medical Disclaimers */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">8. Medical Disclaimers</h2>
+                <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-3">
+                  <div className="flex items-start">
+                    <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 mr-2 flex-shrink-0" />
+                    <div className="space-y-2">
+                      <p className="text-sm text-red-800 font-medium">Important Medical Disclaimers:</p>
+                      <ul className="text-sm text-red-700 space-y-1 list-disc pl-4">
+                        <li>NovateScribe is not medical advice and does not establish a doctor-patient relationship.</li>
+                        <li>Doctors remain solely responsible for clinical judgment and must verify all outputs.</li>
+                        <li>Accuracy of transcriptions, codes, and analytics is not guaranteed. Errors may occur.</li>
+                        <li>NovateScribe is not a certified medical device.</li>
+                        <li>The Service is not intended for emergency use.</li>
+                        <li>Medical Student users may only use anonymized data for educational purposes.</li>
+                        <li>Patients may use the Service for personal records but cannot edit medical notes. Always consult qualified professionals for health decisions.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {/* Section 9: General Disclaimers of Warranty */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">9. General Disclaimers of Warranty</h2>
+                <p className="text-gray-700 mb-3">
+                  The Service is provided "AS IS" and "AS AVAILABLE."
+                </p>
+                <p className="text-gray-700 mb-3">
+                  We disclaim all warranties, express or implied, including merchantability, fitness for purpose, and non-infringement.
+                </p>
+                <p className="text-gray-700">
+                  We do not guarantee uninterrupted service, perfect accuracy, or error correction.
+                </p>
+              </section>
+
+              {/* Section 10: Limitation of Liability */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">10. Limitation of Liability</h2>
+                <p className="text-gray-700 mb-3">
+                  To the maximum extent permitted by law:
+                </p>
+                <ul className="list-disc pl-6 text-gray-700 mb-3 space-y-1">
+                  <li>NovateScribe shall not be liable for indirect, incidental, consequential, or punitive damages.</li>
+                  <li>Liability is capped at the amount you paid in subscription fees in the prior 12 months, or US$100 if none.</li>
+                </ul>
+                <p className="text-gray-700">
+                  Some jurisdictions may limit exclusions; statutory consumer rights remain unaffected.
+                </p>
+              </section>
+
+              {/* Section 11: Indemnification */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">11. Indemnification</h2>
+                <p className="text-gray-700">
+                  You agree to indemnify and hold NovateScribe harmless against claims, damages, or losses arising from:
+                </p>
+                <ul className="list-disc pl-6 text-gray-700 mt-3 space-y-1">
+                  <li>Your use of the Service.</li>
+                  <li>Your violation of laws or rights of third parties.</li>
+                  <li>Patient or third-party claims against healthcare providers for reliance on outputs.</li>
+                </ul>
+              </section>
+
+              {/* Section 12: Suspension and Termination */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">12. Suspension and Termination</h2>
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    <strong>By You:</strong> You may cancel at any time.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>By Us:</strong> We may suspend or terminate accounts for breaches, non-payment, or unlawful activity.
+                  </p>
+                  <p className="text-gray-700">
+                    Sections relating to liability, confidentiality, and intellectual property survive termination.
+                  </p>
+                </div>
+              </section>
+
+              {/* Section 13: Governing Law and Jurisdiction */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">13. Governing Law and Jurisdiction</h2>
+                <p className="text-gray-700 mb-3">
+                  These Terms are governed by the laws of Malaysia.
+                </p>
+                <p className="text-gray-700 mb-3">
+                  Disputes shall be resolved in Malaysian courts, except where consumer protection laws give you the right to bring claims in your home jurisdiction.
+                </p>
+                <p className="text-gray-700">
+                  Nothing in this clause limits your right to bring claims under mandatory local consumer protection laws in your place of residence.
+                </p>
+              </section>
+
+              {/* Section 14: Miscellaneous Provisions */}
+              <section>
+                <h2 className="text-xl font-semibold text-gray-900 mb-3">14. Miscellaneous Provisions</h2>
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    <strong>Entire Agreement:</strong> These Terms, together with the Privacy Policy and Refund Policy, form the complete agreement between you and NovateScribe.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Changes:</strong> We may revise Terms with notice; continued use means acceptance.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>No Waiver:</strong> Failure to enforce a right is not a waiver.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Severability:</strong> Invalid provisions will not affect the remainder.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Assignment:</strong> You may not assign rights; we may assign in business reorganizations.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>No Third-Party Rights:</strong> No third-party beneficiaries.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Relationship:</strong> Independent parties; no partnership or agency.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Notices:</strong> Notices may be sent via email, Service notifications, or website posting.
+                  </p>
+                  <p className="text-gray-700">
+                    <strong>Language:</strong> English version controls in case of conflict.
+                  </p>
+                </div>
+              </section>
+
             </div>
-            <p>
-              NovateScribe is a documentation tool and does not provide medical advice, diagnosis, or treatment recommendations. The AI-generated content is for documentation purposes only and should not replace professional medical judgment. Healthcare professionals remain fully responsible for all clinical decisions and patient care.
-            </p>
-          </section>
+          </CardContent>
+        </Card>
 
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">5. Privacy and Data Protection</h2>
-            <p>
-              We take data protection seriously, especially regarding sensitive medical information:
+        {/* Contact Information */}
+        <Card className="mb-8">
+          <CardHeader>
+            <CardTitle className="text-xl text-blue-600">Questions About These Terms?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-700 mb-4">
+              If you have any questions about these Terms and Conditions, please contact us:
             </p>
-            <ul className="list-disc pl-6 mt-2">
-              <li>All patient data is encrypted in transit and at rest</li>
-              <li>We comply with HIPAA, GDPR, and other applicable privacy regulations</li>
-              <li>Data is processed only for the purposes of providing the Service</li>
-              <li>We do not sell or share patient data with third parties</li>
-              <li>Users can request data deletion at any time</li>
-            </ul>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">6. User Responsibilities</h2>
-            <p>Users agree to:</p>
-            <ul className="list-disc pl-6 mt-2">
-              <li>Use the Service only for legitimate medical documentation purposes</li>
-              <li>Maintain the confidentiality of their account credentials</li>
-              <li>Ensure patient consent is obtained before recording or transcribing consultations</li>
-              <li>Comply with all applicable laws and professional standards</li>
-              <li>Not use the Service for any unlawful or unauthorized purpose</li>
-              <li>Report any security vulnerabilities or data breaches immediately</li>
-            </ul>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">7. Intellectual Property</h2>
-            <p>
-              The Service and its original content, features, and functionality are owned by NovateScribe and are protected by international copyright, trademark, patent, trade secret, and other intellectual property laws.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">8. Limitation of Liability</h2>
-            <p>
-              In no event shall NovateScribe be liable for any indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your use of the Service.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">9. Service Availability</h2>
-            <p>
-              We strive to maintain high service availability but do not guarantee uninterrupted access. The Service may be temporarily unavailable due to maintenance, updates, or technical issues.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">10. Termination</h2>
-            <p>
-              We may terminate or suspend your account and access to the Service immediately, without prior notice, for conduct that we believe violates these Terms of Service or is harmful to other users, us, or third parties.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">11. Changes to Terms</h2>
-            <p>
-              We reserve the right to modify these terms at any time. We will notify users of significant changes via email or through the Service. Continued use of the Service after changes constitutes acceptance of the new terms.
-            </p>
-          </section>
-
-          <section className="mb-8">
-            <h2 className="text-2xl font-semibold mb-4">12. Contact Information</h2>
-            <p>
-              If you have any questions about these Terms of Service, please contact us at:
-            </p>
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mt-4">
-              <p><strong>Email:</strong> <a href="mailto:novatescribe@mynovateai.com" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors duration-200">novatescribe@mynovateai.com</a></p>
-              <p><strong>Address:</strong> NovateScribe Legal Department</p>
+            <div className="space-y-2 text-gray-700">
+              <p><strong>Email:</strong> novatescribe@mynovateai.com</p>
             </div>
-          </section>
+          </CardContent>
+        </Card>
+
+        {/* Navigation */}
+        <div className="flex justify-center space-x-4">
+          <Link href="/privacy-policy">
+            <Button variant="outline">Privacy Policy</Button>
+          </Link>
+          <Link href="/refund-policy">
+            <Button variant="outline">Refund Policy</Button>
+          </Link>
+          <Link href="/contact">
+            <Button variant="outline">Contact Us</Button>
+          </Link>
+          <Link href="/">
+            <Button>Back to Home</Button>
+          </Link>
         </div>
       </div>
     </div>
-  )
+  );
 } 
