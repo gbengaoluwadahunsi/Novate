@@ -870,7 +870,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="py-8 sm:py-12 px-2 sm:px-4 bg-gradient-to-b from-gray-100 to-white dark:from-gray-800 dark:to-gray-900">
         <div className="container mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             <div className="text-center sm:text-left">
              
                 <Logo width={100} height={100} className="mx-auto sm:mx-0 mr-0 sm:mr-2 rounded-full" alt="NovateScribe Logo" />
@@ -931,20 +931,49 @@ export default function HomePage() {
                 </li>
               </ul>
             </div>
+
             <div className="text-center sm:text-left">
-              <h4 className="font-bold mb-3 sm:mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Support</h4>
+              <h4 className="font-bold mb-3 sm:mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Legal & Policies</h4>
               <ul className="space-y-2">
                 <li>
-                  <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Contact: </span>
-                  <a 
-                    href="mailto:novatescribe@mynovateai.com" 
-                    className="text-blue-600 dark:text-blue-400 text-sm sm:text-base hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors duration-200"
+                  <Link
+                    href="/terms-of-service"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
                   >
-                    novatescribe@mynovateai.com
-                  </a>
+                    Terms of Service
+                  </Link>
                 </li>
                 <li>
-                  <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Help Center: Coming Soon</span>
+                  <Link
+                    href="/privacy-policy"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
+                  >
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/refund-policy"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
+                  >
+                    Refund Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/about"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
+                  >
+                    About Us
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/contact"
+                    className="text-gray-500 dark:text-gray-400 hover:text-[#0ea5e9] dark:hover:text-[#0ea5e9] text-sm sm:text-base"
+                  >
+                    Contact Us
+                  </Link>
                 </li>
               </ul>
             </div>

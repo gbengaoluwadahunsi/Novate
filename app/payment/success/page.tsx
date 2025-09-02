@@ -59,9 +59,9 @@ export default function PaymentSuccess() {
             </Button>
             
             <Button variant="outline" asChild className="w-full">
-              <Link href="/dashboard/support">
-                Contact Support
-              </Link>
+                              <Link href="/contact">
+                  Contact Support
+                </Link>
             </Button>
           </div>
 

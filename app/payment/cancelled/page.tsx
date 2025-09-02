@@ -64,9 +64,9 @@ export default function PaymentCancelled() {
             </Button>
             
             <Button variant="ghost" asChild className="w-full">
-              <Link href="/dashboard/support">
-                Contact Support
-              </Link>
+                              <Link href="/contact">
+                  Contact Support
+                </Link>
             </Button>
           </div>
 

@@ -6,6 +6,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { Logo } from "@/components/ui/logo"
+
 import { Menu, X } from "lucide-react"
 import { useAppSelector, useAppDispatch } from "@/store/hooks"
 import { clearAuth } from "@/store/features/authSlice"
@@ -43,12 +44,7 @@ export function Navbar() {
         <div className="flex items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <Logo 
-              width={160} 
-              height={160}
-              className="rounded-full"
-              alt="NovateScribe Logo"
-            />
+            <Logo width={80} height={80} className="rounded-full" />
           </Link>
 
           {/* Desktop Navigation */}

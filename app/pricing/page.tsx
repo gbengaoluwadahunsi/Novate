@@ -8,18 +8,22 @@ import { usePayment } from '@/hooks/use-payment';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Check, Crown } from 'lucide-react';
+import { Loader2, Check, Crown, CreditCard, Globe } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 export default function PricingPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const { plans, loading, error, fetchPlans, subscribe } = usePayment();
+  const { plans, paymentInfo, loading, error, fetchPlans, fetchPaymentInfo, subscribe } = usePayment();
   const [subscribingToPlan, setSubscribingToPlan] = useState<string | null>(null);
 
   useEffect(() => {
     fetchPlans();
-  }, []);
+    // Fetch payment gateway info if user is authenticated
+    if (isAuthenticated) {
+      fetchPaymentInfo();
+    }
+  }, [isAuthenticated]);
 
   const handleSubscribe = async (planId: string) => {
     if (!isAuthenticated || !user) {
@@ -57,7 +61,7 @@ export default function PricingPage() {
 
   const getPopularPlan = () => {
     // Find yearly plans first, then the one with best value
-    const yearlyPlans = plans.filter(plan => plan.interval === 'year');
+    const yearlyPlans = plans.filter(plan => plan.interval === 'year' || plan.interval === 'YEARLY');
     if (yearlyPlans.length > 0) {
       return yearlyPlans[0].id; // Return first yearly plan as popular
     }
@@ -121,6 +125,34 @@ export default function PricingPage() {
           </div>
         </div>
 
+        {/* Payment Gateway Info */}
+        {paymentInfo && (
+          <div className="mb-8 text-center">
+            <Card className="inline-block">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-2 justify-center mb-2">
+                  {paymentInfo.paymentGateway === 'STRIPE' ? (
+                    <Globe className="w-5 h-5 text-blue-600" />
+                  ) : (
+                    <CreditCard className="w-5 h-5 text-green-600" />
+                  )}
+                  <span className="font-medium text-gray-700">
+                    Payment via {paymentInfo.gatewayName}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  Currency: {paymentInfo.currency} • {paymentInfo.message}
+                </p>
+                {paymentInfo.supportedMethods.length > 1 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Supported: {paymentInfo.supportedMethods.join(', ')}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {plans.map((plan) => {
@@ -147,10 +179,10 @@ export default function PricingPage() {
                       {formatPrice(plan.price, plan.currency)}
                     </span>
                     <span className="text-gray-500 ml-2">
-                      / {plan.interval.toLowerCase()}
+                      / {(plan.interval === 'YEARLY' ? 'year' : plan.interval === 'MONTHLY' ? 'month' : plan.interval).toLowerCase()}
                     </span>
                   </div>
-                  {plan.interval === 'year' && (
+                  {(plan.interval === 'year' || plan.interval === 'YEARLY') && (
                     <Badge variant="secondary" className="mt-2">
                       Save 20% vs Monthly
                     </Badge>
@@ -233,7 +265,7 @@ export default function PricingPage() {
             Need help choosing the right plan?
           </p>
           <Button variant="outline" asChild>
-            <a href="/dashboard/support">
+            <a href="/contact">
               Contact Our Sales Team
             </a>
           </Button>

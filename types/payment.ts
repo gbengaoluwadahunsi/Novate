@@ -4,7 +4,7 @@ export interface SubscriptionPlan {
   description: string;
   price: number;
   currency: string;
-  interval: 'month' | 'year';
+  interval: 'month' | 'year' | 'MONTHLY' | 'YEARLY';
   features: string[];
   stripePriceId?: string;
   curlecPlanId?: string;
@@ -12,6 +12,8 @@ export interface SubscriptionPlan {
   maxUsers?: number;
   maxStorage?: number;
   maxApiCalls?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface SubscriptionResponse {
@@ -45,23 +47,30 @@ export interface SubscribeRequest {
   };
 }
 
+// Updated to match backend guide format
 export interface StripeResponse {
-  clientSecret: string;
-  paymentIntentId: string;
-  amount: number;
-  currency: string;
-  url?: string;
+  sessionId: string;
+  url: string;
 }
 
 export interface CurlecResponse {
   orderId: string;
-  amount: number;
   currency: string;
-  checkoutUrl?: string;
+  amount: number;
+}
+
+// Payment gateway info from backend
+export interface PaymentGatewayInfo {
+  country: string;
+  paymentGateway: 'STRIPE' | 'CURLEC';
+  gatewayName: string;
+  supportedMethods: string[];
+  currency: string;
+  message: string;
 }
 
 export function isStripeResponse(response: any): response is StripeResponse {
-  return response && typeof response.clientSecret === 'string' && typeof response.paymentIntentId === 'string';
+  return response && typeof response.sessionId === 'string' && typeof response.url === 'string';
 }
 
 export function isCurlecResponse(response: any): response is CurlecResponse {

@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
-import { SubscriptionPlan, isStripeResponse, isCurlecResponse } from '@/types/payment';
+import { SubscriptionPlan, isStripeResponse, isCurlecResponse, PaymentGatewayInfo } from '@/types/payment';
 
 interface PaymentState {
   plans: SubscriptionPlan[];
+  paymentInfo: PaymentGatewayInfo | null;
   loading: boolean;
   error: string | null;
 }
@@ -20,6 +21,7 @@ interface UserInfo {
 export function usePayment() {
   const [state, setState] = useState<PaymentState>({
     plans: [],
+    paymentInfo: null,
     loading: false,
     error: null,
   });
@@ -55,6 +57,17 @@ export function usePayment() {
         description: errorMessage,
         variant: "destructive",
       });
+    }
+  };
+
+  // Fetch payment gateway info
+  const fetchPaymentInfo = async () => {
+    try {
+      // For now, we'll skip this since the API client doesn't have a direct method
+      // In production, you would add this method to the API client
+      console.log('Payment info fetch not implemented yet');
+    } catch (error) {
+      console.log('Payment info not available (user may not be authenticated)');
     }
   };
 
@@ -114,6 +127,7 @@ export function usePayment() {
         
         // Check if this is a Stripe response (international users)
         if (isStripeResponse(subscriptionData)) {
+          console.log('🔄 Redirecting to Stripe checkout:', subscriptionData.url);
           // Redirect to Stripe checkout
           if (subscriptionData.url) {
             window.location.href = subscriptionData.url;
@@ -125,12 +139,14 @@ export function usePayment() {
         
         // Check if this is a Curlec/Razorpay response (Malaysian users)
         if (isCurlecResponse(subscriptionData)) {
+          console.log('🔄 Initializing Curlec payment:', subscriptionData);
           // Handle Curlec payment modal
           await handleCurlecPayment(subscriptionData, userInfo);
           return;
         }
         
         // Unexpected response format
+        console.error('❌ Unexpected response format:', subscriptionData);
         throw new Error('Unexpected payment response format');
       } else {
         throw new Error(response.error || 'Failed to initiate subscription');
@@ -154,9 +170,11 @@ export function usePayment() {
 
   return {
     plans: state.plans,
+    paymentInfo: state.paymentInfo,
     loading: state.loading,
     error: state.error,
     fetchPlans,
+    fetchPaymentInfo,
     subscribe,
   };
 }

@@ -19,9 +19,10 @@ const getBackendUrl = () => {
   // Use environment variable override if provided, otherwise use environment-based URL
   const finalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || environmentUrl;
   
-  // Backend URL Selection
-  
-  return finalUrl;
+  // Log the backend URL for debugging
+  console.log('🔗 Backend URL:', finalUrl);
+  console.log('🌍 Environment:', process.env.NODE_ENV);
+  console.log('⚙️ NEXT_PUBLIC_BACKEND_URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
   
   return finalUrl;
 };
@@ -81,7 +82,6 @@ interface User {
   updatedAt: string;
 }
 
-import { ExaminationTemplate } from "../types/examination"
 import { SubscriptionPlan, SubscriptionResponse, SubscribeRequest } from "../types/payment"
 
 interface MedicalNote {
@@ -98,7 +98,7 @@ interface MedicalNote {
   socialHistory?: string;
   systemReview?: string;
   physicalExamination?: string;
-  comprehensiveExamination?: ExaminationTemplate; // New detailed examination
+  comprehensiveExamination?: any; // New detailed examination
   diagnosis?: string;
   assessmentAndDiagnosis?: string; // Backend field name before transform
   treatmentPlan?: string;
