@@ -67,7 +67,9 @@ export default function ForgotPasswordPage() {
                 <Image
                   src={logo}
                   alt="NovateScribe Logo"
-                    className="h-20 w-20 rounded-full"
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 rounded-full"
                 />
               </div>
             </div>

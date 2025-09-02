@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Download, Save, Edit2, Loader2, Upload, FileImage, X, Settings } from "lucide-react"
+import { ArrowLeft, Download, Save, Edit2, Loader2, Upload, FileImage, X, Settings, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient, type MedicalNote } from '@/lib/api-client'
@@ -520,6 +520,20 @@ export default function NotePage() {
               <Edit2 className="h-4 w-4" />
               <span className="ml-2 hidden sm:inline">Edit</span>
             </Button>
+            
+            {/* View Raw Transcript Button */}
+            {note.rawTranscript && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => router.push(`/dashboard/notes/${noteId}/transcript`)}
+                className="px-2 sm:px-3"
+                title="View Raw Transcript"
+              >
+                <FileText className="h-4 w-4" />
+                <span className="ml-2 hidden sm:inline">Raw Transcript</span>
+              </Button>
+            )}
             
             <Dialog open={showUploadsDialog} onOpenChange={setShowUploadsDialog}>
               <DialogTrigger asChild>

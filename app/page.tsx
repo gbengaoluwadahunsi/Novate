@@ -935,7 +935,13 @@ export default function HomePage() {
               <h4 className="font-bold mb-3 sm:mb-4 text-[#0ea5e9] dark:text-[#0ea5e9]">Support</h4>
               <ul className="space-y-2">
                 <li>
-                  <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Contact: Coming Soon</span>
+                  <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Contact: </span>
+                  <a 
+                    href="mailto:novatescribe@mynovateai.com" 
+                    className="text-blue-600 dark:text-blue-400 text-sm sm:text-base hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors duration-200"
+                  >
+                    novatescribe@mynovateai.com
+                  </a>
                 </li>
                 <li>
                   <span className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">Help Center: Coming Soon</span>

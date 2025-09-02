@@ -1,24 +1,14 @@
+# Allow all crawlers
 User-agent: *
 Allow: /
 
-# Sitemap
-Sitemap: https://www.novatescribe.com/sitemap.xml
+# Sitemap location (if you have one)
+# Sitemap: https://yourdomain.com/sitemap.xml
 
-# Disallow admin and private areas
-Disallow: /api/
-Disallow: /dashboard/settings
-Disallow: /_next/
-Disallow: /static/
-
-# Allow important pages
-Allow: /
-Allow: /login
-Allow: /register
-Allow: /dashboard
-Allow: /dashboard/transcribe
-Allow: /dashboard/notes
-Allow: /dashboard/novategpt
-
+# Disallow specific paths if needed
+# Disallow: /admin/
+# Disallow: /private/
+# Disallow: /api/
 
 # Crawl delay (optional)
-Crawl-delay: 1 
+# Crawl-delay: 1

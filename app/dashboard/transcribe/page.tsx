@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User, Check, Wand2 } from "lucide-react"
+import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mic, User, Check, Wand2, TrendingUp, Zap, Loader2 } from "lucide-react"
 import { Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
@@ -17,6 +17,8 @@ import { useToast } from "@/hooks/use-toast"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { createMedicalNote, getMedicalNotes } from "@/store/features/notesSlice"
 import { apiClient } from "@/lib/api-client"
+import EnhancedMedicalNoteViewer from "@/components/medical-note/enhanced-medical-note-viewer"
+import { debounce } from "lodash"
 
 // IndexedDB helper functions for persistent queue items
 const openDB = (): Promise<IDBDatabase> => {
@@ -90,7 +92,7 @@ interface QueuedRecording {
   file: File
   recordedAt: string
   duration: number
-  status: 'recorded' | 'processing' | 'completed' | 'failed'
+  status: 'recorded' | 'processing' | 'completed' | 'failed' | 'timeout'
   progress?: number
   progressMessage?: string
   patientInfo?: {
@@ -101,6 +103,14 @@ interface QueuedRecording {
   noteId?: string
   isPersistent?: boolean // User chose to save this item for later
   blobUrl?: string // For persistent items, store as blob URL
+  // Quality metrics from enhanced backend
+  qualityMetrics?: {
+    confidence?: number
+    processingTime?: number
+    hasComprehensiveNote?: boolean
+    hasICDCodes?: boolean
+    hasManagementPlan?: boolean
+  }
 }
 
 interface PatientInfo {
@@ -113,6 +123,7 @@ interface PatientInfo {
 export default function TranscribePage() {
 
   const [queuedRecordings, setQueuedRecordings] = useState<QueuedRecording[]>([])
+  const [isProcessingAny, setIsProcessingAny] = useState(false)
   const [patientInfo, setPatientInfo] = useState<PatientInfo>({
     firstName: '',
     lastName: '',
@@ -519,7 +530,7 @@ export default function TranscribePage() {
               setTimeout(() => {
                 setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
               }, 1000);
-            }, 3000); // Wait 3 seconds before routing
+            }, 3000);
           } else {
             // Show success message
             toast({
@@ -580,7 +591,7 @@ export default function TranscribePage() {
                     setTimeout(() => {
                       setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
                     }, 1000);
-                  }, 3000); // Wait 3 seconds before routing
+                  }, 3000);
                 } else {
                   setCreatedNoteId(latest.id);
                   
@@ -762,6 +773,14 @@ export default function TranscribePage() {
     }
   };
 
+  // Debounced version of processQueuedRecording to prevent rapid clicks
+  const debouncedProcessQueuedRecording = useCallback(
+    debounce((recordingId: string) => {
+      processQueuedRecording(recordingId);
+    }, 300), // 300ms delay
+    []
+  );
+
   // Function to add a recording to the queue
   const addToQueue = (file: File, duration: number, isPersistent: boolean = false) => {
     setQueuedRecordings(prev => {
@@ -794,11 +813,39 @@ export default function TranscribePage() {
 
   // Function to process a recording from the queue
   const processQueuedRecording = async (recordingId: string) => {
+    console.log(`🚀 Starting transcription for recording: ${recordingId}`);
+    
     const recording = queuedRecordings.find(r => r.id === recordingId)
     if (!recording) {
       console.error(`🚨 Recording ${recordingId} not found in queue!`);
       return;
     }
+
+    // 🚨 DUPLICATE PREVENTION: Check if already processing
+    if (recording.status === 'processing') {
+      console.log(`🚨 Already processing recording ${recordingId}, ignoring duplicate request`);
+      return;
+    }
+
+    // 🚨 GLOBAL DUPLICATE PREVENTION: Check if any transcription is running
+    if (isProcessingAny) {
+      console.log(`🚨 Another transcription is already running, please wait`);
+      toast({
+        title: "⏳ Please Wait",
+        description: "Another transcription is already running. Please wait for it to complete.",
+      });
+      return;
+    }
+
+    console.log(`✅ Proceeding with transcription for recording: ${recordingId}`);
+    // Set global processing state
+    setIsProcessingAny(true);
+
+    // 🚨 SAFETY TIMEOUT: Reset global state after 5 minutes to prevent stuck state
+    const safetyTimeout = setTimeout(() => {
+      setIsProcessingAny(false);
+      console.log(`🚨 Safety timeout: Reset global processing state for recording ${recordingId}`);
+    }, 300000); // 5 minutes
 
     // Update status to processing with initial progress
     setQueuedRecordings(prev => {
@@ -836,17 +883,48 @@ export default function TranscribePage() {
       if (response.success && response.data?.savedNoteId) {
         // Direct transcription completed successfully
         const noteId = response.data.savedNoteId;
+        const { confidence, duration, medicalNote } = response.data;
+        
+        console.log(`🎉 Transcription completed successfully for recording ${recordingId}, note ID: ${noteId}`);
         
         setQueuedRecordings(prev =>
           prev.map(r =>
-            r.id === recordingId ? { ...r, status: 'completed' as const, noteId, progressMessage: '🎉 Medical Note Created!' } : r
+            r.id === recordingId ? { 
+              ...r, 
+              status: 'completed' as const, 
+              noteId, 
+              progressMessage: '🎉 Medical Note Created!',
+              qualityMetrics: {
+                confidence,
+                processingTime: duration,
+                hasComprehensiveNote: !!medicalNote?.assessmentAndDiagnosis,
+                hasICDCodes: !!medicalNote?.icd11Codes?.length,
+                hasManagementPlan: !!medicalNote?.managementPlan
+              }
+            } : r
           )
         )
         
+        // Enhanced success message with quality indicators
+        const qualityMessage = duration 
+          ? `Processing completed in ${duration}s`
+          : "Medical note completed successfully!";
+        
         toast({
           title: "🎉 Medical Note Created!",
-          description: "Your medical note has been created successfully. Opening it now...",
+          description: qualityMessage,
         });
+        
+        // Log quality metrics for monitoring
+        if (confidence && duration) {
+          console.log(`✅ Transcription Quality Metrics:`, {
+            confidence: `${confidence}%`,
+            duration: `${duration}s`,
+            hasComprehensiveNote: !!medicalNote?.assessmentAndDiagnosis,
+            hasICDCodes: !!medicalNote?.icd11Codes?.length,
+            hasManagementPlan: !!medicalNote?.managementPlan
+          });
+        }
         
         // Wait before routing and then cleanup
         setTimeout(() => {
@@ -857,45 +935,67 @@ export default function TranscribePage() {
         }, 3000);
       } else if (response.error?.includes('TIMEOUT') || response.details === 'TIMEOUT') {
         // Handle timeout - transcription might still complete in background
-        console.log('⏰ Transcription timeout, but note might still be created');
+        console.log(`⏰ Transcription timeout for recording ${recordingId}, but note might still be created`);
         
         setQueuedRecordings(prev =>
           prev.map(r =>
             r.id === recordingId ? { 
               ...r, 
-              status: 'processing' as const, 
-              progressMessage: '⏰ Processing taking longer than expected...' 
+              status: 'timeout' as const, 
+              progressMessage: '⏰ Processing timeout - check notes later',
+              progress: 100
             } : r
           )
         )
         
         toast({
-          title: "⏰ Processing Taking Longer",
-          description: "Your transcription is taking longer than expected. We'll check for completion shortly.",
+          title: "⏰ Processing Timeout",
+          description: "Transcription is taking longer than expected. Check your notes in a few minutes.",
         });
-        
-        // Check for completed note after a delay
-        setTimeout(() => {
-          checkForCompletedNote(recordingId);
-        }, 10000); // Check after 10 seconds
-        
       } else {
-        throw new Error(response.error || 'Failed to complete transcription.')
+        // Handle other errors
+        console.error(`❌ Transcription failed for recording ${recordingId}:`, response.error);
+        
+        setQueuedRecordings(prev =>
+          prev.map(r =>
+            r.id === recordingId ? { 
+              ...r, 
+              status: 'failed' as const, 
+              progressMessage: '❌ Transcription failed',
+              progress: 0
+            } : r
+          )
+        )
+        
+        toast({
+          title: "❌ Transcription Failed",
+          description: response.error || "Failed to transcribe audio. Please try again.",
+          variant: 'destructive'
+        })
       }
     } catch (error) {
-      setQueuedRecordings(prev => 
-        prev.map(r => r.id === recordingId ? { 
-          ...r, 
-          status: 'failed' as const,
-          progress: 0,
-          progressMessage: 'Processing failed'
-        } : r)
+      console.error(`💥 Unexpected error during transcription for recording ${recordingId}:`, error);
+      
+      setQueuedRecordings(prev =>
+        prev.map(r =>
+          r.id === recordingId ? { 
+            ...r, 
+            status: 'failed' as const, 
+            progressMessage: '💥 Unexpected error occurred',
+            progress: 0
+          } : r
+        )
       )
+      
       toast({
-        title: "❌ Processing Failed",
-        description: `Failed to process ${recording.filename}.`,
+        title: "💥 Processing Error",
+        description: "An unexpected error occurred. Please try again.",
         variant: 'destructive'
       })
+    } finally {
+      console.log(`🏁 Transcription process finished for recording ${recordingId}`);
+      setIsProcessingAny(false); // Reset global processing state
+      clearTimeout(safetyTimeout); // Clear safety timeout
     }
   }
 
@@ -1226,17 +1326,32 @@ export default function TranscribePage() {
           {/* Right Column - Recording Queue */}
           <div className="lg:col-span-1">
             <Card className="h-full">
-        <CardHeader className="pb-3">
+              <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-lg">
-                  <Mic className="h-4 w-4" />
-                  Queue
-                  {queuedRecordings.length > 0 && (
-                    <Badge variant="secondary" className="ml-2">
-                      {queuedRecordings.length}
+                  <Clock className="h-4 w-4" />
+                  Transcription Queue
+                  {isProcessingAny && (
+                    <Badge variant="default" className="ml-2 bg-orange-100 text-orange-800">
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                      Processing...
                     </Badge>
                   )}
                 </CardTitle>
-        </CardHeader>
+                {queuedRecordings.length > 0 && (
+                  <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
+                    <span>{queuedRecordings.length} item{queuedRecordings.length !== 1 ? 's' : ''} in queue</span>
+                    {queuedRecordings.some(r => r.status === 'completed' && r.qualityMetrics) && (
+                      <div className="flex items-center gap-2">
+                        <span>•</span>
+                        <span className="flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3 text-green-600" />
+                          Enhanced quality tracking enabled
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardHeader>
         <CardContent>
                 {queuedRecordings.length === 0 ? (
           <div className="text-center py-6 text-gray-500 dark:text-gray-400">
@@ -1279,6 +1394,24 @@ export default function TranscribePage() {
                           {recording.patientInfo?.name && (
                             <div>Patient: {recording.patientInfo.name}</div>
                           )}
+                          
+                          {/* Quality indicators for completed transcriptions */}
+                          {recording.status === 'completed' && recording.qualityMetrics && (
+                            <div className="mt-2 space-y-1">
+                              {recording.qualityMetrics.processingTime && (
+                                <div className="flex items-center gap-1 text-blue-600">
+                                  <Zap className="h-3 w-3" />
+                                  <span>Processed in {recording.qualityMetrics.processingTime}s</span>
+                                </div>
+                              )}
+                              {recording.qualityMetrics.hasComprehensiveNote && (
+                                <div className="flex items-center gap-1 text-purple-600">
+                                  <Check className="h-3 w-3" />
+                                  <span>Comprehensive note generated</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         
                         {/* Progress bar for processing recordings */}
@@ -1302,11 +1435,24 @@ export default function TranscribePage() {
                             <Button
                               size="sm"
                               variant="default"
-                              onClick={() => processQueuedRecording(recording.id)}
+                              onClick={() => debouncedProcessQueuedRecording(recording.id)}
+                              disabled={false}
                               className="flex items-center gap-1 text-xs"
                             >
                               <Wand2 className="h-3 w-3" />
                               Transcribe Audio
+                            </Button>
+                          )}
+                          
+                          {recording.status === 'processing' && (
+                            <Button
+                              size="sm"
+                              variant="default"
+                              disabled={true}
+                              className="flex items-center gap-1 text-xs"
+                            >
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              Processing...
                             </Button>
                           )}
                           
@@ -1348,24 +1494,98 @@ export default function TranscribePage() {
           </div>
         </div>
 
+        {/* Enhanced Medical Note Preview Section */}
+        {queuedRecordings.some(r => r.status === 'completed' && r.qualityMetrics) && (
+          <div className="mt-8">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  Enhanced Medical Note Preview
+                </CardTitle>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Your transcription has been processed with enhanced AI analysis. Here's what was generated:
+                </p>
+              </CardHeader>
+              <CardContent>
+                {queuedRecordings
+                  .filter(r => r.status === 'completed' && r.qualityMetrics)
+                  .map((recording) => (
+                    <div key={recording.id} className="mb-6 last:mb-0">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                          {recording.filename}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          {recording.qualityMetrics?.processingTime && (
+                            <Badge className="bg-blue-100 text-blue-800">
+                              <Zap className="h-3 w-3 mr-1" />
+                              {recording.qualityMetrics.processingTime}s
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Show enhanced medical note preview if available */}
+                      {recording.qualityMetrics?.hasComprehensiveNote && (
+                        <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <span className="font-medium text-gray-700 dark:text-gray-300">✓ Comprehensive Note</span>
+                              <p className="text-gray-600 dark:text-gray-400 text-xs">Full medical assessment generated</p>
+                            </div>
+                            {recording.qualityMetrics.hasICDCodes && (
+                              <div>
+                                <span className="font-medium text-gray-700 dark:text-gray-300">✓ ICD-11 Codes</span>
+                                <p className="text-gray-600 dark:text-gray-400 text-xs">Diagnostic codes extracted</p>
+                              </div>
+                            )}
+                            {recording.qualityMetrics.hasManagementPlan && (
+                              <div>
+                                <span className="font-medium text-gray-700 dark:text-gray-300">✓ Management Plan</span>
+                                <p className="text-gray-600 dark:text-gray-400 text-xs">Treatment plan included</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="mt-3">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => router.push(`/dashboard/notes/${recording.noteId}`)}
+                          className="flex items-center gap-2"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View Complete Medical Note
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
         {/* Features Section */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-12">
-          <Card className="text-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-colors">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-              <span className="text-2xl">🎤</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+          <Card className="text-center p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-colors">
+            <div className="w-8 h-8 mx-auto mb-3 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <span className="text-lg">🎤</span>
             </div>
-            <h3 className="font-semibold text-lg mb-2">Record Audio</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <h3 className="font-semibold text-base mb-2">Record Audio</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
               Record directly in your browser with high-quality audio capture
             </p>
           </Card>
 
-          <Card className="text-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-colors">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-              <span className="text-2xl">📄</span>
+          <Card className="text-center p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-colors">
+            <div className="w-8 h-8 mx-auto mb-3 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <span className="text-lg">📄</span>
           </div>
-            <h3 className="font-semibold text-lg mb-2">Upload Files</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            <h3 className="font-semibold text-base mb-2">Upload Files</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
               Support for MP3, WAV, M4A and other popular audio formats
             </p>
             <p className="text-xs text-red-600 dark:text-red-400">
@@ -1373,12 +1593,12 @@ export default function TranscribePage() {
             </p>
       </Card>
       
-          <Card className="text-center p-6 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-colors">
-            <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-              <span className="text-2xl">⚡</span>
+          <Card className="text-center p-4 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-blue-300 transition-colors">
+            <div className="w-8 h-8 mx-auto mb-3 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+              <span className="text-lg">⚡</span>
             </div>
-            <h3 className="font-semibold text-lg mb-2">Batch Processing</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400">
+            <h3 className="font-semibold text-base mb-2">Batch Processing</h3>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
               Record multiple patients during busy hours, then process them all during quieter times
             </p>
           </Card>

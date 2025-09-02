@@ -1,7 +1,7 @@
 // Enhanced Professional Medical Note PDF Generator - Exact Template Match
 import jsPDF from 'jspdf'
 import 'jspdf-autotable'
-import { MedicalNoteComprehensive } from '@/types/medical-note-comprehensive'
+import { format } from 'date-fns'
 
 export interface ProfessionalMedicalNote {
   // Patient Information
@@ -266,7 +266,7 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // PAGE 1: Patient Information & Medical History
-  private addPage1_PatientInfoAndHistory(note: MedicalNoteComprehensive): void {
+  private addPage1_PatientInfoAndHistory(note: any): void {
     this.addProfessionalHeader();
     
     // Title
@@ -319,7 +319,7 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // PAGE 2: Review of Systems (Structured) - only show if there's data
-  private addPage2_ReviewOfSystems(note: MedicalNoteComprehensive): void {
+  private addPage2_ReviewOfSystems(note: any): void {
     // Only create this page if there's systems review data
     if (!this.hasContent(note.reviewOfSystems)) return;
     
@@ -333,7 +333,7 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // PAGE 3: Physical Examination with Body Diagrams
-  private addPage3_PhysicalExaminationDiagrams(note: MedicalNoteComprehensive): void {
+  private addPage3_PhysicalExaminationDiagrams(note: any): void {
     this.doc.addPage();
     this.addProfessionalHeader();
     
@@ -433,7 +433,7 @@ class EnhancedTemplatePDFGenerator {
   }
 
   // PAGE 6: Investigation, Assessment, Plan & Signature
-  private addPage6_AssessmentAndPlan(note: MedicalNoteComprehensive): void {
+  private addPage6_AssessmentAndPlan(note: any): void {
     this.doc.addPage()
     this.addProfessionalHeader()
     
@@ -625,7 +625,7 @@ class EnhancedTemplatePDFGenerator {
     this.doc.text('Abdominal Examination', x + width/2 - this.doc.getTextWidth('Abdominal Examination')/2, y + height + 10)
   }
 
-  public generateEnhancedProfessionalMedicalNotePDF(note: MedicalNoteComprehensive): jsPDF {
+  public generateEnhancedProfessionalMedicalNotePDF(note: any): jsPDF {
     this.doc = new jsPDF()
     this.pageWidth = this.doc.internal.pageSize.getWidth()
     this.pageHeight = this.doc.internal.pageSize.getHeight()
@@ -639,7 +639,7 @@ class EnhancedTemplatePDFGenerator {
     return this.doc
   }
 
-  public generatePDF(note: MedicalNoteComprehensive): jsPDF {
+  public generatePDF(note: any): jsPDF {
     return this.generateEnhancedProfessionalMedicalNotePDF(note)
   }
 
@@ -686,7 +686,7 @@ class EnhancedTemplatePDFGenerator {
   }
 }
 
-export function generateEnhancedProfessionalMedicalNotePDF(note: MedicalNoteComprehensive): void {
+export function generateEnhancedProfessionalMedicalNotePDF(note: any): void {
   const generator = new EnhancedTemplatePDFGenerator(note.letterhead)
   const pdf = generator.generatePDF(note)
   
@@ -703,7 +703,7 @@ export function generateProfessionalMedicalNotePDF(note: ProfessionalMedicalNote
   const generator = new EnhancedTemplatePDFGenerator(letterhead)
   
   // Convert ProfessionalMedicalNote to MedicalNoteComprehensive
-  const comprehensiveNote: MedicalNoteComprehensive = {
+  const comprehensiveNote: any = {
     id: '',
     patientInformation: {
       name: note.patientName || '',

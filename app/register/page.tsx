@@ -416,7 +416,7 @@ export default function RegisterPage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="w-full max-w-md">
           <Card>
             <CardHeader className="space-y-1">
-              <div className="flex justify-center"><Image src={logo} alt="NovateScribe Logo" className="h-20 w-20 rounded-full" /></div>
+              <div className="flex justify-center"><Image src={logo} alt="NovateScribe Logo" width={80} height={80} className="h-20 w-20 rounded-full" /></div>
               <CardTitle className="text-2xl font-bold text-center">Check Your Email</CardTitle>
               <CardDescription className="text-center">We've sent a verification link to your email address</CardDescription>
             </CardHeader>
@@ -476,7 +476,7 @@ export default function RegisterPage() {
         </Link>
         <Card>
           <CardHeader className="space-y-1">
-            <div className="flex justify-center"><Image src={logo} alt="NovateScribe Logo" className="h-20 w-20 rounded-full" /></div>
+            <div className="flex justify-center"><Image src={logo} alt="NovateScribe Logo" width={80} height={80} className="h-20 w-20 rounded-full" /></div>
             <CardTitle className="text-2xl font-bold text-center">Create an account</CardTitle>
             <CardDescription className="text-center">
               {step === 1 ? "Enter your personal information" : step === 2 ? "Tell us about your professional background" : "Review and confirm your information"}

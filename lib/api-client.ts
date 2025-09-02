@@ -82,6 +82,7 @@ interface User {
 }
 
 import { ExaminationTemplate } from "../types/examination"
+import { SubscriptionPlan, SubscriptionResponse, SubscribeRequest } from "../types/payment"
 
 interface MedicalNote {
   id: string;
@@ -111,6 +112,8 @@ interface MedicalNote {
   timeSaved?: number | null;
   createdAt: string;
   updatedAt: string;
+  // Raw transcript from audio recording
+  rawTranscript?: string;
   // Vital Signs fields
   temperature?: string;
   pulseRate?: string;
@@ -197,10 +200,35 @@ interface TranscriptionResult {
 interface FastTranscriptionResponse {
   transcript?: string;
   medicalNote?: {
+    // Enhanced medical note structure matching backend
+    patientInformation: {
+      name: string;
+      age: string;
+      gender: string;
+      visitDate?: string;
+    };
     chiefComplaint: string;
-    historyOfPresentIllness: string;
-    diagnosis: string;
-    treatmentPlan: string;
+    historyOfPresentingIllness: string;
+    pastMedicalHistory?: string;
+    systemReview?: string;
+    physicalExamination?: string;
+    assessmentAndDiagnosis: string;
+    icd11Codes?: string[];
+    managementPlan: {
+      investigations?: string;
+      treatmentAdministered?: string;
+      medicationsPrescribed?: string;
+      patientEducation?: string;
+      followUp?: string;
+    };
+    doctorDetails?: {
+      name: string;
+      registrationNumber: string;
+    };
+    // Legacy fields for backward compatibility
+    historyOfPresentIllness?: string;
+    diagnosis?: string;
+    treatmentPlan?: string;
   };
   patientInfo?: {
     name: string;
@@ -209,6 +237,9 @@ interface FastTranscriptionResponse {
   };
   language: string;
   processingTime: string;
+  confidence?: number; // New confidence score
+  duration?: number; // Processing duration in seconds
+  auditId?: string; // Audit trail ID
   jobId?: string; // Only returned if processing takes >1 minute
   savedNoteId?: string; // ID of the saved medical note
 }
@@ -585,7 +616,7 @@ class ApiClient {
     avatarUrl?: string;
     organizationId?: string;
   }): Promise<ApiResponse<{ id: string; email: string; name: string; specialization?: string; registrationNo?: string; isVerified: boolean }>> {
-    return this.request('/auth/register', {
+    return this.request('/api/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -595,7 +626,7 @@ class ApiClient {
     email: string;
     password: string;
   }): Promise<ApiResponse<{ token: string; user: User }>> {
-    const response = await this.request<{ token: string; user: any }>('/auth/login', {
+    const response = await this.request<{ token: string; user: any }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -644,7 +675,7 @@ class ApiClient {
   }
 
   async forgotPassword(email: string): Promise<ApiResponse> {
-    return this.request('/auth/forgot-password', {
+    return this.request('/api/auth/forgot-password', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
@@ -654,14 +685,14 @@ class ApiClient {
     const body = JSON.stringify({ token, password });
     // Debug logging removed for production
     
-    return this.request('/auth/reset-password', {
+    return this.request('/api/auth/reset-password', {
       method: 'POST',
       body,
     });
   }
 
   async getCurrentUser(): Promise<ApiResponse<User>> {
-    const response = await this.request<any>('/auth/me');
+    const response = await this.request<any>('/api/auth/me');
     
     if (response.success && response.data) {
       // Get signature and stamp from localStorage
@@ -709,15 +740,15 @@ class ApiClient {
   }
 
   async getUserProfile(): Promise<ApiResponse<User>> {
-    return this.request('/profile');
+    return this.request('/api/profile');
   }
 
   async verifyEmail(token: string): Promise<ApiResponse> {
-    return this.request(`/auth/verify-email?token=${token}`);
+    return this.request(`/api/auth/verify-email?token=${token}`);
   }
 
   async resendVerificationEmail(email: string): Promise<ApiResponse> {
-    return this.request('/auth/resend-verification', {
+    return this.request('/api/auth/resend-verification', {
       method: 'POST',
       body: JSON.stringify({ email }),
       headers: {
@@ -787,7 +818,7 @@ class ApiClient {
       formData.append('patientGender', patientData.patientGender || '');
     }
 
-    return this.request('/transcribe/fast', {
+    return this.request('/api/transcribe/fast', {
       method: 'POST',
       body: formData,
       // Let browser set Content-Type for FormData
@@ -811,10 +842,35 @@ class ApiClient {
     language: string;
     transcript?: string;
     medicalNote?: {
+      // Enhanced medical note structure matching backend
+      patientInformation: {
+        name: string;
+        age: string;
+        gender: string;
+        visitDate?: string;
+      };
       chiefComplaint: string;
-      historyOfPresentIllness: string;
-      diagnosis: string;
-      treatmentPlan: string;
+      historyOfPresentingIllness: string;
+      pastMedicalHistory?: string;
+      systemReview?: string;
+      physicalExamination?: string;
+      assessmentAndDiagnosis: string;
+      icd11Codes?: string[];
+      managementPlan: {
+        investigations?: string;
+        treatmentAdministered?: string;
+        medicationsPrescribed?: string;
+        patientEducation?: string;
+        followUp?: string;
+      };
+      doctorDetails?: {
+        name: string;
+        registrationNumber: string;
+      };
+      // Legacy fields for backward compatibility
+      historyOfPresentIllness?: string;
+      diagnosis?: string;
+      treatmentPlan?: string;
     };
   }>> {
     if (!file) {
@@ -843,7 +899,7 @@ class ApiClient {
       formData.append('currentValue', currentValue);
     }
 
-    return this.request('/transcribe/start', {
+    return this.request('/api/transcribe/start', {
       method: 'POST',
       body: formData,
       // Let browser set Content-Type for FormData
@@ -851,7 +907,7 @@ class ApiClient {
   }
 
   async getTranscriptionResult(jobId: string): Promise<ApiResponse<TranscriptionResult>> {
-    return this.request(`/transcribe/result/${jobId}`);
+    return this.request(`/api/transcribe/result/${jobId}`);
   }
 
   // Note: Backend doesn't have a separate status endpoint
@@ -973,7 +1029,7 @@ class ApiClient {
     
 
     
-    const response = await this.request('/medical-notes', {
+    const response = await this.request('/api/medical-notes', {
       method: 'POST',
       body: JSON.stringify(backendData),
     });
@@ -1011,7 +1067,7 @@ class ApiClient {
       if (params?.search) searchParams.set('search', params.search);
 
       const queryString = searchParams.toString();
-      const response = await this.request<{ notes: MedicalNote[]; pagination: PaginationMeta }>(`/medical-notes${queryString ? `?${queryString}` : ''}`);
+      const response = await this.request<{ notes: MedicalNote[]; pagination: PaginationMeta }>(`/api/medical-notes${queryString ? `?${queryString}` : ''}`);
       let transformedResponse = response;
 
       // Handle legacy response format
@@ -1111,7 +1167,7 @@ class ApiClient {
 
       
       // Use the new medical-notes endpoint as per backend API documentation
-      const response = await this.request<MedicalNote>(`/medical-notes/${noteId}`);
+      const response = await this.request<MedicalNote>(`/api/medical-notes/${noteId}`);
       
 
       
@@ -1190,7 +1246,7 @@ class ApiClient {
     // The backend will handle ICD-11 code generation automatically
     // when medical content is updated
     
-    return this.request(`/medical-notes/${noteId}`, {
+    return this.request(`/api/medical-notes/${noteId}`, {
       method: 'PUT',
       body: JSON.stringify(noteData),
     });
@@ -1210,8 +1266,8 @@ class ApiClient {
     
     // Backend has JWT parsing issues, so send userId as query parameter as fallback
     const endpoint = userId 
-      ? `/medical-notes/${noteId}?userId=${userId}`
-      : `/medical-notes/${noteId}`;
+      ? `/api/medical-notes/${noteId}?userId=${userId}`
+      : `/api/medical-notes/${noteId}`;
 
     const result = await this.request(endpoint, {
       method: 'DELETE',
@@ -1302,11 +1358,11 @@ class ApiClient {
     if (options?.includeFooter !== undefined) searchParams.append('includeFooter', options.includeFooter.toString());
 
     const queryString = searchParams.toString();
-    return this.requestPDF(`/medical-notes/${noteId}/export/pdf${queryString ? `?${queryString}` : ''}`);
+    return this.requestPDF(`/api/medical-notes/${noteId}/export/pdf${queryString ? `?${queryString}` : ''}`);
   }
 
   async previewNotePDF(noteId: string): Promise<ApiResponse<Blob>> {
-    return this.requestPDF(`/medical-notes/${noteId}/preview/pdf`);
+    return this.requestPDF(`/api/medical-notes/${noteId}/preview/pdf`);
   }
 
   // ==========================================
@@ -1314,15 +1370,15 @@ class ApiClient {
   // ==========================================
 
   async getNoteVersions(noteId: string): Promise<ApiResponse<{ noteId: string; versions: NoteVersion[]; total: number }>> {
-    return this.request(`/medical-notes/${noteId}/versions`);
+    return this.request(`/api/medical-notes/${noteId}/versions`);
   }
 
   async getNoteVersion(noteId: string, version: number): Promise<ApiResponse<NoteVersion>> {
-    return this.request(`/medical-notes/${noteId}/versions/${version}`);
+    return this.request(`/api/medical-notes/${noteId}/versions/${version}`);
   }
 
   async compareNoteVersions(noteId: string, fromVersion: number, toVersion: number): Promise<ApiResponse<VersionComparison>> {
-    return this.request(`/medical-notes/${noteId}/versions/compare?from=${fromVersion}&to=${toVersion}`);
+    return this.request(`/api/medical-notes/${noteId}/versions/compare?from=${fromVersion}&to=${toVersion}`);
   }
 
   async restoreNoteVersion(noteId: string, version: number, reason: string): Promise<ApiResponse<{
@@ -1333,19 +1389,19 @@ class ApiClient {
     reason: string;
     restoredAt: string;
   }>> {
-    return this.request(`/medical-notes/${noteId}/versions/${version}/restore`, {
+    return this.request(`/api/medical-notes/${noteId}/versions/${version}/restore`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
   }
 
   async getNoteAuditTrail(noteId: string): Promise<ApiResponse<{ noteId: string; auditTrail: AuditTrailEntry[]; totalEntries: number }>> {
-    const endpoint = `/medical-notes/${noteId}/audit-trail`;
+    const endpoint = `/api/medical-notes/${noteId}/audit-trail`;
     return this.request(endpoint);
   }
 
   async getNoteVersionHistory(noteId: string): Promise<ApiResponse<{ noteId: string; versions: NoteVersion[]; total: number }>> {
-    return this.request(`/medical-notes/${noteId}/versions/history`);
+    return this.request(`/api/medical-notes/${noteId}/versions/history`);
   }
 
   // ==========================================
@@ -1356,7 +1412,7 @@ class ApiClient {
     name: string;
     type: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
   }): Promise<ApiResponse<Organization>> {
-    return this.request('/organization', {
+    return this.request('/api/organization', {
       method: 'POST',
       body: JSON.stringify(orgData),
     });
@@ -1368,28 +1424,28 @@ class ApiClient {
     specialization: string;
     registrationNo: string;
   }): Promise<ApiResponse<User>> {
-    return this.request(`/organization/${orgId}/doctors`, {
+    return this.request(`/api/organization/${orgId}/doctors`, {
       method: 'POST',
       body: JSON.stringify(doctorData),
     });
   }
 
   async getOrganization(orgId: string): Promise<ApiResponse<Organization>> {
-    return this.request(`/organization/${orgId}`);
+    return this.request(`/api/organization/${orgId}`);
   }
 
   async updateOrganization(orgId: string, orgData: {
     name?: string;
     type?: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
   }): Promise<ApiResponse<Organization>> {
-    return this.request(`/organization/${orgId}`, {
+    return this.request(`/api/organization/${orgId}`, {
       method: 'PUT',
       body: JSON.stringify(orgData),
     });
   }
 
   async deleteOrganization(orgId: string): Promise<ApiResponse> {
-    return this.request(`/organization/${orgId}`, {
+    return this.request(`/api/organization/${orgId}`, {
       method: 'DELETE',
     });
   }
@@ -1487,7 +1543,7 @@ class ApiClient {
     if (params?.noteType) searchParams.append('noteType', params.noteType);
 
     const queryString = searchParams.toString();
-    return this.request(`/user-stats/time-saved${queryString ? `?${queryString}` : ''}`);
+    return this.request(`/api/user-stats/time-saved${queryString ? `?${queryString}` : ''}`);
   }
 
   // ==========================================
@@ -1505,7 +1561,7 @@ class ApiClient {
     if (params?.search) searchParams.append('search', params.search);
 
     const queryString = searchParams.toString();
-    return this.request(`/admin/notes${queryString ? `?${queryString}` : ''}`);
+    return this.request(`/api/admin/notes${queryString ? `?${queryString}` : ''}`);
   }
 
   async getAllUsers(params?: {
@@ -1519,22 +1575,22 @@ class ApiClient {
     if (params?.search) searchParams.append('search', params.search);
 
     const queryString = searchParams.toString();
-    return this.request(`/admin/users${queryString ? `?${queryString}` : ''}`);
+    return this.request(`/api/admin/users${queryString ? `?${queryString}` : ''}`);
   }
 
   async testEmailService(email: string): Promise<ApiResponse> {
-    return this.request('/admin/test-email', {
+    return this.request('/api/admin/test-email', {
       method: 'POST',
       body: JSON.stringify({ email }),
     });
   }
 
   async getSystemStats(): Promise<ApiResponse<SystemStats>> {
-    return this.request('/admin/stats');
+    return this.request('/api/admin/stats');
   }
 
   async clearCache(): Promise<ApiResponse<{ message: string }>> {
-    return this.request('/admin/cache/clear', {
+    return this.request('/api/admin/cache/clear', {
       method: 'POST',
     });
   }
@@ -1544,7 +1600,7 @@ class ApiClient {
   // ==========================================
 
   async healthCheck(): Promise<ApiResponse<HealthCheckResponse>> {
-    return this.request('/health');
+    return this.request('/api/health');
   }
 
   // Note: Backend doesn't have separate liveness endpoint
@@ -1592,7 +1648,30 @@ class ApiClient {
   }
 
   async getPerformanceMetrics(): Promise<ApiResponse<PerformanceMetrics>> {
-    return this.request('/health/metrics');
+    return this.request('/api/health/metrics');
+  }
+
+  // ==========================================
+  // PAYMENT & SUBSCRIPTION METHODS
+  // ==========================================
+
+  /**
+   * Fetch available subscription plans based on user's country (detected by IP)
+   * No authentication required
+   */
+  async getSubscriptionPlans(): Promise<ApiResponse<SubscriptionPlan[]>> {
+    return this.request('/api/payment/plans');
+  }
+
+  /**
+   * Initiate a subscription for a selected plan
+   * Requires authentication
+   */
+  async subscribe(planId: string): Promise<ApiResponse<SubscriptionResponse>> {
+    return this.request('/api/payment/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ planId }),
+    });
   }
 
   // ==========================================
@@ -1600,12 +1679,12 @@ class ApiClient {
   // ==========================================
 
   async getSupportedLanguages(): Promise<ApiResponse<Array<{ code: string; name: string }>>> {
-    return this.request('/health/languages');
+    return this.request('/api/health/languages');
   }
 
   // Public dashboard stats for homepage/landing page (no auth required)
   async getPublicDashboardStats(): Promise<ApiResponse<DashboardStats>> {
-    return this.request('/health/dashboard-stats');
+    return this.request('/api/health/dashboard-stats');
   }
 
   async getUserDashboardStats(): Promise<ApiResponse<{
@@ -1613,7 +1692,7 @@ class ApiClient {
     timeSavedSeconds: number;
   }>> {
     try {
-      const response = await this.request('/user-stats/dashboard', { 
+      const response = await this.request('/api/user-stats/dashboard', { 
         method: 'GET', 
         credentials: 'include' 
       });
@@ -1673,6 +1752,9 @@ export type {
   PaginatedResponse,
   TranscriptionResult,
   FastTranscriptionResponse,
+  SubscriptionPlan,
+  SubscriptionResponse,
+  SubscribeRequest,
 };
 
 export default apiClient;

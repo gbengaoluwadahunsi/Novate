@@ -265,7 +265,12 @@ export default function SupportPage() {
                     <Mail className="h-5 w-5 text-blue-500 mt-0.5" />
                     <div>
                       <h3 className="font-medium">Email Support</h3>
-                      <p className="text-sm text-muted-foreground">support@madkatip.ai</p>
+                      <a 
+                        href="mailto:novatescribe@mynovateai.com"
+                        className="text-sm text-muted-foreground hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors duration-200"
+                      >
+                        novatescribe@mynovateai.com
+                      </a>
                       <p className="text-xs text-muted-foreground mt-1">Response within 24 hours</p>
                     </div>
                   </div>

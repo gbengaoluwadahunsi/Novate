@@ -34,8 +34,6 @@ import { PerformanceMonitor } from '@/lib/performance'
 import { debounce } from '@/lib/performance'
 import { useAppSelector } from '@/store/hooks'
 
-import { MedicalNoteComprehensive } from '@/types/medical-note-comprehensive'
-
 export default function NotesPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -553,7 +551,7 @@ export default function NotesPage() {
       const note = noteResponse.data
 
       // Convert to ComprehensiveMedicalNote format for the new PDF generator
-      const comprehensiveNote: MedicalNoteComprehensive = {
+      const comprehensiveNote: any = {
         id: note.id,
         patientInformation: {
           name: note.patientName || '',

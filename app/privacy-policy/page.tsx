@@ -223,8 +223,8 @@ export default function PrivacyPolicyPage() {
               If you have any questions about this Privacy Policy or our privacy practices, please contact us:
             </p>
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 mt-4">
-              <p><strong>Privacy Officer:</strong> privacy@novatescribe.com</p>
-              <p><strong>Data Protection Officer:</strong> dpo@novatescribe.com</p>
+              <p><strong>Privacy Officer:</strong> <a href="mailto:novatescribe@mynovateai.com" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors duration-200">novatescribe@mynovateai.com</a></p>
+              <p><strong>Data Protection Officer:</strong> <a href="mailto:novatescribe@mynovateai.com" className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline transition-colors duration-200">novatescribe@mynovateai.com</a></p>
               <p><strong>Phone:</strong> +1 (555) 123-4567</p>
               <p><strong>Address:</strong> NovateScribe Privacy Department<br />
               123 Healthcare Boulevard<br />

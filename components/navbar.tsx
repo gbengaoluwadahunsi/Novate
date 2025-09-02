@@ -65,7 +65,7 @@ export function Navbar() {
             {/* Show Pricing only for authenticated users */}
             {isAuthenticated && (
               <Link
-                href="#pricing"
+                href="/pricing"
                 className="text-gray-700 dark:text-gray-200 hover:text-[#2563eb] dark:hover:text-[#2563eb] font-medium"
               >
                 Pricing
@@ -141,7 +141,7 @@ export function Navbar() {
               {/* Show Pricing only for authenticated users - Mobile */}
               {isAuthenticated && (
                 <Link
-                  href="#pricing"
+                  href="/pricing"
                   className="px-4 py-2 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >

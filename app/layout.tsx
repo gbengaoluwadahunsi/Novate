@@ -175,6 +175,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             })
           }}
         />
+        
+        {/* Payment Scripts */}
+        <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
       </head>
       <body className={inter.className}>
         <SecurityWrapper>

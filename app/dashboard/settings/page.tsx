@@ -552,8 +552,8 @@ export default function SettingsPage() {
                         <Image
                           src={signaturePreview}
                           alt="Digital Signature"
-                          layout="fill"
-                          objectFit="contain"
+                          fill
+                          className="object-contain"
                         />
                         <Button
                           variant="outline"
@@ -591,8 +591,8 @@ export default function SettingsPage() {
                         <Image
                           src={stampPreview}
                           alt="Doctor's Stamp"
-                          layout="fill"
-                          objectFit="contain"
+                          fill
+                          className="object-contain"
                         />
                         <Button
                           variant="outline"
@@ -633,8 +633,8 @@ export default function SettingsPage() {
                             <Image
                               src={letterheadPreview}
                               alt="Letterhead Template"
-                              layout="fill"
-                              objectFit="cover"
+                              fill
+                              className="object-cover"
                             />
                           ) : letterheadPreview.startsWith('data:application/pdf') ? (
                             <div className="w-full h-full bg-blue-50 flex items-center justify-center">
