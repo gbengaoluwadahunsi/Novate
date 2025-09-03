@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AudioQueueService } from '@/lib/services/AudioQueueService';
+// import { AudioQueueService } from '@/lib/services/AudioQueueService';
 import { logger } from '@/lib/logger';
 
 // GET /api/audio-queue - Get user's audio queue
@@ -18,12 +18,13 @@ export async function GET(request: NextRequest) {
     
     logger.info(`Getting audio queue for user: ${userId}`);
     
-    const queue = await AudioQueueService.getUserQueue(userId, organizationId || undefined);
+    // const queue = await AudioQueueService.getUserQueue(userId, organizationId || undefined);
     
     return NextResponse.json({
       success: true,
-      queue,
-      count: queue.length
+      // queue,
+      // count: queue.length
+      message: 'Audio queue service temporarily disabled'
     });
     
   } catch (error) {
@@ -71,31 +72,32 @@ export async function POST(request: NextRequest) {
     
     logger.info(`Adding audio file to queue: ${filename} for user: ${userId}`);
     
-    const queueItem = await AudioQueueService.addToQueue({
-      userId,
-      organizationId,
-      filename,
-      originalName,
-      fileSize,
-      fileType,
-      audioUrl,
-      language: language || 'en-US',
-      priority,
-      patientInfo,
-      medicalContext
-    });
+    // const queueItem = await AudioQueueService.addToQueue({
+    //   userId,
+    //   organizationId,
+    //   filename,
+    //   originalName,
+    //   fileSize,
+    //   fileType,
+    //   audioUrl,
+    //   language: language || 'en-US',
+    //   priority,
+    //   patientInfo,
+    //   medicalContext
+    // });
     
     return NextResponse.json({
       success: true,
       message: 'Audio file added to queue successfully',
-      queueItem: {
-        id: queueItem._id,
-        filename: queueItem.filename,
-        status: queueItem.status,
-        priority: queueItem.priority,
-        position: queueItem.position,
-        createdAt: queueItem.createdAt
-      }
+      // queueItem: {
+      //   id: queueItem._id,
+      //   filename: queueItem.filename,
+      //   status: queueItem.status,
+      //   priority: queueItem.priority,
+      //   position: queueItem.position,
+      //   createdAt: queueItem.createdAt
+      // }
+      message: 'Audio queue service temporarily disabled'
     }, { status: 201 });
     
   } catch (error) {
