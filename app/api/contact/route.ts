@@ -59,26 +59,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In development, just log the contact request
-    console.log('Contact Form Submission:', {
-      name,
-      email,
-      subject,
-      message,
-      company,
-      phone,
-      timestamp: new Date().toISOString()
-    });
+    // Process the contact form submission
+    const contactData = {
+      name: data.name,
+      email: data.email,
+      subject: data.subject,
+      message: data.message,
+      company: data.company,
+      phone: data.phone,
+      submittedAt: new Date().toISOString()
+    };
 
-    // For development, simulate success response
-    // In production, this would send emails and store in database
+    // Send email notification (implement your email service here)
+    // For now, we'll just return success
+    
     return NextResponse.json({
       success: true,
       message: 'Thank you for your message! We will get back to you soon.'
     });
 
   } catch (error) {
-    console.error('Contact form error:', error);
     return NextResponse.json(
       { error: 'Failed to send your message. Please try again later.' },
       { status: 500 }

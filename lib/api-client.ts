@@ -19,10 +19,7 @@ const getBackendUrl = () => {
   // Use environment variable override if provided, otherwise use environment-based URL
   const finalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || environmentUrl;
   
-  // Log the backend URL for debugging
-  console.log('🔗 Backend URL:', finalUrl);
-  console.log('🌍 Environment:', process.env.NODE_ENV);
-  console.log('⚙️ NEXT_PUBLIC_BACKEND_URL:', process.env.NEXT_PUBLIC_BACKEND_URL);
+  // Backend URL determined
   
   return finalUrl;
 };
@@ -1191,7 +1188,7 @@ class ApiClient {
     editedText: string;
     action: 'replace' | 'append' | 'delete';
   }>> {
-    return this.request('/voice-edit/edit', {
+    return this.request('/api/voice-edit/edit', {
       method: 'POST',
       body: formData,
       headers: {}, // Let browser set Content-Type for FormData

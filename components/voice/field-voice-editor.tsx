@@ -86,12 +86,8 @@ export default function FieldVoiceEditor({
       (recorder as any).timer = timer;
       
     } catch (error) {
-      console.error('Error starting recording:', error);
-      toast({
-        title: "Recording Error",
-        description: "Could not access microphone. Please check permissions.",
-        variant: "destructive",
-      });
+      // Error starting recording
+      toast.error('Could not access microphone. Please check permissions.');
     }
   };
 
@@ -143,10 +139,23 @@ export default function FieldVoiceEditor({
         throw new Error(response.error || 'Voice edit failed');
       }
     } catch (error) {
-      console.error('Error submitting voice edit:', error);
+      // Error submitting voice edit
+      
+      let errorMessage = 'Failed to process voice command.';
+      
+      if (error instanceof Error) {
+        if (error.message.includes('Unexpected token')) {
+          errorMessage = 'Voice editing service is not available. Please try again later.';
+        } else if (error.message.includes('Failed to fetch')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Voice Edit Failed",
-        description: error instanceof Error ? error.message : "Failed to process voice command.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

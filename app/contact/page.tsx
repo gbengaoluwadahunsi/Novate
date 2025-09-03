@@ -100,36 +100,33 @@ export default function ContactPage() {
 
       const result = await response.json();
 
-      if (response.ok && result.success) {
-        // Success
-        setSubmitStatus('success');
-        setSubmitMessage(result.message || 'Thank you for your message! We will get back to you soon.');
-        
-        // Reset form after successful submission
-        setTimeout(() => {
-          setFormData({
-            name: '',
-            email: '',
-            subject: '',
-            message: '',
-            company: '',
-            phone: ''
-          });
-          setSubmitStatus('idle');
-          setSubmitMessage('');
-        }, 5000);
-      } else {
-        // Error from API
+      if (!result.success) {
         setSubmitStatus('error');
         setSubmitMessage(result.error || 'Failed to send your message. Please try again later.');
-        console.error('Contact form submission failed:', result.error);
+        return;
       }
+
+      // Success
+      setSubmitStatus('success');
+      setSubmitMessage(result.message || 'Thank you for your message! We will get back to you soon.');
       
+      // Reset form after successful submission
+      setTimeout(() => {
+        setFormData({
+          name: '',
+          email: '',
+          subject: '',
+          message: '',
+          company: '',
+          phone: ''
+        });
+        setSubmitStatus('idle');
+        setSubmitMessage('');
+      }, 5000);
     } catch (error) {
       // Network or other errors
       setSubmitStatus('error');
       setSubmitMessage('Network error. Please check your connection and try again.');
-      console.error('Error submitting form:', error);
     } finally {
       setIsSubmitting(false);
     }

@@ -944,6 +944,9 @@ export default function NotePage() {
             
             // 🔧 FIXED: Convert from backend API format to CleanMedicalNote
             const convertedNote: CleanMedicalNote = {
+              // Note identification
+              id: note.id || '',
+              
               // Patient Information
               patientName: note.patientName || '',
               patientAge: note.patientAge?.toString() || '',

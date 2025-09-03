@@ -336,17 +336,53 @@ export default function DocumentStyleNoteViewer({
     setEditedNote(note)
   }, [note])
 
+  // Field mapping for voice editing - maps frontend field names to backend field names
+  const mapFieldForVoiceEdit = (frontendField: string): string => {
+    const fieldMapping: { [key: string]: string } = {
+      'patientAge': 'age',
+      'patientGender': 'gender', 
+      'patientName': 'name',
+      'chiefComplaint': 'chiefComplaint',
+      'historyOfPresentingIllness': 'historyOfPresentingIllness',
+      'medicalConditions': 'pastMedicalHistory',
+      'surgeries': 'surgeries',
+      'medications': 'medications',
+      'allergies': 'allergies',
+      'smoking': 'smoking',
+      'alcohol': 'alcohol',
+      'recreationalDrugs': 'recreationalDrugs',
+      'familyHistory': 'familyHistory',
+      'systemsReview': 'systemReview',
+      'physicalExamination': 'physicalExamination',
+      'investigations': 'investigations',
+      'assessment': 'diagnosis',
+      'plan': 'plan',
+      'temperature': 'temperature',
+      'pulseRate': 'pulseRate',
+      'bloodPressure': 'bloodPressure',
+      'respiratoryRate': 'respiratoryRate',
+      'glucose': 'glucose',
+      'doctorName': 'doctorName',
+      'doctorRegistrationNo': 'doctorRegistrationNo'
+    };
+    
+    return fieldMapping[frontendField] || frontendField;
+  };
+
   // Helper function to update a field in the edited note
   const updateField = (field: string, value: string) => {
     // Debug logging for gender field updates
     if (field === 'patientGender') {
-      console.log("Updating patient gender from", editedNote.patientGender, "to", value)
+      // Gender update logic (if needed)
     }
     
-    setEditedNote(prev => ({
-      ...prev,
-      [field]: value
-    }))
+    setEditedNote(prev => {
+      const updated = {
+        ...prev,
+        [field]: value
+      };
+      return updated;
+    })
   }
 
   // Helper function to update nested fields
@@ -659,8 +695,7 @@ export default function DocumentStyleNoteViewer({
       toast.success(`PDF Generated Successfully: Medical consultation note has been downloaded as ${fileName}`);
 
     } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error("PDF Generation Failed: There was an error generating the PDF. Please try again.");
+      toast.error('Failed to generate PDF. Please try again.');
     }
   };
 
@@ -867,9 +902,10 @@ export default function DocumentStyleNoteViewer({
                     <SectionVoiceInput
                       noteId={note.id || ''}
                       sectionName="Patient Name"
-                      sectionField="patientName"
+                      sectionField={mapFieldForVoiceEdit('patientName')}
                       currentValue={editedNote.patientName || ''}
                       onUpdate={(value) => updateField('patientName', value)}
+                      onSave={(changeDescription) => onSave(editedNote, changeDescription)}
                     />
                   </div>
                   <Input
@@ -893,9 +929,10 @@ export default function DocumentStyleNoteViewer({
                     <SectionVoiceInput
                       noteId={note.id || ''}
                       sectionName="Patient Age"
-                      sectionField="patientAge"
+                      sectionField={mapFieldForVoiceEdit('patientAge')}
                       currentValue={editedNote.patientAge || ''}
                       onUpdate={(value) => updateField('patientAge', value)}
+                      onSave={(changeDescription) => onSave(editedNote, changeDescription)}
                     />
                   </div>
                   <Input
@@ -925,10 +962,10 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div><strong>Name:</strong> <span className={!note.patientName ? 'text-gray-500 italic' : ''}>{formatFieldValue(note.patientName)}</span></div>
+                <div><strong>Name:</strong> <span className={!editedNote.patientName ? 'text-gray-500 italic' : ''}>{formatFieldValue(editedNote.patientName)}</span></div>
                 <div><strong>Role:</strong> PATIENT</div>
-                <div><strong>Age:</strong> <span className={!note.patientAge ? 'text-gray-500 italic' : ''}>{formatFieldValue(note.patientAge)}</span></div>
-                <div><strong>Gender:</strong> <span className={!note.patientGender ? 'text-gray-500 italic' : ''}>{formatFieldValue(note.patientGender)}</span></div>
+                <div><strong>Age:</strong> <span className={!editedNote.patientAge ? 'text-gray-500 italic' : ''}>{formatFieldValue(editedNote.patientAge)}</span></div>
+                <div><strong>Gender:</strong> <span className={!editedNote.patientGender ? 'text-gray-500 italic' : ''}>{formatFieldValue(editedNote.patientGender)}</span></div>
               </div>
             )}
           </CardContent>
@@ -948,9 +985,10 @@ export default function DocumentStyleNoteViewer({
                     <SectionVoiceInput
                       noteId={note.id || ''}
                       sectionName="Temperature"
-                      sectionField="temperature"
+                      sectionField={mapFieldForVoiceEdit('temperature')}
                       currentValue={(editedNote as any).temperature || ''}
                       onUpdate={(value) => updateField('temperature', value)}
+                      onSave={(changeDescription) => onSave(editedNote, changeDescription)}
                     />
                   </div>
                   <Input
@@ -968,9 +1006,10 @@ export default function DocumentStyleNoteViewer({
                     <SectionVoiceInput
                       noteId={note.id || ''}
                       sectionName="Blood Pressure"
-                      sectionField="bloodPressure"
+                      sectionField={mapFieldForVoiceEdit('bloodPressure')}
                       currentValue={(editedNote as any).bloodPressure || ''}
                       onUpdate={(value) => updateField('bloodPressure', value)}
+                      onSave={(changeDescription) => onSave(editedNote, changeDescription)}
                     />
                   </div>
                   <Input
@@ -1178,13 +1217,14 @@ export default function DocumentStyleNoteViewer({
             <div className="flex items-center gap-2 mb-3">
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>CHIEF COMPLAINT</h2>
               {isEditMode && (
-                <SectionVoiceInput
-                  noteId={note.id || ''}
-                  sectionName="Chief Complaint"
-                  sectionField="chiefComplaint"
-                  currentValue={editedNote.chiefComplaint || ''}
-                  onUpdate={(value) => updateField('chiefComplaint', value)}
-                />
+                                    <SectionVoiceInput
+                      noteId={note.id || ''}
+                      sectionName="Chief Complaint"
+                      sectionField={mapFieldForVoiceEdit('chiefComplaint')}
+                      currentValue={editedNote.chiefComplaint || ''}
+                      onUpdate={(value) => updateField('chiefComplaint', value)}
+                      onSave={(changeDescription) => onSave(editedNote, changeDescription)}
+                    />
               )}
             </div>
             
@@ -1197,7 +1237,13 @@ export default function DocumentStyleNoteViewer({
                 rows={3}
               />
             ) : (
-              <p className={`text-sm ${!note.chiefComplaint ? 'text-gray-500 italic' : ''}`}>{formatFieldValue(note.chiefComplaint)}</p>
+              <div className="text-sm">
+                {editedNote.chiefComplaint ? (
+                  <p>{editedNote.chiefComplaint}</p>
+                ) : (
+                  <p className="text-gray-500 italic">Not mentioned</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1228,9 +1274,9 @@ export default function DocumentStyleNoteViewer({
               />
             ) : (
               <div className="text-sm">
-                {note.historyOfPresentingIllness ? (
+                {editedNote.historyOfPresentingIllness ? (
                   <ul className="list-disc pl-5 space-y-1">
-                    {formatWithBulletPoints(note.historyOfPresentingIllness, 'History of Present Illness')}
+                    {formatWithBulletPoints(editedNote.historyOfPresentingIllness, 'History of Present Illness')}
                   </ul>
                 ) : (
                   <p className="text-gray-500 italic">Not mentioned</p>
@@ -1775,12 +1821,36 @@ export default function DocumentStyleNoteViewer({
             ) : (
               <ICD11CodesDisplay
                 medicalNote={{
-                  icd11Codes: Array.isArray((note as any).icd11Codes)
-                    ? (note as any).icd11Codes
-                    : note.icd11Codes?.primary?.map((c: any) => c.code) || [],
-                  icd11Titles: Array.isArray((note as any).icd11Titles)
-                    ? (note as any).icd11Titles
-                    : note.icd11Codes?.primary?.map((c: any) => c.title) || [],
+                  icd11Codes: (() => {
+                    let codes: string[] = [];
+                    
+                    // Try different data formats
+                    if (Array.isArray((note as any).icd11Codes)) {
+                      codes = (note as any).icd11Codes;
+                    } else if (note.icd11Codes?.primary && Array.isArray(note.icd11Codes.primary)) {
+                      codes = note.icd11Codes.primary.map((c: any) => c.code);
+                    } else if ((note as any).icd11CodesComplex?.primary && Array.isArray((note as any).icd11CodesComplex.primary)) {
+                      codes = (note as any).icd11CodesComplex.primary.map((c: any) => c.code);
+                    }
+                    
+
+                    return codes;
+                  })(),
+                  icd11Titles: (() => {
+                    let titles: string[] = [];
+                    
+                    // Try different data formats
+                    if (Array.isArray((note as any).icd11Titles)) {
+                      titles = (note as any).icd11Titles;
+                    } else if (note.icd11Codes?.primary && Array.isArray(note.icd11Codes.primary)) {
+                      titles = note.icd11Codes.primary.map((c: any) => c.title);
+                    } else if ((note as any).icd11CodesComplex?.primary && Array.isArray((note as any).icd11CodesComplex.primary)) {
+                      titles = (note as any).icd11CodesComplex.primary.map((c: any) => c.title);
+                    }
+                    
+
+                    return titles;
+                  })(),
                   icd11SourceSentence: (note as any).icd11SourceSentence || note.icd11Codes?.primary?.[0]?.definition,
                 }}
                 onCodeSelect={(code, title) => onPrimaryCodeSelect?.(code, title)}

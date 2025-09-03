@@ -137,11 +137,10 @@ export const createMedicalNote = createAsyncThunk(
       const response = await apiClient.createMedicalNote(noteDataWithDoctor)
       
       if (response.success) {
-        console.log('📝 Created medical note JSON:', response.data);
-        return response.data
+        // Created medical note successfully
+        return response.data;
       } else {
-        console.error('❌ REDUX STORE - NOTE CREATION FAILED:', response.error);
-        return rejectWithValue(response.error || 'Failed to create medical note')
+        throw new Error(response.error || 'Failed to create medical note');
       }
     } catch (error) {
       return rejectWithValue(error instanceof Error ? error.message : 'Failed to create medical note')

@@ -45,6 +45,9 @@ interface ICD11Codes {
 
 // Complete medical note interface matching the PDF structure
 interface CleanMedicalNote {
+  // Note identification
+  id: string
+  
   // Patient Information
   patientName: string
   patientAge: string
@@ -114,6 +117,7 @@ interface CleanMedicalNote {
 }
 
 const createEmptyNote = (): CleanMedicalNote => ({
+  id: '', // Added id
   patientName: '',
   patientAge: '',
   patientGender: 'Male',

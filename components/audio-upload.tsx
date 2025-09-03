@@ -988,7 +988,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
     
     // If no patient info from parent, show a warning
     if (!currentPatientInfo.patientName && !currentPatientInfo.patientAge) {
-      console.warn('⚠️ No patient information available. Please fill out the patient form on the left side.');
       toast({
         title: "⚠️ Missing Patient Information",
         description: "Please fill out the Patient Information form on the left side (First Name, Last Name, Age, Gender) before transcribing.",
@@ -1002,8 +1001,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
   // Create medical note using the working logic from transcribe page
   const createMedicalNoteFromTranscription = async (data: any) => {
-    console.log('📝 Starting note creation process with data:', data);
-    
     // Show loading state for note creation
     toast({
       title: "🔄 Creating Medical Note",
@@ -1053,18 +1050,14 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         }
       };
 
-      console.log('📝 Prepared note data for backend:', noteData);
-      
       // Create the medical note using Redux
       const result = await dispatch(createMedicalNote(noteData));
       
       if (createMedicalNote.fulfilled.match(result)) {
         const savedNote = result.payload;
-        console.log('🎉 Note creation successful, savedNote:', savedNote);
         
         if (savedNote && savedNote.id) {
           const noteId = savedNote.id;
-          console.log('✅ Note created successfully with ID:', noteId);
           
           // Set the created note ID for the button
           setCreatedNoteIdLocal(noteId);
@@ -1077,7 +1070,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
           });
           
           // Wait a moment before navigating to let user see completion message
-          console.log('🧭 Will navigate to note page in 3 seconds:', `/dashboard/notes/${noteId}`);
           
           setTimeout(() => {
             router.replace(`/dashboard/notes/${noteId}`);
@@ -1089,7 +1081,6 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         throw new Error('Failed to create medical note');
       }
     } catch (error) {
-      console.error('❌ Error creating medical note:', error);
       toast({
         title: "❌ Error Creating Note",
         description: "Failed to create medical note. Please try again.",
@@ -1843,14 +1834,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         if (pollingInterval.current) clearInterval(pollingInterval.current);
         pollingInterval.current = null;
         
-        console.log('✅ Transcription completed, starting medical note generation...');
-        
         // Complete transcription and move to note generation
         updateRealProgress('Medical Note Generating', 90, 'Creating medical note...');
         
         // Handle completed transcription
         setTimeout(async () => {
-          console.log('📋 Full transcription result data:', result);
           await handleTranscriptionComplete({
             transcript: result.transcript,
             language: language,

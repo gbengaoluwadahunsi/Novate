@@ -45,7 +45,7 @@ export default function PricingPage() {
         email: user.email,
       });
     } catch (error) {
-      console.error('Subscription error:', error);
+      toast.error('Failed to subscribe. Please try again.');
     } finally {
       setSubscribingToPlan(null);
     }

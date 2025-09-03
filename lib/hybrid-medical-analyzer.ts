@@ -77,18 +77,13 @@ export class HybridMedicalAnalyzer {
           }
           
         } catch (llmError) {
-          console.warn('LLM analysis failed, falling back to rules:', llmError)
-          
-          if (this.llmConfig.fallbackToRules) {
-            return {
-              recommendations: ruleBasedAnalysis,
-              method: 'rules',
-              confidence: this.calculateRuleBasedConfidence(ruleBasedAnalysis),
-              processingTime: Date.now() - startTime
-            }
+          // LLM analysis failed, falling back to rules
+          return {
+            recommendations: ruleBasedAnalysis,
+            method: 'rules',
+            confidence: this.calculateRuleBasedConfidence(ruleBasedAnalysis),
+            processingTime: Date.now() - startTime
           }
-          
-          throw llmError
         }
       }
 
@@ -101,8 +96,6 @@ export class HybridMedicalAnalyzer {
       }
 
     } catch (error) {
-      console.error('Hybrid analysis failed:', error)
-      
       // Ultimate fallback
       return {
         recommendations: [{

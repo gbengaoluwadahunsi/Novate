@@ -39,12 +39,7 @@ export default function RawTranscriptPage() {
         })
       }
     } catch (error) {
-      console.error('Error fetching note:', error)
-      toast({
-        title: "Error",
-        description: "Failed to fetch medical note",
-        variant: "destructive"
-      })
+      // Error fetching note
     } finally {
       setIsLoading(false)
     }

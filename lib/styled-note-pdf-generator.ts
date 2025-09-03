@@ -178,8 +178,7 @@ export class StyledNotePDFGenerator {
         this.doc.addImage(options.letterheadImage, 'PNG', 0, 0, this.pageWidth, 60)
         this.currentY = 70
       } catch (error) {
-        console.warn('Failed to add letterhead image:', error)
-        this.addStyledHeader(note)
+        // Failed to add letterhead image
       }
     } else {
       this.addStyledHeader(note)

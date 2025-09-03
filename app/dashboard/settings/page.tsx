@@ -180,7 +180,6 @@ export default function SettingsPage() {
       }
       
     } catch (error) {
-      console.error('Error uploading signature:', error)
       toast({
         title: "Error",
         description: "Failed to upload signature. Please try again.",
@@ -249,7 +248,6 @@ export default function SettingsPage() {
       }
       
     } catch (error) {
-      console.error('Error uploading stamp:', error)
       toast({
         title: "Error",
         description: "Failed to upload stamp. Please try again.",
@@ -329,7 +327,6 @@ export default function SettingsPage() {
       }
       
     } catch (error) {
-      console.error('Error uploading letterhead:', error)
       toast({
         title: "Error",
         description: "Failed to upload letterhead. Please try again.",
@@ -427,7 +424,6 @@ export default function SettingsPage() {
       }
       
     } catch (error) {
-      console.error('Error saving advanced signature:', error)
       toast({
         title: "Error",
         description: "Failed to save advanced signature. Please try again.",

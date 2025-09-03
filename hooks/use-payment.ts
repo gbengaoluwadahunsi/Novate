@@ -34,16 +34,22 @@ export function usePayment() {
       const response = await apiClient.getSubscriptionPlans();
       
       if (response.success && response.data) {
-        console.log('🔍 Fetched plans:', response.data);
-        console.log('🌍 First plan currency:', response.data[0]?.currency);
         setState(prev => ({
           ...prev,
           plans: response.data!,
           loading: false,
         }));
       } else {
-        console.error('❌ Failed to fetch plans:', response.error);
-        throw new Error(response.error || 'Failed to fetch subscription plans');
+        setState(prev => ({
+          ...prev,
+          error: response.error || 'Failed to fetch plans',
+          loading: false,
+        }));
+        toast({
+          title: "Error",
+          description: response.error || 'Failed to fetch plans',
+          variant: "destructive",
+        });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch plans';
@@ -65,9 +71,8 @@ export function usePayment() {
     try {
       // For now, we'll skip this since the API client doesn't have a direct method
       // In production, you would add this method to the API client
-      console.log('Payment info fetch not implemented yet');
     } catch (error) {
-      console.log('Payment info not available (user may not be authenticated)');
+      // Payment info not available
     }
   };
 
@@ -87,7 +92,6 @@ export function usePayment() {
         description: "Subscription Payment",
         order_id: orderData.orderId,
         handler: function (response: any) {
-          console.log('Payment successful:', response.razorpay_payment_id);
           toast({
             title: "Payment Successful",
             description: "Your subscription will be activated shortly.",
@@ -127,7 +131,6 @@ export function usePayment() {
         
         // Check if this is a Stripe response (international users)
         if (isStripeResponse(subscriptionData)) {
-          console.log('🔄 Redirecting to Stripe checkout:', subscriptionData.url);
           // Redirect to Stripe checkout
           if (subscriptionData.url) {
             window.location.href = subscriptionData.url;
@@ -139,14 +142,12 @@ export function usePayment() {
         
         // Check if this is a Curlec/Razorpay response (Malaysian users)
         if (isCurlecResponse(subscriptionData)) {
-          console.log('🔄 Initializing Curlec payment:', subscriptionData);
           // Handle Curlec payment modal
           await handleCurlecPayment(subscriptionData, userInfo);
           return;
         }
         
         // Unexpected response format
-        console.error('❌ Unexpected response format:', subscriptionData);
         throw new Error('Unexpected payment response format');
       } else {
         throw new Error(response.error || 'Failed to initiate subscription');

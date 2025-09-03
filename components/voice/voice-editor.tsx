@@ -103,7 +103,8 @@ export default function VoiceEditor({ noteId, targetField, onEditComplete, class
           setVoiceStatus(response.data);
         }
       } catch (error) {
-        console.error('Error fetching voice status:', error);
+        // Error fetching voice status
+        toast.error('Failed to fetch voice editing status');
       }
     };
 
@@ -159,12 +160,8 @@ export default function VoiceEditor({ noteId, targetField, onEditComplete, class
         description: "Speak clearly into your microphone.",
       });
     } catch (error) {
-      console.error('Error starting recording:', error);
-      toast({
-        title: "Recording Error",
-        description: "Could not access microphone. Please check permissions.",
-        variant: "destructive",
-      });
+      // Error starting recording
+      toast.error('Could not access microphone. Please check permissions.');
     }
   };
 
@@ -254,12 +251,8 @@ export default function VoiceEditor({ noteId, targetField, onEditComplete, class
         throw new Error(response.error || 'Voice edit failed');
       }
     } catch (error) {
-      console.error('Error submitting voice edit:', error);
-      toast({
-        title: "Voice Edit Failed",
-        description: error instanceof Error ? error.message : "Failed to process voice command. Please try again.",
-        variant: "destructive",
-      });
+      // Error submitting voice edit
+      toast.error(error instanceof Error ? error.message : "Failed to process voice command. Please try again.");
     } finally {
       setIsProcessing(false);
     }

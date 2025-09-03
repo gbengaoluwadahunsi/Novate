@@ -94,8 +94,7 @@ export default function DoctorCredentialsManager({ userId }: DoctorCredentialsMa
       }
 
     } catch (error: any) {
-      console.error(`Failed to upload ${credentialType}:`, error);
-      toast.error(`Failed to upload ${credentialType}: ${error.message}`);
+      toast.error(`Failed to upload ${credentialType}. Please try again.`);
     } finally {
       setIsUploading(null);
       setUploadProgress(prev => ({ ...prev, [credentialType]: 0 }));

@@ -29,10 +29,19 @@ export default function ICD11CodesDisplay({
   const [primaryCodeIndex, setPrimaryCodeIndex] = useState<number>(0);
 
   useEffect(() => {
-    const initialCodes = (medicalNote.icd11Codes || []).map((code, index) => ({
-      code,
-      title: (medicalNote.icd11Titles || [])[index] || 'Unknown condition',
-    })).slice(0, 4);
+    // Handle different data formats
+    let codes: ICD11Code[] = [];
+    
+    if (medicalNote.icd11Codes && Array.isArray(medicalNote.icd11Codes)) {
+      codes = medicalNote.icd11Codes.map((code, index) => ({
+        code,
+        title: (medicalNote.icd11Titles || [])[index] || 'Unknown condition',
+      }));
+    }
+    
+    // Ensure we show all available codes up to 4
+    const initialCodes = codes.slice(0, 4);
+    
     setCodes(initialCodes);
     if (initialCodes.length > 0) {
       setPrimaryCodeIndex(0);

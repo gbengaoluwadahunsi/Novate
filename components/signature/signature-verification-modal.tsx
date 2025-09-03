@@ -86,12 +86,7 @@ export default function SignatureVerificationModal({
         });
       }
     } catch (error) {
-      console.error('Signature verification error:', error);
-      toast({
-        title: "Verification Error",
-        description: "Failed to verify signature. Please try again.",
-        variant: "destructive",
-      });
+      toast.error('Failed to verify signature. Please try again.');
     } finally {
       setVerifying(false);
     }

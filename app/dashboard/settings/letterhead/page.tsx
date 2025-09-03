@@ -173,7 +173,6 @@ export default function LetterheadSettingsPage() {
         description: "Your letterhead has been updated successfully.",
       });
     } catch (error) {
-      console.error("Failed to save letterhead settings:", error);
       toast({
         title: "Error",
         description: "Failed to save your letterhead. Please try again.",

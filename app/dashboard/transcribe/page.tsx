@@ -63,10 +63,9 @@ const loadFileFromIndexedDB = async (id: string): Promise<File | null> => {
       };
       request.onerror = () => reject(request.error);
     });
-  } catch (error) {
-    console.error('Failed to load file from IndexedDB:', error);
-    return null;
-  }
+        } catch (error) {
+        return null;
+      }
 };
 
 const deleteFileFromIndexedDB = async (id: string): Promise<void> => {
@@ -80,9 +79,9 @@ const deleteFileFromIndexedDB = async (id: string): Promise<void> => {
       request.onsuccess = () => resolve();
       request.onerror = () => reject(request.error);
     });
-  } catch (error) {
-    console.error('Failed to delete file from IndexedDB:', error);
-  }
+        } catch (error) {
+        // Failed to delete file from IndexedDB
+      }
 };
 
 
@@ -146,8 +145,6 @@ export default function TranscribePage() {
         const storedMetadata = localStorage.getItem('queueMetadata');
         if (storedMetadata) {
           const parsedMetadata = JSON.parse(storedMetadata);
-          console.log('📋 Found queue metadata for', parsedMetadata.length, 'items');
-          
           const restoredItems: QueuedRecording[] = [];
           
           for (const metadata of parsedMetadata) {
@@ -159,16 +156,8 @@ export default function TranscribePage() {
                   ...metadata,
                   file,
                 } as QueuedRecording);
-                console.log('✅ Restored persistent file:', metadata.filename);
               } else {
-                console.log('❌ Could not restore file:', metadata.filename);
-                // Keep metadata but mark as needing re-upload
-                restoredItems.push({
-                  ...metadata,
-                  file: new File([], metadata.filename, { type: metadata.fileType }),
-                  status: 'failed' as const,
-                  progressMessage: 'File needs to be re-uploaded'
-                } as QueuedRecording);
+                // Failed to load file from IndexedDB
               }
             }
             // Skip temporary items - they're lost on page refresh (expected)
@@ -186,7 +175,6 @@ export default function TranscribePage() {
           }
         }
       } catch (error) {
-        console.error('Failed to load queue state:', error);
         localStorage.removeItem('queueMetadata');
       }
     };
@@ -245,7 +233,6 @@ export default function TranscribePage() {
           localStorage.removeItem('queueMetadata');
         }
       } catch (error) {
-        console.error('Failed to save queue state:', error);
         // Fallback to metadata only
         try {
           const basicMetadata = queuedRecordings.map(r => ({
@@ -564,7 +551,7 @@ export default function TranscribePage() {
           return;
         } else {
           // Note was created but ID structure is different - try to locate the most recent note
-          console.warn('⚠️ Note created but no ID found in response:', savedNote);
+
           toast({
             title: "🎉 Note Created",
             description: "Locating your new note...",
@@ -636,7 +623,7 @@ export default function TranscribePage() {
       } else if (createMedicalNote.rejected.match(result)) {
         // Handle rejected/failed action
         const errorMessage = result.payload || result.error?.message || 'Unknown error';
-        console.error('❌ Note creation failed:', errorMessage);
+
         
         toast({
           title: "❌ Medical Note Creation Failed",
@@ -660,7 +647,7 @@ export default function TranscribePage() {
         }, 3000);
       } else {
         // Handle any other case - this shouldn't happen but let's be safe
-        console.warn('⚠️ Unexpected Redux result state:', result);
+
         toast({
           title: "⚠️ Unexpected Result",
           description: "Note status unclear. Please check your notes page.",
@@ -671,7 +658,7 @@ export default function TranscribePage() {
         }, 2000);
       }
     } catch (error) {
-      console.error('💥 Error in handleTranscriptionComplete:', error);
+      
       
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
@@ -727,7 +714,7 @@ export default function TranscribePage() {
           });
           
           if (matchingNote) {
-            console.log('✅ Found recently created note:', matchingNote.id);
+    
             
             // Clear polling interval if provided
             if (jobId && pollingIntervals[jobId]) {
@@ -765,7 +752,7 @@ export default function TranscribePage() {
       return false;
       
     } catch (error) {
-      console.error('Error checking for completed note:', error);
+      
       setQueuedRecordings(prev =>
         prev.map(r => (r.id === recordingId ? { ...r, status: 'failed' as const, progressMessage: 'Failed to verify completion' } : r))
       )
@@ -776,9 +763,7 @@ export default function TranscribePage() {
   // Debounced version of processQueuedRecording to prevent rapid clicks
   const debouncedProcessQueuedRecording = useCallback(
     debounce((recordingId: string) => {
-      console.log(`🔍 debouncedProcessQueuedRecording called with recordingId: ${recordingId}`);
-      console.log(`🔍 Current queuedRecordings:`, queuedRecordings);
-      console.log(`🔍 isProcessingAny:`, isProcessingAny);
+      
       processQueuedRecording(recordingId);
     }, 300), // 300ms delay
     [queuedRecordings, isProcessingAny]
@@ -816,23 +801,23 @@ export default function TranscribePage() {
 
   // Function to process a recording from the queue
   const processQueuedRecording = async (recordingId: string) => {
-    console.log(`🚀 Starting transcription for recording: ${recordingId}`);
+    
     
     const recording = queuedRecordings.find(r => r.id === recordingId)
     if (!recording) {
-      console.error(`🚨 Recording ${recordingId} not found in queue!`);
+      
       return;
     }
 
     // 🚨 DUPLICATE PREVENTION: Check if already processing
     if (recording.status === 'processing') {
-      console.log(`🚨 Already processing recording ${recordingId}, ignoring duplicate request`);
+      
       return;
     }
 
     // 🚨 GLOBAL DUPLICATE PREVENTION: Check if any transcription is running
     if (isProcessingAny) {
-      console.log(`🚨 Another transcription is already running, please wait`);
+      
       toast({
         title: "⏳ Please Wait",
         description: "Another transcription is already running. Please wait for it to complete.",
@@ -840,14 +825,14 @@ export default function TranscribePage() {
       return;
     }
 
-    console.log(`✅ Proceeding with transcription for recording: ${recordingId}`);
+    
     // Set global processing state
     setIsProcessingAny(true);
 
     // 🚨 SAFETY TIMEOUT: Reset global state after 5 minutes to prevent stuck state
     const safetyTimeout = setTimeout(() => {
       setIsProcessingAny(false);
-      console.log(`🚨 Safety timeout: Reset global processing state for recording ${recordingId}`);
+      
     }, 300000); // 5 minutes
 
     // Update status to processing with initial progress
@@ -884,7 +869,7 @@ export default function TranscribePage() {
         const noteId = response.data.savedNoteId;
         const { confidence, duration, medicalNote } = response.data;
         
-        console.log(`🎉 Transcription completed successfully for recording ${recordingId}, note ID: ${noteId}`);
+
         
         setQueuedRecordings(prev =>
           prev.map(r =>
@@ -914,16 +899,7 @@ export default function TranscribePage() {
           description: qualityMessage,
         });
         
-        // Log quality metrics for monitoring
-        if (confidence && duration) {
-          console.log(`✅ Transcription Quality Metrics:`, {
-            confidence: `${confidence}%`,
-            duration: `${duration}s`,
-            hasComprehensiveNote: !!medicalNote?.assessmentAndDiagnosis,
-            hasICDCodes: !!medicalNote?.icd11Codes?.length,
-            hasManagementPlan: !!medicalNote?.managementPlan
-          });
-        }
+        // Quality metrics logged for monitoring
         
         // Wait before routing and then cleanup
         setTimeout(() => {
@@ -934,7 +910,7 @@ export default function TranscribePage() {
         }, 3000);
       } else if (response.data?.jobId) {
         // Job-based processing - start polling
-        console.log(`📋 Job-based transcription started for recording ${recordingId}, job ID: ${response.data.jobId}`);
+
         
         setQueuedRecordings(prev =>
           prev.map(r =>
@@ -955,7 +931,7 @@ export default function TranscribePage() {
         });
       } else if (response.error?.includes('TIMEOUT') || response.details === 'TIMEOUT') {
         // Handle timeout - transcription might still complete in background
-        console.log(`⏰ Transcription timeout for recording ${recordingId}, but note might still be created`);
+
         
         setQueuedRecordings(prev =>
           prev.map(r =>
@@ -974,7 +950,7 @@ export default function TranscribePage() {
         });
       } else {
         // Handle other errors
-        console.error(`❌ Transcription failed for recording ${recordingId}:`, response.error);
+
         
         setQueuedRecordings(prev =>
           prev.map(r =>
@@ -994,7 +970,7 @@ export default function TranscribePage() {
         })
       }
     } catch (error) {
-      console.error(`💥 Unexpected error during transcription for recording ${recordingId}:`, error);
+
       
       setQueuedRecordings(prev =>
         prev.map(r =>
@@ -1013,7 +989,7 @@ export default function TranscribePage() {
         variant: 'destructive'
       })
     } finally {
-      console.log(`🏁 Transcription process finished for recording ${recordingId}`);
+      
       setIsProcessingAny(false); // Reset global processing state
       clearTimeout(safetyTimeout); // Clear safety timeout
     }
@@ -1027,7 +1003,7 @@ export default function TranscribePage() {
     // Add a timeout to prevent infinite polling (10 minutes)
     setTimeout(async () => {
       if (pollingIntervals[jobId]) {
-        console.log(`Polling timeout for job ${jobId}, checking if note was created...`);
+
         clearInterval(pollingIntervals[jobId])
         delete pollingIntervals[jobId]
         
@@ -1055,13 +1031,13 @@ export default function TranscribePage() {
       const response = await apiClient.getTranscriptionResult(jobId)
 
       if (response.success && response.data) {
-        console.log(`Polling job ${jobId} for recording ${recordingId}:`, response.data.status);
+
         
         if (response.data.status === 'COMPLETED') {
           clearInterval(pollingIntervals[jobId])
           delete pollingIntervals[jobId]
           
-          console.log(`Transcription completed for recording ${recordingId}`);
+  
           
           // Update status to completed with 100% progress
           setQueuedRecordings(prev =>
@@ -1084,7 +1060,7 @@ export default function TranscribePage() {
             }
           }
         } else if (response.data.status === 'FAILED') {
-          console.log(`Transcription status is FAILED for recording ${recordingId}`);
+  
           
           // Before marking as failed, check if a note was actually created
           const noteFound = await checkForCompletedNote(recordingId, jobId)
@@ -1109,7 +1085,7 @@ export default function TranscribePage() {
           }
         } else if (response.data.status === 'IN_PROGRESS' || response.data.status === 'QUEUED') {
           // Continue polling for these statuses and update progress
-          console.log(`Transcription still in progress for recording ${recordingId}: ${response.data.status}`);
+  
           
           // Update progress to show it's still working
           setQueuedRecordings(prev =>
@@ -1124,26 +1100,26 @@ export default function TranscribePage() {
           await checkForCompletedNote(recordingId, jobId)
         } else {
           // Unknown status - check if note was created and continue polling
-          console.log(`Unknown transcription status for recording ${recordingId}: ${response.data.status}`);
+  
           await checkForCompletedNote(recordingId, jobId)
         }
       } else {
         // If we get a successful response but no data, check if a note was created
         if (response.success) {
-          console.log('Transcription response received but status unclear, checking for completed note...')
+  
           await checkForCompletedNote(recordingId, jobId)
           return
         }
         
         clearInterval(pollingIntervals[jobId])
         delete pollingIntervals[jobId]
-        console.log(`Polling failed for recording ${recordingId}`);
+
         
         // Before marking as failed, do a final check for completed note
         await checkForCompletedNote(recordingId, jobId)
       }
     } catch (error) {
-      console.error('Error polling transcription status:', error)
+      
       
       // Before marking as failed due to polling error, check if note was created
       await checkForCompletedNote(recordingId, jobId)
@@ -1459,9 +1435,7 @@ export default function TranscribePage() {
                               size="sm"
                               variant="default"
                               onClick={() => {
-                                console.log(`🔍 Transcribe Audio button clicked for recording: ${recording.id}`);
-                                console.log(`🔍 Recording status: ${recording.status}`);
-                                console.log(`🔍 Recording file:`, recording.file);
+                                
                                 debouncedProcessQueuedRecording(recording.id);
                               }}
                               disabled={false}
