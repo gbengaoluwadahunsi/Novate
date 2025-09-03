@@ -11,17 +11,29 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import SectionVoiceInput from '@/components/voice/section-voice-input'
 import { CleanMedicalNote } from './clean-medical-note-editor'
 import SimpleMedicalDiagram from '@/components/medical-diagram/simple-medical-diagram'
+import ICD11CodesDisplay from './icd11-codes-display'
 
 import { useAppSelector } from '@/store/hooks'
+import { store } from '@/store/store'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
+import { validateAllVitalSigns, getNormalRange } from "@/lib/vital-signs-validator"
+
+const isEffectivelyEmpty = (value: string | null | undefined): boolean => {
+  if (!value) {
+    return true;
+  }
+  const trimmed = value.trim().toLowerCase();
+  return trimmed === '' || trimmed === 'not mentioned' || trimmed === 'n/a';
+};
 
 interface DocumentStyleNoteViewerProps {
   note: CleanMedicalNote
   onSave: (updatedNote: CleanMedicalNote, changeDescription: string) => void
   onVersionHistory?: () => void
   onExportPDF?: (useLetterhead?: boolean, letterheadImage?: string, selectedICD11Codes?: any) => void
+  onPrimaryCodeSelect?: (code: string, title: string) => void
   versions?: Array<{
     version: number
     timestamp: string
@@ -37,6 +49,7 @@ export default function DocumentStyleNoteViewer({
   onSave,
   onVersionHistory,
   onExportPDF,
+  onPrimaryCodeSelect,
   versions = [],
   isLoading = false,
   isTranscribing = false
@@ -54,6 +67,7 @@ export default function DocumentStyleNoteViewer({
   const [signatureImage, setSignatureImage] = useState<string | null>(null)
   const [stampImage, setStampImage] = useState<string | null>(null)
   const [letterheadFile, setLetterheadFile] = useState<string | null>(null)
+  const [showUnauthorizedWatermark, setShowUnauthorizedWatermark] = useState(false)
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploadType, setUploadType] = useState<'signature' | 'stamp' | 'letterhead' | null>(null)
   const [showSignatureDialog, setShowSignatureDialog] = useState(false)
@@ -63,22 +77,226 @@ export default function DocumentStyleNoteViewer({
   const [timeRemaining, setTimeRemaining] = useState<string>("")
   const [isEditingAllowed, setIsEditingAllowed] = useState(true)
 
-  // Load signature, stamp, and letterhead from localStorage on component mount
+  // Load signature, stamp, and letterhead from user profile
   useEffect(() => {
-    const savedSignature = localStorage.getItem('doctorSignature')
-    const savedStamp = localStorage.getItem('doctorStamp')
-    const savedLetterhead = localStorage.getItem('doctorLetterhead')
+    const { user } = store?.getState()?.auth || {};
+    if (user?.signatureUrl) {
+      setSignatureImage(user.signatureUrl)
+    }
+    if (user?.stampUrl) {
+      setStampImage(user.stampUrl)
+    }
+    if (user?.letterheadUrl) {
+      setLetterheadFile(user.letterheadUrl)
+    }
     
-    if (savedSignature) {
-      setSignatureImage(savedSignature)
-    }
-    if (savedStamp) {
-      setStampImage(savedStamp)
-    }
-    if (savedLetterhead) {
-      setLetterheadFile(savedLetterhead)
+    // Check if watermark should be shown for doctors without certificate
+    if (user?.role === 'DOCTOR' && !user?.practicingCertificateUrl) {
+      setShowUnauthorizedWatermark(true)
+    } else {
+      setShowUnauthorizedWatermark(false)
     }
   }, [])
+
+  // Listen for user state changes to update watermark when certificate is uploaded
+  const currentUser = useAppSelector(state => state.auth.user);
+  useEffect(() => {
+    if (currentUser?.role === 'DOCTOR' && !currentUser?.practicingCertificateUrl) {
+      setShowUnauthorizedWatermark(true)
+    } else {
+      setShowUnauthorizedWatermark(false)
+    }
+  }, [currentUser?.practicingCertificateUrl, currentUser?.role])
+
+  // Helper function to format content with bullet points
+  const formatWithBulletPoints = (content: string, title: string) => {
+    // Sections that should use bullet points
+    const bulletPointSections = [
+      'History of Present Illness',
+      'Past Medical History',
+      'System Review',
+      'Physical Examination',
+      'Investigations',
+      'Assessment',
+      'Plan',
+      'Drug History',
+      'Allergies',
+      'Family History',
+      'Social History'
+    ]
+    
+    if (!bulletPointSections.includes(title)) {
+      return content
+    }
+    
+    // Special formatting for System Review
+    if (title === 'System Review') {
+      return formatSystemReview(content)
+    }
+    
+    // Special formatting for Plan
+    if (title === 'Plan') {
+      return formatPlan(content)
+    }
+    
+    // Standardize "N/A" to "Not mentioned"
+    const standardizedContent = (content || "").trim().toLowerCase() === 'n/a' ? 'Not mentioned' : content;
+
+    if (standardizedContent === 'Not mentioned') {
+        return <li className="mb-1 text-gray-500 italic">Not mentioned</li>;
+    }
+    
+    // Split by sentences and create bullet points, ensuring not to split on decimals
+    const sentences = standardizedContent.split(/(?<!\d)[.!?]+/).filter(s => s.trim().length > 0)
+    return sentences.map((sentence, index) => (
+      <li key={index} className="mb-1">
+        {sentence.trim()}
+        {index < sentences.length - 1 ? '.' : ''}
+      </li>
+    ))
+  }
+
+  // Format Plan with sub-sections
+  const formatPlan = (content: string) => {
+    const planSections: { [key: string]: string } = {
+      'Investigations': '',
+      'Treatment': '',
+      'Patient Education': '',
+      'Follow-up': '',
+      'Medications': ''
+    };
+
+    // Use a regex to split the content by the section titles
+    const sections = content.split(/(Investigations:|Treatment:|Patient Education:|Follow-up:|Medications:)/i);
+    
+    let currentSection: string | null = null;
+
+    for (const part of sections) {
+      const trimmedPart = part.trim();
+      if (!trimmedPart) continue;
+
+      const matchedSectionKey = Object.keys(planSections).find(key => 
+        key.toLowerCase() === trimmedPart.toLowerCase().replace(':', '')
+      );
+
+      if (matchedSectionKey) {
+        currentSection = matchedSectionKey;
+      } else if (currentSection) {
+        planSections[currentSection] += `${trimmedPart} `;
+      }
+    }
+
+    const formattedElements = Object.entries(planSections).map(([title, text]) => {
+      const trimmedText = text.trim();
+      if (!trimmedText) {
+        return null;
+      }
+
+      // Handle Medications separately for nested details
+      if (title === 'Medications') {
+        const medicationDetails = trimmedText.split(';').map(s => s.trim()).filter(s => s);
+        return (
+          <li key={title} className="mb-2">
+            <strong>{title}:</strong>
+            <ul className="list-disc pl-5 mt-1">
+              {medicationDetails.map((detail, i) => <li key={i}>{detail}</li>)}
+            </ul>
+          </li>
+        );
+      }
+
+      return (
+        <li key={title} className="mb-1">
+          <strong>{title}:</strong> {trimmedText}
+        </li>
+      );
+    }).filter(Boolean);
+
+    // If parsing fails, fall back to simple bullet points
+    if (formattedElements.length === 0) {
+      const sentences = content.split(/(?<!\d)[.!?]+/).filter(s => s.trim().length > 0);
+      if (sentences.length > 1) {
+        return sentences.map((sentence, index) => (
+            <li key={index} className="mb-1">{sentence.trim()}</li>
+        ));
+      } else {
+        return <li className="mb-1">{content}</li>;
+      }
+    }
+
+    return formattedElements;
+  };
+
+  // Format System Review with specific categories - only show systems with findings
+  const formatSystemReview = (content: string) => {
+    const systemCategories = [
+      'General',
+      'Ear, Nose, Throat',
+      'Cardiovascular',
+      'Respiratory',
+      'Gastrointestinal',
+      'Genitourinary',
+      'Neurological',
+      'Musculoskeletal',
+      'Skin',
+      'Endocrine',
+      'Hematology',
+      'Psychiatry',
+      'Ophthalmology'
+    ]
+    
+    // Find systems that actually have documented findings
+    const systemsWithFindings = systemCategories
+      .map(category => {
+        const relevantSentences = content.split(/[.!?]+/)
+          .filter(sentence => 
+            sentence.toLowerCase().includes(category.toLowerCase()) && 
+            sentence.trim().length > 0 &&
+            !sentence.toLowerCase().includes('no specific findings') &&
+            !sentence.toLowerCase().includes('not mentioned') &&
+            !sentence.toLowerCase().includes('unremarkable') &&
+            !sentence.toLowerCase().includes('normal')
+          )
+        
+        return {
+          category,
+          sentences: relevantSentences
+        }
+      })
+      .filter(system => system.sentences.length > 0)
+    
+    // If no specific systems found, show the content as general bullet points
+    if (systemsWithFindings.length === 0) {
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 0)
+      return (
+        <ul className="list-disc pl-5 space-y-1">
+          {sentences.map((sentence, index) => (
+            <li key={index} className="text-sm text-gray-700">
+              {sentence.trim()}
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    
+    // Show only systems with actual findings
+    return (
+      <div className="space-y-3">
+        {systemsWithFindings.map(({ category, sentences }) => (
+          <div key={category} className="border-l-2 border-blue-200 pl-3">
+            <h5 className="font-medium text-blue-800 mb-1">{category}:</h5>
+            <ul className="list-disc pl-5 space-y-1">
+              {sentences.map((sentence, index) => (
+                <li key={index} className="text-sm text-gray-700">
+                  {sentence.trim()}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   // Check editing time limit every minute
   useEffect(() => {
@@ -196,10 +414,10 @@ export default function DocumentStyleNoteViewer({
   // Helper function to format field values
   const formatFieldValue = (value: string | number | boolean | undefined | null) => {
     if (value === null || value === undefined || value === '') {
-      return 'Not recorded'
+      return 'Not mentioned'
     }
     if (typeof value === 'string' && (value === 'N/A' || value === 'n/a' || value === 'N/a')) {
-      return 'Not recorded'
+      return 'Not mentioned'
     }
     if (typeof value === 'boolean') {
       return value ? 'Yes' : 'No'
@@ -224,7 +442,7 @@ export default function DocumentStyleNoteViewer({
     }
     
     if (fields.length === 0) {
-      return 'Not recorded'
+      return 'Not mentioned'
     }
     
     return fields.join('. ')
@@ -232,8 +450,8 @@ export default function DocumentStyleNoteViewer({
 
   // 🌡️ Temperature conversion utility
   const convertTemperatureToCelsius = (tempValue: string | number | undefined | null): string => {
-    if (!tempValue || tempValue === 'Not recorded' || tempValue === 'N/A') {
-      return 'Not recorded';
+    if (!tempValue || tempValue === 'Not mentioned' || tempValue === 'N/A') {
+      return 'Not mentioned';
     }
 
     // Clean the temperature string and extract numeric value
@@ -331,16 +549,16 @@ export default function DocumentStyleNoteViewer({
       
       if (type === 'signature') {
         setSignatureImage(result)
-        localStorage.setItem('doctorSignature', result)
+        // TODO: Upload to backend using apiClient.uploadSignature()
         toast.success('E-Signature uploaded successfully')
       } else if (type === 'stamp') {
         setStampImage(result)
-        localStorage.setItem('doctorStamp', result)
+        // TODO: Upload to backend using apiClient.uploadStamp()
         toast.success('Medical stamp uploaded successfully')
       } else if (type === 'letterhead') {
         // For letterhead, store as base64 data URL
         setLetterheadFile(result)
-        localStorage.setItem('doctorLetterhead', result)
+        // TODO: Upload to backend using apiClient.uploadLetterhead()
         toast.success(`Letterhead template uploaded successfully (${file.name})`)
       }
       
@@ -375,6 +593,13 @@ export default function DocumentStyleNoteViewer({
 
   const handleExportPDF = async () => {
     try {
+      // Check if doctor has certificate before allowing PDF export
+      const { user } = store?.getState()?.auth || {};
+      if (user?.role === 'DOCTOR' && !user?.practicingCertificateUrl) {
+        toast.error("Certificate Required: Please upload your practicing certificate to download PDF notes.");
+        return;
+      }
+
       toast.info("Generating PDF... Please wait while we create your medical consultation note PDF.");
 
       // Get the medical document content element (excludes navigation/UI elements)
@@ -411,6 +636,20 @@ export default function DocumentStyleNoteViewer({
         pdf.addPage();
         pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
+      }
+
+      // Add watermark to PDF if unauthorized
+      if (showUnauthorizedWatermark) {
+        const totalPages = pdf.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          pdf.setPage(i);
+          pdf.setTextColor(200, 200, 200); // Light gray
+          pdf.setFontSize(40);
+          pdf.text('UNAUTHORIZED NOTE FROM NOVATESCRIBE', 105, 150, {
+            angle: -45,
+            align: 'center'
+          });
+        }
       }
 
       // Save the PDF
@@ -472,7 +711,23 @@ export default function DocumentStyleNoteViewer({
   };
 
   return (
-    <div className="max-w-4xl mx-auto bg-white border border-gray-200" style={{ fontFamily: 'Georgia, serif' }}>
+    <div className="max-w-4xl mx-auto bg-white border border-gray-200 relative" style={{ fontFamily: 'Georgia, serif' }}>
+      {/* Unauthorized Watermark for Doctors without Certificate */}
+      {showUnauthorizedWatermark && (
+        <div className="absolute inset-0 pointer-events-none z-10 flex items-center justify-center">
+          <div 
+            className="text-gray-300 text-6xl font-bold transform -rotate-45 opacity-20 select-none"
+            style={{ 
+              fontSize: '4rem',
+              lineHeight: '1',
+              textShadow: '2px 2px 4px rgba(0,0,0,0.1)'
+            }}
+          >
+            UNAUTHORIZED NOTE<br/>
+            FROM NOVATESCRIBE
+          </div>
+        </div>
+      )}
       {/* Time Remaining Indicator - Only show if document is signed */}
       {isDocumentSigned && (
         <div className="bg-white border-b border-gray-200 p-4">
@@ -514,7 +769,18 @@ export default function DocumentStyleNoteViewer({
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-bold">Medical Consultation Note</h1>
             <div className="text-right">
-              <p className="text-sm">Generated: {new Date().toLocaleDateString()} {new Date().toLocaleTimeString()}</p>
+              {isTranscribing ? (
+                <div className="bg-yellow-100 dark:bg-yellow-900 border border-yellow-300 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 p-3 rounded-md text-center">
+                  <p className="font-semibold">Transcription in progress, please wait...</p>
+                  <p className="text-sm">The note will be available shortly.</p>
+                </div>
+              ) : (
+                <div className="bg-blue-500 text-white p-2 rounded-md text-center text-xs">
+                  <p>
+                    Generated: <span className="font-mono">{new Date().toLocaleString()}</span>
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -557,6 +823,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Name:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Doctor Name"
                       sectionField="doctorName"
                       currentValue={editedNote.doctorName || ''}
@@ -598,6 +865,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Name:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Patient Name"
                       sectionField="patientName"
                       currentValue={editedNote.patientName || ''}
@@ -623,6 +891,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Age:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Patient Age"
                       sectionField="patientAge"
                       currentValue={editedNote.patientAge || ''}
@@ -656,10 +925,10 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div><strong>Name:</strong> {formatFieldValue(note.patientName)}</div>
+                <div><strong>Name:</strong> <span className={!note.patientName ? 'text-gray-500 italic' : ''}>{formatFieldValue(note.patientName)}</span></div>
                 <div><strong>Role:</strong> PATIENT</div>
-                <div><strong>Age:</strong> {formatFieldValue(note.patientAge)}</div>
-                <div><strong>Gender:</strong> {formatFieldValue(note.patientGender)}</div>
+                <div><strong>Age:</strong> <span className={!note.patientAge ? 'text-gray-500 italic' : ''}>{formatFieldValue(note.patientAge)}</span></div>
+                <div><strong>Gender:</strong> <span className={!note.patientGender ? 'text-gray-500 italic' : ''}>{formatFieldValue(note.patientGender)}</span></div>
               </div>
             )}
           </CardContent>
@@ -677,6 +946,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Temperature:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Temperature"
                       sectionField="temperature"
                       currentValue={(editedNote as any).temperature || ''}
@@ -696,6 +966,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Blood Pressure:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Blood Pressure"
                       sectionField="bloodPressure"
                       currentValue={(editedNote as any).bloodPressure || ''}
@@ -715,6 +986,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Pulse Rate:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Pulse Rate"
                       sectionField="pulseRate"
                       currentValue={(editedNote as any).pulseRate || ''}
@@ -734,6 +1006,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Respiratory Rate:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Respiratory Rate"
                       sectionField="respiratoryRate"
                       currentValue={(editedNote as any).respiratoryRate || ''}
@@ -753,6 +1026,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Glucose Levels:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Glucose Levels"
                       sectionField="glucose"
                       currentValue={(editedNote as any).glucose || ''}
@@ -769,11 +1043,130 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div><strong>Temperature:</strong> <span className="text-red-600">{convertTemperatureToCelsius((note as any).vitalSigns?.temperature || (note as any).temperature || 'Not recorded')}</span></div>
-                <div><strong>Blood Pressure:</strong> {formatFieldValue((note as any).vitalSigns?.bloodPressure || (note as any).bloodPressure || 'Not recorded')}</div>
-                <div><strong>Pulse Rate:</strong> <span className="text-red-600">{formatFieldValue((note as any).vitalSigns?.pulseRate || (note as any).pulseRate || 'Not recorded')}</span></div>
-                <div><strong>Respiratory Rate:</strong> {formatFieldValue((note as any).vitalSigns?.respiratoryRate || (note as any).respiratoryRate || 'Not recorded')}</div>
-                <div><strong>Glucose Levels:</strong> {formatFieldValue((note as any).vitalSigns?.glucoseLevels || (note as any).glucose || 'Not recorded')}</div>
+                {/* Temperature */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <strong>Temperature:</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={(() => {
+                      const validation = validateAllVitalSigns({
+                        temperature: (note as any).vitalSigns?.temperature || (note as any).temperature || ''
+                      });
+                      return `${validation.temperature.color} ${validation.temperature.isNotMentioned ? 'italic' : ''}`;
+                    })()}>
+                      {convertTemperatureToCelsius((note as any).vitalSigns?.temperature || (note as any).temperature)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const validation = validateAllVitalSigns({
+                          temperature: (note as any).vitalSigns?.temperature || (note as any).temperature || ''
+                        });
+                        return validation.temperature.message;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Blood Pressure */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <strong>Blood Pressure:</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={(() => {
+                      const validation = validateAllVitalSigns({
+                        bloodPressure: (note as any).vitalSigns?.bloodPressure || (note as any).bloodPressure || ''
+                      });
+                      return `${validation.bloodPressure.color} ${validation.bloodPressure.isNotMentioned ? 'italic' : ''}`;
+                    })()}>
+                      {formatFieldValue((note as any).vitalSigns?.bloodPressure || (note as any).bloodPressure)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const validation = validateAllVitalSigns({
+                          bloodPressure: (note as any).vitalSigns?.bloodPressure || (note as any).bloodPressure || ''
+                        });
+                        return validation.bloodPressure.message;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Pulse Rate */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <strong>Pulse Rate:</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={(() => {
+                      const validation = validateAllVitalSigns({
+                        pulseRate: (note as any).vitalSigns?.pulseRate || (note as any).pulseRate || ''
+                      });
+                      return `${validation.pulseRate.color} ${validation.pulseRate.isNotMentioned ? 'italic' : ''}`;
+                    })()}>
+                      {formatFieldValue((note as any).vitalSigns?.pulseRate || (note as any).pulseRate)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const validation = validateAllVitalSigns({
+                          pulseRate: (note as any).vitalSigns?.pulseRate || (note as any).pulseRate || ''
+                        });
+                        return validation.pulseRate.message;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Respiratory Rate */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <strong>Respiratory Rate:</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={(() => {
+                      const validation = validateAllVitalSigns({
+                        respiratoryRate: (note as any).vitalSigns?.respiratoryRate || (note as any).respiratoryRate || ''
+                      });
+                      return `${validation.respiratoryRate.color} ${validation.respiratoryRate.isNotMentioned ? 'italic' : ''}`;
+                    })()}>
+                      {formatFieldValue((note as any).vitalSigns?.respiratoryRate || (note as any).respiratoryRate)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const validation = validateAllVitalSigns({
+                          respiratoryRate: (note as any).vitalSigns?.respiratoryRate || (note as any).respiratoryRate || ''
+                        });
+                        return validation.respiratoryRate.message;
+                      })()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Glucose Levels */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <strong>Glucose Levels:</strong>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={(() => {
+                      const validation = validateAllVitalSigns({
+                        glucose: (note as any).vitalSigns?.glucoseLevels || (note as any).glucose || ''
+                      });
+                      return `${validation.glucose.color} ${validation.glucose.isNotMentioned ? 'italic' : ''}`;
+                    })()}>
+                      {formatFieldValue((note as any).vitalSigns?.glucoseLevels || (note as any).glucose)}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {(() => {
+                        const validation = validateAllVitalSigns({
+                          glucose: (note as any).vitalSigns?.glucoseLevels || (note as any).glucose || ''
+                        });
+                        return validation.glucose.message;
+                      })()}
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>
@@ -786,6 +1179,7 @@ export default function DocumentStyleNoteViewer({
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>CHIEF COMPLAINT</h2>
               {isEditMode && (
                 <SectionVoiceInput
+                  noteId={note.id || ''}
                   sectionName="Chief Complaint"
                   sectionField="chiefComplaint"
                   currentValue={editedNote.chiefComplaint || ''}
@@ -803,7 +1197,7 @@ export default function DocumentStyleNoteViewer({
                 rows={3}
               />
             ) : (
-              <p className="text-sm">{formatFieldValue(note.chiefComplaint)}</p>
+              <p className={`text-sm ${!note.chiefComplaint ? 'text-gray-500 italic' : ''}`}>{formatFieldValue(note.chiefComplaint)}</p>
             )}
           </CardContent>
         </Card>
@@ -815,6 +1209,7 @@ export default function DocumentStyleNoteViewer({
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>HISTORY OF PRESENT ILLNESS</h2>
               {isEditMode && (
                 <SectionVoiceInput
+                  noteId={note.id || ''}
                   sectionName="History of Present Illness"
                   sectionField="historyOfPresentingIllness"
                   currentValue={editedNote.historyOfPresentingIllness || ''}
@@ -832,7 +1227,15 @@ export default function DocumentStyleNoteViewer({
                 rows={5}
               />
             ) : (
-              <p className="text-sm leading-relaxed">{formatFieldValue(note.historyOfPresentingIllness)}</p>
+              <div className="text-sm">
+                {note.historyOfPresentingIllness ? (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {formatWithBulletPoints(note.historyOfPresentingIllness, 'History of Present Illness')}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 italic">Not mentioned</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -849,6 +1252,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Medical Conditions:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Medical Conditions"
                       sectionField="medicalConditions"
                       currentValue={editedNote.medicalConditions || ''}
@@ -869,6 +1273,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Surgery:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Surgery History"
                       sectionField="surgeries"
                       currentValue={editedNote.surgeries || ''}
@@ -886,8 +1291,26 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="space-y-2 text-sm">
-                <div><strong>Medical Conditions:</strong> {formatFieldValue(note.medicalConditions)}</div>
-                <div><strong>Surgery:</strong> {formatFieldValue(note.surgeries)}</div>
+                <div>
+                  <strong>Medical Conditions:</strong>
+                  {isEffectivelyEmpty(note.medicalConditions) ? (
+                    <span className="text-gray-500 italic"> Not mentioned</span>
+                  ) : (
+                    <ul className="list-disc pl-5 space-y-1 mt-1">
+                      {formatWithBulletPoints(note.medicalConditions, 'Past Medical History')}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <strong>Surgery:</strong>
+                  {isEffectivelyEmpty(note.surgeries) ? (
+                    <span className="text-gray-500 italic"> Not mentioned</span>
+                  ) : (
+                    <ul className="list-disc pl-5 space-y-1 mt-1">
+                      {formatWithBulletPoints(note.surgeries, 'Past Medical History')}
+                    </ul>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
@@ -905,6 +1328,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Current Medications:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Current Medications"
                       sectionField="medications"
                       currentValue={editedNote.medications || ''}
@@ -925,6 +1349,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Allergies:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Allergies"
                       sectionField="allergies"
                       currentValue={editedNote.allergies || ''}
@@ -942,8 +1367,24 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="space-y-2 text-sm">
-                <div><strong>Current Medications:</strong> {formatFieldValue(note.medications)}</div>
-                <div><strong>Allergies:</strong> {formatFieldValue(note.allergies)}</div>
+                              <div><strong>Current Medications:</strong> 
+                {note.medications ? (
+                  <ul className="list-disc pl-5 space-y-1 mt-1">
+                    {formatWithBulletPoints(note.medications, 'Drug History')}
+                  </ul>
+                ) : (
+                  <span className="text-gray-500 italic"> Not mentioned</span>
+                )}
+              </div>
+              <div><strong>Allergies:</strong> 
+                {note.allergies ? (
+                  <ul className="list-disc pl-5 space-y-1 mt-1">
+                    {formatWithBulletPoints(note.allergies, 'Allergies')}
+                  </ul>
+                ) : (
+                  <span className="text-gray-500 italic"> Not mentioned</span>
+                )}
+              </div>
               </div>
             )}
           </CardContent>
@@ -956,6 +1397,7 @@ export default function DocumentStyleNoteViewer({
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>FAMILY HISTORY</h2>
               {isEditMode && (
                 <SectionVoiceInput
+                  noteId={note.id || ''}
                   sectionName="Family History"
                   sectionField="familyHistory"
                   currentValue={editedNote.familyHistory || ''}
@@ -973,7 +1415,15 @@ export default function DocumentStyleNoteViewer({
                 rows={3}
               />
             ) : (
-              <p className="text-sm">{formatFieldValue(note.familyHistory)}</p>
+              <div className="text-sm">
+                {note.familyHistory ? (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {formatWithBulletPoints(note.familyHistory, 'Family History')}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 italic">Not mentioned</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -990,6 +1440,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Smoking:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Smoking History"
                       sectionField="smoking"
                       currentValue={editedNote.smoking || ''}
@@ -1009,6 +1460,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Alcohol:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Alcohol History"
                       sectionField="alcohol"
                       currentValue={editedNote.alcohol || ''}
@@ -1028,6 +1480,7 @@ export default function DocumentStyleNoteViewer({
                   <div className="flex items-center gap-2 mb-2">
                     <label className="text-sm font-medium">Recreational Drugs:</label>
                     <SectionVoiceInput
+                      noteId={note.id || ''}
                       sectionName="Recreational Drug History"
                       sectionField="recreationalDrugs"
                       currentValue={editedNote.recreationalDrugs || ''}
@@ -1043,7 +1496,13 @@ export default function DocumentStyleNoteViewer({
                 </div>
               </div>
             ) : (
-              <p className="text-sm">{formatSocialHistory(note.smoking, note.alcohol, note.recreationalDrugs)}</p>
+              <div className="text-sm">
+                {formatSocialHistory(note.smoking, note.alcohol, note.recreationalDrugs) === 'Not mentioned' ? (
+                  <span className="text-gray-500 italic">Not mentioned</span>
+                ) : (
+                  formatSocialHistory(note.smoking, note.alcohol, note.recreationalDrugs)
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1055,6 +1514,7 @@ export default function DocumentStyleNoteViewer({
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>REVIEW OF SYSTEMS</h2>
               {isEditMode && (
                 <SectionVoiceInput
+                  noteId={note.id || ''}
                   sectionName="Review of Systems"
                   sectionField="systemsReview"
                   currentValue={editedNote.systemsReview || ''}
@@ -1072,7 +1532,15 @@ export default function DocumentStyleNoteViewer({
                 rows={5}
               />
             ) : (
-              <p className="text-sm">{formatFieldValue(note.systemsReview)}</p>
+              <div className="text-sm">
+                {note.systemsReview ? (
+                  <ul className="list-disc pl-5 space-y-1">
+                    {formatWithBulletPoints(note.systemsReview, 'System Review')}
+                  </ul>
+                ) : (
+                  <p className="text-gray-500 italic">Not mentioned</p>
+                )}
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1084,6 +1552,7 @@ export default function DocumentStyleNoteViewer({
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>PHYSICAL EXAMINATION</h2>
               {isEditMode && (
                 <SectionVoiceInput
+                  noteId={note.id || ''}
                   sectionName="Physical Examination"
                   sectionField="physicalExamination"
                   currentValue={editedNote.physicalExamination || ''}
@@ -1103,9 +1572,15 @@ export default function DocumentStyleNoteViewer({
                   rows={5}
                 />
               ) : (
-                <p className="text-sm mb-4">
-                  {note.physicalExamination || 'No physical examination was performed during this consultation.'}
-                </p>
+                <div className="text-sm">
+                  {note.physicalExamination ? (
+                    <ul className="list-disc pl-5 space-y-1">
+                      {formatWithBulletPoints(note.physicalExamination, 'Physical Examination')}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500 italic">Not mentioned</p>
+                  )}
+                </div>
               )}
             </div>
                 
@@ -1115,7 +1590,7 @@ export default function DocumentStyleNoteViewer({
              note.physicalExamination !== 'No physical examination was performed during this consultation.' &&
              note.physicalExamination !== 'N/A' &&
              note.physicalExamination !== 'n/a' &&
-             note.physicalExamination !== 'Not recorded' && (
+             note.physicalExamination !== 'Not mentioned' && (
               <div className="mb-6">
                 <h3 className="text-md font-semibold mb-4">Physical Examination Visualization</h3>
                 
@@ -1139,6 +1614,7 @@ export default function DocumentStyleNoteViewer({
                     <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>INVESTIGATIONS</h2>
                     {isEditMode && (
                       <SectionVoiceInput
+                        noteId={note.id || ''}
                         sectionName="Investigations"
                         sectionField="investigations"
                         currentValue={editedNote.investigations || ''}
@@ -1161,7 +1637,15 @@ export default function DocumentStyleNoteViewer({
                     rows={5}
                   />
                 ) : (
-                  <p className="text-sm">{formatFieldValue(note.investigations)}</p>
+                  <div>
+                    {note.investigations ? (
+                      <ul className="list-disc pl-5 space-y-1">
+                        {formatWithBulletPoints(note.investigations, 'Investigations')}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-500 italic">Not mentioned</p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </CollapsibleContent>
@@ -1178,6 +1662,7 @@ export default function DocumentStyleNoteViewer({
                     <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>IMPRESSION AND DIAGNOSIS</h2>
                     {isEditMode && (
                       <SectionVoiceInput
+                        noteId={note.id || ''}
                         sectionName="Assessment and Diagnosis"
                         sectionField="assessment"
                         currentValue={editedNote.assessment || ''}
@@ -1200,7 +1685,15 @@ export default function DocumentStyleNoteViewer({
                     rows={5}
                   />
                 ) : (
-                  <p className="text-sm">{formatFieldValue(note.assessment)}</p>
+                  <div>
+                    {note.assessment ? (
+                      <ul className="list-disc pl-5 space-y-1">
+                        {formatWithBulletPoints(note.assessment, 'Assessment')}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-500 italic">Not mentioned</p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </CollapsibleContent>
@@ -1217,6 +1710,7 @@ export default function DocumentStyleNoteViewer({
                     <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>PLAN</h2>
                     {isEditMode && (
                       <SectionVoiceInput
+                        noteId={note.id || ''}
                         sectionName="Treatment Plan"
                         sectionField="plan"
                         currentValue={editedNote.plan || ''}
@@ -1239,7 +1733,15 @@ export default function DocumentStyleNoteViewer({
                     rows={5}
                   />
                 ) : (
-                  <p className="text-sm">{formatFieldValue(note.plan)}</p>
+                  <div>
+                    {note.plan ? (
+                      <ul className="list-disc pl-5 space-y-1">
+                        {formatWithBulletPoints(note.plan, 'Plan')}
+                      </ul>
+                    ) : (
+                      <p className="text-gray-500 italic">Not mentioned</p>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </CollapsibleContent>
@@ -1253,6 +1755,7 @@ export default function DocumentStyleNoteViewer({
               <h2 className="text-lg font-bold" style={{ color: '#1E90FF' }}>ICD-11 Code</h2>
               {isEditMode && (
                 <SectionVoiceInput
+                  noteId={note.id || ''}
                   sectionName="ICD-11 Code"
                   sectionField="icd11Codes"
                   currentValue={(editedNote as any).icd11CodesText || ''}
@@ -1270,9 +1773,18 @@ export default function DocumentStyleNoteViewer({
                 rows={3}
               />
             ) : (
-              <div className="text-sm">
-                {renderICD11Codes()}
-              </div>
+              <ICD11CodesDisplay
+                medicalNote={{
+                  icd11Codes: Array.isArray((note as any).icd11Codes)
+                    ? (note as any).icd11Codes
+                    : note.icd11Codes?.primary?.map((c: any) => c.code) || [],
+                  icd11Titles: Array.isArray((note as any).icd11Titles)
+                    ? (note as any).icd11Titles
+                    : note.icd11Codes?.primary?.map((c: any) => c.title) || [],
+                  icd11SourceSentence: (note as any).icd11SourceSentence || note.icd11Codes?.primary?.[0]?.definition,
+                }}
+                onCodeSelect={(code, title) => onPrimaryCodeSelect?.(code, title)}
+              />
             )}
           </CardContent>
         </Card>
@@ -1289,6 +1801,7 @@ export default function DocumentStyleNoteViewer({
                     <div className="flex items-center gap-2 mb-2">
                       <label className="text-sm font-medium">Doctor:</label>
                       <SectionVoiceInput
+                        noteId={note.id || ''}
                         sectionName="Doctor Name"
                         sectionField="doctorName"
                         currentValue={editedNote.doctorName || ''}
@@ -1308,6 +1821,7 @@ export default function DocumentStyleNoteViewer({
                     <div className="flex items-center gap-2 mb-2">
                       <label className="text-sm font-medium">Registration No:</label>
                       <SectionVoiceInput
+                        noteId={note.id || ''}
                         sectionName="Registration Number"
                         sectionField="doctorRegistrationNo"
                         currentValue={editedNote.doctorRegistrationNo || ''}
@@ -1327,6 +1841,7 @@ export default function DocumentStyleNoteViewer({
                     <div className="flex items-center gap-2 mb-2">
                       <label className="text-sm font-medium">Generated on:</label>
                       <SectionVoiceInput
+                        noteId={note.id || ''}
                         sectionName="Date and Time"
                         sectionField="dateTime"
                         currentValue={editedNote.dateTime || ''}

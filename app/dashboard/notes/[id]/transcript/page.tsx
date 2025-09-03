@@ -193,21 +193,21 @@ export default function RawTranscriptPage() {
                 <User className="h-4 w-4 text-blue-600" />
                 <div>
                   <span className="text-xs text-gray-500 uppercase tracking-wide">Patient</span>
-                  <p className="font-medium text-sm">{note.patientName || 'Not recorded'}</p>
+                  <p className="font-medium text-sm">{note.patientName || 'Not mentioned'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border">
                 <Calendar className="h-4 w-4 text-green-600" />
                 <div>
                   <span className="text-xs text-gray-500 uppercase tracking-wide">Date</span>
-                  <p className="font-medium text-sm">{note.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'Not recorded'}</p>
+                  <p className="font-medium text-sm">{note.createdAt ? new Date(note.createdAt).toLocaleDateString() : 'Not mentioned'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border">
                 <Clock className="h-4 w-4 text-purple-600" />
                 <div>
                   <span className="text-xs text-gray-500 uppercase tracking-wide">Time</span>
-                  <p className="font-medium text-sm">{note.createdAt ? new Date(note.createdAt).toLocaleTimeString() : 'Not recorded'}</p>
+                  <p className="font-medium text-sm">{note.createdAt ? new Date(note.createdAt).toLocaleTimeString() : 'Not mentioned'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 p-3 bg-white dark:bg-gray-800 rounded-lg border">

@@ -392,7 +392,7 @@ const extractChiefComplaintFromTranscript = (transcriptionData: any): string => 
 
 const extractHistoryFromTranscript = (transcriptionData: any): string => {
   const transcript = ('transcript' in transcriptionData ? transcriptionData.transcript : '') || '';
-  if (!transcript) return 'Not recorded';
+  if (!transcript) return 'Not mentioned';
   
   const text = transcript.toLowerCase();
   
@@ -708,12 +708,12 @@ const parseTranscriptWithIntelligentParser = (transcript: string) => {
       vitalSigns: extractVitalSignsFromTranscript({ transcript }),
       chiefComplaint: extractChiefComplaintFromTranscript({ transcript }),
       historyOfPresentIllness: extractHistoryFromTranscript({ transcript }),
-      pastMedicalHistory: 'Not recorded',
+      pastMedicalHistory: 'Not mentioned',
       medications: ['[To be determined based on transcript analysis]'],
-      allergies: 'Not recorded',
-      reviewOfSystems: 'Not recorded',
+      allergies: 'Not mentioned',
+      reviewOfSystems: 'Not mentioned',
       physicalExamination: extractPhysicalExaminationFromTranscript({ transcript }),
-      investigations: 'Not recorded',
+      investigations: 'Not mentioned',
       assessment: extractDiagnosisFromTranscript({ transcript }),
       plan: extractTreatmentFromTranscript({ transcript })
     };
@@ -759,12 +759,12 @@ const parseTranscriptWithIntelligentParser = (transcript: string) => {
       vitalSigns: extractVitalSignsFromTranscript({ transcript }),
       chiefComplaint: extractChiefComplaintFromTranscript({ transcript }),
       historyOfPresentIllness: extractHistoryFromTranscript({ transcript }),
-      pastMedicalHistory: 'Not recorded',
+      pastMedicalHistory: 'Not mentioned',
       medications: ['[To be determined based on transcript analysis]'],
-      allergies: 'Not recorded',
-      reviewOfSystems: 'Not recorded',
+      allergies: 'Not mentioned',
+      reviewOfSystems: 'Not mentioned',
       physicalExamination: extractPhysicalExaminationFromTranscript({ transcript }),
-      investigations: 'Not recorded',
+      investigations: 'Not mentioned',
       assessment: extractDiagnosisFromTranscript({ transcript }),
       plan: extractTreatmentFromTranscript({ transcript })
     };
@@ -1044,12 +1044,12 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         noteType: 'consultation' as const,
         audioJobId: data.audioJobId,
         vitalSigns: data.medicalNote?.vitalSigns || data.vitalSigns || {
-          temperature: medicalNote.temperature || 'Not recorded',
-          pulseRate: medicalNote.pulseRate || 'Not recorded',
-          respiratoryRate: medicalNote.respiratoryRate || 'Not recorded',
-          bloodPressure: medicalNote.bloodPressure || 'Not recorded',
-          oxygenSaturation: medicalNote.oxygenSaturation || 'Not recorded',
-          glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not recorded'
+          temperature: medicalNote.temperature || 'Not mentioned',
+          pulseRate: medicalNote.pulseRate || 'Not mentioned',
+          respiratoryRate: medicalNote.respiratoryRate || 'Not mentioned',
+          bloodPressure: medicalNote.bloodPressure || 'Not mentioned',
+          oxygenSaturation: medicalNote.oxygenSaturation || 'Not mentioned',
+          glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not mentioned'
         }
       };
 

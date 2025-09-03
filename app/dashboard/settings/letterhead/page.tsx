@@ -19,6 +19,9 @@ import {
   Download
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAppDispatch } from "@/store/hooks";
+import { getUser } from "@/store/features/authSlice";
+import { apiClient } from "@/lib/api-client";
 
 interface LetterheadSettings {
   id: string
@@ -35,6 +38,8 @@ interface LetterheadSettings {
 export default function LetterheadSettingsPage() {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const dispatch = useAppDispatch();
+  const [isLoading, setIsLoading] = useState(false);
   
   const [letterheadSettings, setLetterheadSettings] = useState<LetterheadSettings>({
     id: '',
@@ -48,21 +53,10 @@ export default function LetterheadSettingsPage() {
 
   const [isPreviewMode, setIsPreviewMode] = useState(false)
 
-  // Load existing letterhead from localStorage on component mount
+  // Load existing letterhead from user profile
   useEffect(() => {
-    const savedLetterhead = localStorage.getItem('doctorLetterhead')
-    const savedFileName = localStorage.getItem('doctorLetterheadFileName')
-    const savedFileType = localStorage.getItem('doctorLetterheadFileType')
+    // TODO: Load letterhead from user profile instead of localStorage
     const savedSettings = localStorage.getItem('letterheadSettings')
-    
-    if (savedLetterhead) {
-      setLetterheadSettings(prev => ({
-        ...prev,
-        letterheadImage: savedLetterhead,
-        letterheadFileName: savedFileName || undefined,
-        letterheadFileType: savedFileType || undefined
-      }))
-    }
     
     if (savedSettings) {
       try {
@@ -142,37 +136,53 @@ export default function LetterheadSettingsPage() {
       fileInputRef.current.value = ''
     }
     // Also remove from localStorage
-    localStorage.removeItem('doctorLetterhead')
+    // TODO: Remove letterhead from backend
     toast({
       title: 'Letterhead Removed',
       description: 'Organization letterhead has been removed',
     })
   }
 
-  const handleSaveSettings = () => {
-    // Save letterhead image to localStorage for use in PDF generation
-    if (letterheadSettings.letterheadImage) {
-      localStorage.setItem('doctorLetterhead', letterheadSettings.letterheadImage)
-      if (letterheadSettings.letterheadFileName) {
-        localStorage.setItem('doctorLetterheadFileName', letterheadSettings.letterheadFileName)
-      }
-      if (letterheadSettings.letterheadFileType) {
-        localStorage.setItem('doctorLetterheadFileType', letterheadSettings.letterheadFileType)
-      }
+  // Helper function to convert base64 to File
+  const base64ToFile = (base64: string, filename: string): File => {
+    const arr = base64.split(',');
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
     }
-    
-    // Also save the full settings
-    localStorage.setItem('letterheadSettings', JSON.stringify({
-      ...letterheadSettings,
-      id: letterheadSettings.id || `lh_${Date.now()}`,
-      lastModified: new Date().toISOString()
-    }))
-    
-    toast({
-      title: 'Settings Saved',
-      description: 'Letterhead settings have been saved successfully. New medical notes will use this letterhead.',
-    })
-  }
+    return new File([u8arr], filename, { type: mime });
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      setIsLoading(true);
+      if (letterheadSettings.letterheadImage && letterheadSettings.letterheadFileName) {
+        const file = base64ToFile(letterheadSettings.letterheadImage, letterheadSettings.letterheadFileName);
+        await apiClient.uploadLetterhead(file);
+      }
+      
+      // Other settings can be saved via a different endpoint if needed
+      // For now, we only handle the file upload
+
+      dispatch(getUser()); // Refresh user data to get the new letterhead URL
+      toast({
+        title: "Settings Saved",
+        description: "Your letterhead has been updated successfully.",
+      });
+    } catch (error) {
+      console.error("Failed to save letterhead settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to save your letterhead. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleActivateLetterhead = () => {
     setLetterheadSettings(prev => ({

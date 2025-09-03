@@ -148,7 +148,7 @@ class EnhancedTemplatePDFGenerator {
       this.doc.text(lines, 20, this.currentY)
       this.currentY += lines.length * 5 + 5
     }
-    // Don't show "Not recorded" - skip empty sections entirely
+          // Don't show "Not mentioned" - skip empty sections entirely
   }
 
   private hasContent(content?: any): boolean {

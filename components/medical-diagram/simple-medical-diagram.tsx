@@ -5,8 +5,7 @@ import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Stethoscope, Eye, AlertCircle } from "lucide-react"
-import { AdvancedMedicalTextAnalyzer, type DiagramMatch } from "@/lib/advanced-medical-diagram-logic"
-import { HybridMedicalAnalyzer, MEDICAL_LLM_CONFIGS } from "@/lib/hybrid-medical-analyzer"
+import { IntelligentMedicalAnalyzer, type IntelligentAnalysis, type ClinicalFinding, type MedicalContext } from "@/lib/intelligent-medical-analyzer"
 
 // Coordinate mappings for all diagram types
 const COORDINATE_MAPPINGS: Record<string, Record<string, {x: number, y: number, width: number, height: number}>> = {
@@ -481,7 +480,7 @@ const COORDINATE_MAPPINGS: Record<string, Record<string, {x: number, y: number, 
 interface SimpleMedicalDiagramProps {
   patientGender: 'male' | 'female'
   medicalNoteText?: string
-  analysisMode?: 'rules' | 'hybrid' | 'llm'
+  analysisMode?: 'intelligent' | 'basic'
 }
 
 
@@ -489,7 +488,7 @@ interface SimpleMedicalDiagramProps {
 export default function SimpleMedicalDiagram({ 
   patientGender, 
   medicalNoteText,
-  analysisMode = 'rules' 
+  analysisMode = 'intelligent' 
 }: SimpleMedicalDiagramProps) {
 
   // Function to identify relevant body parts from medical text
@@ -606,49 +605,29 @@ export default function SimpleMedicalDiagram({
     return relevantParts
   }
   
-  // Advanced Medical Text Analysis for Intelligent Diagram Selection
-  const getRelevantDiagrams = (): DiagramMatch[] => {
+  // Intelligent Medical Text Analysis for Clinical Understanding
+  const getIntelligentAnalysis = (): IntelligentAnalysis => {
     if (!medicalNoteText) {
-      return [{
-        type: 'front',
-        priority: 1,
-        findings: ['general physical examination'],
-        reason: 'Default comprehensive examination view'
-      }]
+      return IntelligentMedicalAnalyzer.getInstance().analyzeMedicalText('', {
+        patientGender,
+        examinationType: 'general' as const,
+        bodySystems: []
+      })
     }
 
-    // Configure hybrid analyzer based on analysis mode
-    if (analysisMode === 'hybrid' || analysisMode === 'llm') {
-      // Configure the hybrid system
-      HybridMedicalAnalyzer.configure(
-        analysisMode === 'llm' 
-          ? MEDICAL_LLM_CONFIGS.cloudLLM 
-          : MEDICAL_LLM_CONFIGS.localLLM
-      )
-
-      // Note: For now, we fall back to rules for synchronous operation
-      // In a future update, we could make this component async with React hooks
-      // Analysis mode fallback handled gracefully
+    // Use intelligent medical analyzer
+    const analyzer = IntelligentMedicalAnalyzer.getInstance()
+    const context: MedicalContext = {
+      patientGender,
+      examinationType: 'comprehensive' as const,
+      bodySystems: ['cardiovascular', 'respiratory', 'gastrointestinal', 'neurological', 'musculoskeletal']
     }
-
-    // Use advanced rule-based medical text analyzer
-    const medicalAnalysis = AdvancedMedicalTextAnalyzer.analyzeMedicalText(medicalNoteText)
-    const recommendations = AdvancedMedicalTextAnalyzer.generateDiagramRecommendations(medicalAnalysis, patientGender)
-
-    // Ensure we have valid recommendations
-    if (recommendations.length === 0) {
-      return [{
-        type: 'front',
-        priority: 1,
-        findings: ['general examination'],
-        reason: 'Standard medical examination view'
-      }]
-    }
-
-    return recommendations
+    
+    return analyzer.analyzeMedicalText(medicalNoteText, context)
   }
 
-  const relevantDiagrams = getRelevantDiagrams()
+  // Get intelligent analysis for display
+  const intelligentAnalysis = getIntelligentAnalysis()
 
   // Function to get display name for diagram type
   const getDiagramDisplayName = (type: string): string => {
@@ -669,37 +648,18 @@ export default function SimpleMedicalDiagram({
   }
 
   return (
-    <div className="w-full">
+    <div>
       <Card className="shadow-lg">
-        <CardHeader className="pb-2 px-4">
-          <CardTitle className="text-xl font-bold flex items-center gap-2">
-            <Stethoscope className="h-6 w-6 text-blue-600" />
-            Physical Examination Visualization
-          </CardTitle>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            {relevantDiagrams.map((diagram, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
-                <Eye className="h-3 w-3 mr-1" />
-                {getDiagramDisplayName(diagram.type)}
-              </Badge>
-            ))}
-            <div className="flex items-center gap-1 text-xs text-gray-600 ml-2">
-              <div className="w-2 h-2 rounded-full bg-sky-400 border border-sky-600"></div>
-              <span>Examined areas</span>
-            </div>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="px-4 py-2">
+        <CardContent className="px-4 py-2 pt-4">
           <div className="space-y-4">
-            {relevantDiagrams.map((diagram, index) => (
-              <div key={diagram.type} className="border rounded-lg p-3 bg-gray-50">
+            {intelligentAnalysis.recommendedDiagrams.map((diagramType, index) => (
+              <div key={diagramType} className="border rounded-lg p-3 bg-gray-50">
                 <div className="mb-3">
                   <h4 className="text-lg font-semibold text-gray-800 mb-1 flex items-center gap-2">
                     <Eye className="h-4 w-4 text-blue-600" />
-                    {getDiagramDisplayName(diagram.type)}
+                    {getDiagramDisplayName(diagramType)}
                   </h4>
-                  <p className="text-sm text-gray-600">{diagram.reason}</p>
+                  <p className="text-sm text-gray-600">{intelligentAnalysis.clinicalSummary}</p>
                 </div>
 
                 {/* Side-by-side Layout: Image Left, Findings Right */}
@@ -709,22 +669,34 @@ export default function SimpleMedicalDiagram({
                     <div className="relative max-w-xs mx-auto md:mx-0">
                       <div className="relative w-full overflow-hidden rounded-lg border bg-gray-100 shadow-sm">
                         <Image
-                          src={`/medical-images/${patientGender}${diagram.type}.png`}
-                          alt={`${patientGender} ${diagram.type} medical diagram`}
+                          src={`/medical-images/${diagramType}.png`}
+                          alt={`${diagramType} medical diagram`}
                           width={512}
                           height={768}
                           className="w-full h-auto object-contain"
                           priority={index === 0}
                         />
                         
-                        {/* Sky Blue Coordinate Markers */}
+                        {/* Numbered Coordinate Markers - Connected to Findings */}
                         {(() => {
-                          const relevantParts = getRelevantBodyParts(medicalNoteText || '', diagram.type)
-                          const coordinates = COORDINATE_MAPPINGS[`${patientGender}${diagram.type}`] || {}
+                          const relevantParts = getRelevantBodyParts(medicalNoteText || '', diagramType)
+                          const coordinates = COORDINATE_MAPPINGS[diagramType] || {}
                           
-                          return relevantParts.map((partName) => {
+                          // Get findings for this diagram type to create numbered markers
+                          const findingsForThisDiagram = intelligentAnalysis.findings.map(f => f.text) || []
+                          
+                          return relevantParts.map((partName, partIndex) => {
                             const coord = coordinates[partName]
                             if (!coord) return null
+                            
+                            // Find which finding corresponds to this body part
+                            const findingIndex = findingsForThisDiagram.findIndex(finding => 
+                              finding.toLowerCase().includes(partName.toLowerCase()) ||
+                              partName.toLowerCase().includes(finding.toLowerCase().split(' ')[0])
+                            )
+                            
+                            // If no direct match, assign sequential number
+                            const markerNumber = findingIndex >= 0 ? findingIndex + 1 : partIndex + 1
                             
                             return (
                               <div
@@ -735,20 +707,32 @@ export default function SimpleMedicalDiagram({
                                   top: `${(coord.y / 768) * 100}%`,
                                 }}
                               >
-                                {/* Sky Blue Dot */}
+                                {/* Numbered Marker - Connected to Findings */}
                                 <div
-                                  className="w-2 h-2 rounded-full bg-sky-400 border border-sky-600 shadow-md hover:scale-125 transition-transform duration-200 cursor-pointer"
+                                  className="w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow-lg hover:scale-110 transition-transform duration-200 cursor-pointer flex items-center justify-center"
                                   style={{
-                                    boxShadow: '0 0 8px rgba(56, 189, 248, 0.5)',
+                                    boxShadow: '0 0 12px rgba(59, 130, 246, 0.6)',
                                   }}
-                                  title={partName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                />
+                                  title={`${partName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} - Finding #${markerNumber}`}
+                                >
+                                  <span className="text-white text-xs font-bold">
+                                    {markerNumber}
+                                  </span>
+                                </div>
                                 
-                                {/* Tooltip on hover - better positioned */}
-                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-2 py-1 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none border border-gray-700"
+                                {/* Enhanced Tooltip */}
+                                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-3 py-2 bg-blue-600 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 whitespace-nowrap pointer-events-none border border-blue-700 shadow-lg"
                                      style={{ zIndex: 1000 }}>
-                                  {partName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                  <div className="font-semibold">Finding #{markerNumber}</div>
+                                  <div className="text-blue-100">
+                                    {partName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                  </div>
+                                  {findingIndex >= 0 && (
+                                    <div className="text-blue-200 mt-1 border-t border-blue-500 pt-1">
+                                      {findingsForThisDiagram[findingIndex]}
+                                    </div>
+                                  )}
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-blue-600"></div>
                                 </div>
                               </div>
                             )
@@ -770,32 +754,83 @@ export default function SimpleMedicalDiagram({
                       </p>
                     </div>
 
-                    <div className="space-y-2">
-                      {diagram.findings.map((finding, findingIndex) => (
-                        <div
-                          key={findingIndex}
-                          className="p-2 rounded-lg border bg-white hover:shadow-md transition-shadow mr-2"
-                        >
-                          <div className="flex items-start gap-2">
-                            {/* Finding Number */}
-                            <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                              {findingIndex + 1}
-                            </div>
-                            
-                            {/* Finding Details */}
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm text-gray-800 font-medium capitalize break-words">
-                                {finding}
-                              </p>
-                              <p className="text-xs text-gray-500 mt-1">
-                                Mapped to {getDiagramDisplayName(diagram.type).toLowerCase()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                                         <div className="space-y-2">
+                       {intelligentAnalysis.findings.map((finding, findingIndex) => {
+                         // Use the intelligent finding directly
+                         const intelligentFinding = finding
+                         
+                         return (
+                           <div
+                             key={findingIndex}
+                             className={`p-2 rounded-lg border bg-white hover:shadow-md transition-shadow mr-2 border-l-4 ${
+                               intelligentFinding?.clinicalSignificance === 'abnormal' 
+                                 ? 'border-l-red-500' 
+                                 : intelligentFinding?.clinicalSignificance === 'normal'
+                                 ? 'border-l-green-500'
+                                 : 'border-l-blue-500'
+                             }`}
+                           >
+                             <div className="flex items-start gap-2">
+                               {/* Finding Number - Now Matches Diagram Markers */}
+                               <div className={`w-6 h-6 rounded-full text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 shadow-md ${
+                                 intelligentFinding?.clinicalSignificance === 'abnormal'
+                                   ? 'bg-red-500'
+                                   : intelligentFinding?.clinicalSignificance === 'normal'
+                                   ? 'bg-green-500'
+                                   : 'bg-blue-500'
+                               }`}>
+                                 {findingIndex + 1}
+                               </div>
+                               
+                               {/* Finding Details */}
+                               <div className="flex-1 min-w-0">
+                                 <p className="text-sm text-gray-800 font-medium capitalize break-words">
+                                   {finding.text}
+                                 </p>
+                                 
+                                 {/* Clinical Intelligence Details */}
+                                 {intelligentFinding && (
+                                   <div className="mt-2 space-y-1">
+                                     <div className="flex items-center gap-2">
+                                       <Badge 
+                                         variant="outline" 
+                                         className={`text-xs ${
+                                           intelligentFinding.clinicalSignificance === 'abnormal'
+                                             ? 'bg-red-50 text-red-700 border-red-300'
+                                             : intelligentFinding.clinicalSignificance === 'normal'
+                                             ? 'bg-green-50 text-green-700 border-green-300'
+                                             : 'bg-gray-50 text-gray-700 border-gray-300'
+                                         }`}
+                                       >
+                                         {intelligentFinding.clinicalSignificance.charAt(0).toUpperCase() + intelligentFinding.clinicalSignificance.slice(1)}
+                                       </Badge>
+                                       {intelligentFinding.severity && (
+                                         <Badge variant="outline" className="text-xs bg-orange-50 text-orange-700 border-orange-300">
+                                           {intelligentFinding.severity}
+                                         </Badge>
+                                       )}
+                                       {intelligentFinding.laterality && (
+                                         <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-300">
+                                           {intelligentFinding.laterality}
+                                         </Badge>
+                                       )}
+                                     </div>
+                                     <p className="text-xs text-gray-600">
+                                       {intelligentFinding.anatomicalLocation} • Priority: {intelligentFinding.priority}/5
+                                     </p>
+                                   </div>
+                                 )}
+                                 
+                                 <p className="text-xs text-blue-600 mt-1 font-medium">
+                                   ← See marker #{findingIndex + 1} on diagram
+                                 </p>
+                               </div>
+                             </div>
+                           </div>
+                         )
+                       })}
                       
-                      {diagram.findings.length === 0 && (
+                      {intelligentAnalysis.findings.length === 0 && (
                         <div className="text-center py-3 text-gray-500 text-sm mr-2">
                           No specific findings for this region
                         </div>

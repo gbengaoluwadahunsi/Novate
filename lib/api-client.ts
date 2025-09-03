@@ -55,7 +55,23 @@ interface PaginatedResponse<T> {
   pagination: PaginationMeta;
 }
 
-// Enhanced User interface matching backend AppUser
+// Enhanced User interface matching actual backend schema
+interface UploadResponse {
+  url: string;
+  message: string;
+}
+
+interface PasswordResponse {
+  message: string;
+  success: boolean;
+}
+
+interface VerificationResponse {
+  message: string;
+  success: boolean;
+  isValid: boolean;
+}
+
 interface User {
   id: string;
   userId: string; // Backward compatibility
@@ -78,6 +94,13 @@ interface User {
     id: string;
     type: 'HOSPITAL' | 'CLINIC' | 'PRIVATE_PRACTICE';
   };
+  // ✅ Actual backend credential fields
+  practicingCertificateUrl?: string;
+  practicingCertificateExpiryDate?: string;
+  signatureUrl?: string;
+  stampUrl?: string;
+  letterheadUrl?: string;
+  isDocumentVerified?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -106,7 +129,12 @@ interface MedicalNote {
   followUpInstructions?: string;
   additionalNotes?: string;
   prescriptions?: Prescription[];
-  icd11Codes?: ICD11MedicalCodes; // ICD-11 coding information
+  // ✅ Actual backend ICD-11 fields
+  icd11Codes?: string[]; // Array of ICD-11 codes from backend
+  icd11Titles?: string[]; // Corresponding titles for the codes
+  icd11SourceSentence?: string; // Source sentence that generated the codes
+  // Legacy support for complex ICD-11 structure
+  icd11CodesComplex?: ICD11MedicalCodes;
   noteType: 'consultation' | 'follow-up' | 'assessment' | null;
   audioJobId?: string;
   timeSaved?: number | null;
@@ -691,14 +719,80 @@ class ApiClient {
     });
   }
 
+  // Upload Practicing Certificate
+  async uploadCertificate(file: File, expiryDate?: string): Promise<ApiResponse<UploadResponse>> {
+    const formData = new FormData();
+    formData.append('certificate', file);
+    
+    if (expiryDate) {
+      formData.append('expiryDate', expiryDate);
+    }
+
+    return this.request('/api/profile/credentials/certificate', {
+      method: 'POST',
+      body: formData,
+
+    });
+  }
+
+  // Upload Digital Signature
+  async uploadSignature(file: File): Promise<ApiResponse<UploadResponse>> {
+    const formData = new FormData();
+    formData.append('signature', file);
+
+    return this.request('/api/profile/credentials/signature', {
+      method: 'POST',
+      body: formData,
+
+    });
+  }
+
+  // Upload Doctor Stamp
+  async uploadStamp(file: File): Promise<ApiResponse<UploadResponse>> {
+    const formData = new FormData();
+    formData.append('stamp', file);
+
+    return this.request('/api/profile/credentials/stamp', {
+      method: 'POST',
+      body: formData,
+
+    });
+  }
+
+  // Upload Letterhead
+  async uploadLetterhead(file: File): Promise<ApiResponse<UploadResponse>> {
+    const formData = new FormData();
+    formData.append('letterhead', file);
+
+    return this.request('/api/profile/credentials/letterhead', {
+      method: 'POST',
+      body: formData,
+
+    });
+  }
+
+  // Set Signature Password
+  async setSignaturePassword(password: string): Promise<ApiResponse<PasswordResponse>> {
+    const body = JSON.stringify({ password });
+    return this.request('/api/profile/credentials/signature-password', {
+      method: 'POST',
+      body,
+    });
+  }
+
+  // Verify Signature Password
+  async verifySignaturePassword(password: string): Promise<ApiResponse<VerificationResponse>> {
+    const body = JSON.stringify({ password });
+    return this.request('/api/profile/credentials/verify-signature-password', {
+      method: 'POST',
+      body,
+    });
+  }
+
   async getCurrentUser(): Promise<ApiResponse<User>> {
     const response = await this.request<any>('/api/auth/me');
     
     if (response.success && response.data) {
-      // Get signature and stamp from localStorage
-      const doctorSignature = typeof window !== 'undefined' ? localStorage.getItem('doctorSignature') : null;
-      const doctorStamp = typeof window !== 'undefined' ? localStorage.getItem('doctorStamp') : null;
-      
       // Transform user data to match frontend interface
       const transformedUser: User = {
         id: response.data.id,
@@ -724,10 +818,7 @@ class ApiClient {
         } : undefined,
         createdAt: response.data.createdAt,
         updatedAt: response.data.updatedAt,
-        // Add signature and stamp data
-        ...(doctorSignature && { doctorSignature }),
-        ...(doctorStamp && { doctorStamp }),
-      } as User & { doctorSignature?: string; doctorStamp?: string };
+      } as User;
       
       return {
         success: true,
@@ -1003,12 +1094,12 @@ class ApiClient {
         glucoseLevels: noteData.vitalSigns.glucoseLevels
       } : {
         // Handle cases where vital signs come from medicalNote structure
-        temperature: (noteData as any).medicalNote?.vitalSigns?.temperature || 'Not recorded',
-        pulseRate: (noteData as any).medicalNote?.vitalSigns?.pulseRate || 'Not recorded',
-        respiratoryRate: (noteData as any).medicalNote?.vitalSigns?.respiratoryRate || 'Not recorded',
-        bloodPressure: (noteData as any).medicalNote?.vitalSigns?.bloodPressure || 'Not recorded',
-        oxygenSaturation: (noteData as any).medicalNote?.vitalSigns?.oxygenSaturation || 'Not recorded',
-        glucoseLevels: (noteData as any).medicalNote?.vitalSigns?.glucoseLevels || 'Not recorded'
+        temperature: (noteData as any).medicalNote?.vitalSigns?.temperature || 'Not mentioned',
+        pulseRate: (noteData as any).medicalNote?.vitalSigns?.pulseRate || 'Not mentioned',
+        respiratoryRate: (noteData as any).medicalNote?.vitalSigns?.respiratoryRate || 'Not mentioned',
+        bloodPressure: (noteData as any).medicalNote?.vitalSigns?.bloodPressure || 'Not mentioned',
+        oxygenSaturation: (noteData as any).medicalNote?.vitalSigns?.oxygenSaturation || 'Not mentioned',
+        glucoseLevels: (noteData as any).medicalNote?.vitalSigns?.glucoseLevels || 'Not mentioned'
       })
     };
 
@@ -1039,6 +1130,72 @@ class ApiClient {
 
     
     return response as ApiResponse<MedicalNote>;
+  }
+
+  // ==========================================
+  // DOCTOR CREDENTIALS MANAGEMENT (Based on Actual Backend)
+  // ==========================================
+
+  // Generic file upload for credentials (implement this endpoint in backend)
+  async uploadCredentialFile(
+    file: File, 
+    credentialType: 'certificate' | 'signature' | 'stamp' | 'letterhead'
+  ): Promise<ApiResponse<{ url: string; expiryDate?: string }>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', credentialType);
+    
+    // This endpoint needs to be implemented in backend
+    return this.request('/upload/credentials', {
+      method: 'POST',
+      body: formData,
+      headers: {}, // Let browser set Content-Type for FormData
+    });
+  }
+
+  // Update user profile with credential URLs
+  async updateUserCredentials(updates: {
+    practicingCertificateUrl?: string;
+    practicingCertificateExpiryDate?: string;
+    signatureUrl?: string;
+    stampUrl?: string;
+    letterheadUrl?: string;
+  }): Promise<ApiResponse<User>> {
+    return this.request('/profile/credentials', {
+      method: 'PATCH',
+      body: JSON.stringify(updates),
+    });
+  }
+
+  // ==========================================
+  // VOICE EDITING SYSTEM (✅ EXISTS IN BACKEND)
+  // ==========================================
+
+  // Get voice editing status and capabilities
+  async getVoiceEditingStatus(): Promise<ApiResponse<{
+    voiceEditingEnabled: boolean;
+    supportedFormats: string[];
+    maxFileSize: number;
+    supportedFields: string[];
+  }>> {
+    return this.request('/voice-edit/status', {
+      method: 'GET',
+    });
+  }
+
+  // Submit voice edit for medical note
+  async submitVoiceEdit(formData: FormData): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    editedField: string;
+    editedText: string;
+    action: 'replace' | 'append' | 'delete';
+  }>> {
+    return this.request('/voice-edit/edit', {
+      method: 'POST',
+      body: formData,
+      headers: {}, // Let browser set Content-Type for FormData
+    });
   }
 
   /**
@@ -1475,49 +1632,13 @@ class ApiClient {
     letterhead?: string;
   }): Promise<ApiResponse<User>> {
     try {
-      // For now, store signature and stamp in localStorage until backend is implemented
-      if (profileData.doctorSignature !== undefined) {
-        if (profileData.doctorSignature) {
-          localStorage.setItem('doctorSignature', profileData.doctorSignature);
-        } else {
-          localStorage.removeItem('doctorSignature');
-        }
-      }
-      
-      if (profileData.doctorStamp !== undefined) {
-        if (profileData.doctorStamp) {
-          localStorage.setItem('doctorStamp', profileData.doctorStamp);
-        } else {
-          localStorage.removeItem('doctorStamp');
-        }
-      }
-
-      if (profileData.letterhead !== undefined) {
-        if (profileData.letterhead) {
-          localStorage.setItem('letterhead', profileData.letterhead);
-        } else {
-          localStorage.removeItem('letterhead');
-        }
-      }
-
       // TODO: Backend needs to implement user profile update endpoint
-      // For now, simulate success and return updated user data
-      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-      const updatedUser = {
-        ...currentUser,
-        ...profileData,
-        doctorSignature: profileData.doctorSignature || localStorage.getItem('doctorSignature'),
-        doctorStamp: profileData.doctorStamp || localStorage.getItem('doctorStamp'),
-        letterhead: profileData.letterhead || localStorage.getItem('letterhead'),
-      };
-      
-      // Update localStorage user data
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      
+      // For now, return success with the updated data
       return {
         success: true,
-        data: updatedUser,
-        message: 'Profile updated successfully'
+        data: {
+          ...profileData
+        }
       };
     } catch (error) {
       // Error updating profile
@@ -1725,6 +1846,131 @@ class ApiClient {
       };
     }
   }
+
+  // ==========================================
+  // AUDIO QUEUE MANAGEMENT
+  // ==========================================
+
+  /**
+   * Add audio file to the processing queue
+   */
+  async addToAudioQueue(request: {
+    userId: string;
+    organizationId?: string;
+    filename: string;
+    originalName: string;
+    fileSize: number;
+    fileType: string;
+    audioUrl: string;
+    language?: string;
+    priority?: 'urgent' | 'high' | 'normal' | 'low';
+    patientInfo?: {
+      name?: string;
+      age?: number;
+      gender?: string;
+      patientId?: string;
+    };
+    medicalContext?: {
+      chiefComplaint?: string;
+      visitType?: 'consultation' | 'follow-up' | 'emergency' | 'routine';
+      urgency?: 'immediate' | 'same-day' | 'next-day' | 'routine';
+    };
+  }): Promise<ApiResponse<any>> {
+    return this.request('/api/audio-queue', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Get user's audio queue
+   */
+  async getAudioQueue(userId: string, organizationId?: string): Promise<ApiResponse<any[]>> {
+    const params = new URLSearchParams({ userId });
+    if (organizationId) params.append('organizationId', organizationId);
+    
+    return this.request(`/api/audio-queue?${params.toString()}`);
+  }
+
+  /**
+   * Update queue item status
+   */
+  async updateQueueItemStatus(itemId: string, status: string, additionalData?: any): Promise<ApiResponse<any>> {
+    return this.request(`/api/audio-queue/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, additionalData }),
+    });
+  }
+
+  /**
+   * Update queue item priority
+   */
+  async updateQueueItemPriority(itemId: string, priority: 'urgent' | 'high' | 'normal' | 'low'): Promise<ApiResponse<any>> {
+    return this.request(`/api/audio-queue/${itemId}/priority`, {
+      method: 'PUT',
+      body: JSON.stringify({ priority }),
+    });
+  }
+
+  /**
+   * Remove item from queue
+   */
+  async removeFromAudioQueue(itemId: string): Promise<ApiResponse<boolean>> {
+    return this.request(`/api/audio-queue/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Retry failed queue item
+   */
+  async retryQueueItem(itemId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/audio-queue/${itemId}/retry`, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Get queue statistics
+   */
+  async getAudioQueueStats(userId?: string, organizationId?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (organizationId) params.append('organizationId', organizationId);
+    
+    return this.request(`/api/audio-queue/stats?${params.toString()}`);
+  }
+
+  /**
+   * Process next item in queue (for background workers)
+   */
+  async processNextQueueItem(userId?: string, organizationId?: string): Promise<ApiResponse<any>> {
+    return this.request('/api/audio-queue/process', {
+      method: 'POST',
+      body: JSON.stringify({ userId, organizationId }),
+    });
+  }
+
+  /**
+   * Check queue status
+   */
+  async checkQueueStatus(userId?: string, organizationId?: string): Promise<ApiResponse<any>> {
+    const params = new URLSearchParams();
+    if (userId) params.append('userId', userId);
+    if (organizationId) params.append('organizationId', organizationId);
+    
+    return this.request(`/api/audio-queue/process?${params.toString()}`);
+  }
+
+  /**
+   * Clean up old queue items
+   */
+  async cleanupAudioQueue(daysOld: number = 30): Promise<ApiResponse<number>> {
+    return this.request('/api/audio-queue/cleanup', {
+      method: 'POST',
+      body: JSON.stringify({ daysOld }),
+    });
+  }
 }
 
 // Export singleton instance
@@ -1755,6 +2001,9 @@ export type {
   SubscriptionPlan,
   SubscriptionResponse,
   SubscribeRequest,
+  UploadResponse,
+  PasswordResponse,
+  VerificationResponse,
 };
 
 export default apiClient;

@@ -89,9 +89,9 @@ export class StyledNotePDFGenerator {
     this.doc.setFontSize(10)
     
     // Handle empty content
-    const displayContent = content && content.trim() !== '' && content !== 'Not recorded' 
-      ? content 
-      : 'Not recorded'
+      const displayContent = content && content.trim() !== '' && content !== 'Not mentioned'
+    ? content
+    : 'Not mentioned'
     
     // Special handling for physical examination
     if (title.toLowerCase().includes('physical examination')) {
@@ -113,7 +113,7 @@ export class StyledNotePDFGenerator {
     
     // Handle default/placeholder text
     if (value === 'Physical examination performed as clinically indicated' || 
-        value === 'Not recorded' ||
+        value === 'Not mentioned' ||
         value.toLowerCase().includes('clinically indicated')) {
       return 'No physical examination was performed during this consultation.'
     }
@@ -149,9 +149,9 @@ export class StyledNotePDFGenerator {
     
     // Create a simple table-like layout
     const patientData = [
-      ['Name:', note.patientName || 'Not recorded'],
-      ['Age:', String(note.patientAge) || 'Not recorded'],
-      ['Gender:', note.patientGender || 'Not recorded'],
+          ['Name:', note.patientName || 'Not mentioned'],
+    ['Age:', String(note.patientAge) || 'Not mentioned'],
+    ['Gender:', note.patientGender || 'Not mentioned'],
       ['Date:', note.visitDate || new Date().toLocaleDateString()]
     ]
 

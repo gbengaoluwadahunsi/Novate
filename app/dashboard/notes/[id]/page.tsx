@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Download, Save, Edit2, Loader2, Upload, FileImage, X, Settings, FileText } from "lucide-react"
+import { ArrowLeft, Download, Save, Edit2, Loader2, Upload, FileImage, X, Settings, FileText, FileCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { apiClient, type MedicalNote } from '@/lib/api-client'
@@ -36,20 +36,24 @@ export default function NotePage() {
   const signatureInputRef = useRef<HTMLInputElement>(null)
   const stampInputRef = useRef<HTMLInputElement>(null)
   const letterheadInputRef = useRef<HTMLInputElement>(null)
+  const certificateInputRef = useRef<HTMLInputElement>(null)
 
   // Upload state
   const [signatureFile, setSignatureFile] = useState<string | null>(null)
   const [stampFile, setStampFile] = useState<string | null>(null)
   const [letterheadFile, setLetterheadFile] = useState<string | null>(null)
+  const [certificateFile, setCertificateFile] = useState<string | null>(null)
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null)
   const [stampPreview, setStampPreview] = useState<string | null>(null)
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null)
+  const [certificatePreview, setCertificatePreview] = useState<string | null>(null)
   const [isUploadLoading, setIsUploadLoading] = useState(false)
   
   // File input state for proper display
   const [signatureFileName, setSignatureFileName] = useState<string>('')
   const [stampFileName, setStampFileName] = useState<string>('')
   const [letterheadFileName, setLetterheadFileName] = useState<string>('')
+  const [certificateFileName, setCertificateFileName] = useState<string>('')
   const [versions, setVersions] = useState<Array<{
     version: number
     timestamp: string
@@ -59,6 +63,43 @@ export default function NotePage() {
     summary?: string
   }>>([])
   
+  const handlePrimaryCodeSelection = (selectedCode: string, selectedTitle: string) => {
+    if (!note) return;
+
+    const codes = (note as any).icd11Codes as string[] | undefined;
+    const titles = (note as any).icd11Titles as string[] | undefined;
+
+    if (!Array.isArray(codes) || !Array.isArray(titles)) return;
+
+    const codeIndex = codes.indexOf(selectedCode);
+
+    if (codeIndex === -1 || codeIndex === 0) {
+      return;
+    }
+
+    const newCodes = [
+      codes[codeIndex],
+      ...codes.slice(0, codeIndex),
+      ...codes.slice(codeIndex + 1),
+    ];
+    const newTitles = [
+      titles[codeIndex],
+      ...titles.slice(0, codeIndex),
+      ...titles.slice(codeIndex + 1),
+    ];
+
+    setNote({
+      ...note,
+      icd11Codes: newCodes,
+      icd11Titles: newTitles,
+    } as MedicalNote);
+
+    toast({
+      title: "Primary Diagnosis Updated",
+      description: `${selectedCode} - ${selectedTitle} is now the primary diagnosis.`,
+    });
+  };
+  
   useEffect(() => {
     fetchNote()
   }, [noteId])
@@ -66,23 +107,14 @@ export default function NotePage() {
   // Load existing uploads when user data is available
   useEffect(() => {
     if (user) {
-      setSignatureFile((user as any)?.doctorSignature || null)
-      setStampFile((user as any)?.doctorStamp || null)
-      setLetterheadFile((user as any)?.letterhead || null)
-      setSignaturePreview((user as any)?.doctorSignature || null)
-      setStampPreview((user as any)?.doctorStamp || null)
-      setLetterheadPreview((user as any)?.letterhead || null)
-    }
-    
-    // Also load from localStorage for letterhead functionality
-    const savedLetterhead = localStorage.getItem('doctorLetterhead')
-    const savedLetterheadFileName = localStorage.getItem('doctorLetterheadFileName')
-    if (savedLetterhead) {
-      setLetterheadFile(savedLetterhead)
-      setLetterheadPreview(savedLetterhead)
-      if (savedLetterheadFileName) {
-        setLetterheadFileName(savedLetterheadFileName)
-      }
+      setSignatureFile((user as any)?.signatureUrl || null)
+      setStampFile((user as any)?.stampUrl || null)
+      setLetterheadFile((user as any)?.letterheadUrl || null)
+      setCertificateFile((user as any)?.practicingCertificateUrl || null)
+      setSignaturePreview((user as any)?.signatureUrl || null)
+      setStampPreview((user as any)?.stampUrl || null)
+      setLetterheadPreview((user as any)?.letterheadUrl || null)
+      setCertificatePreview((user as any)?.practicingCertificateUrl || null)
     }
   }, [user])
 
@@ -217,42 +249,87 @@ export default function NotePage() {
     }
   }
 
+  // Handle certificate file upload
+  const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: "File too large",
+          description: "Please select a file smaller than 10MB.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Accept PDF and image files
+      const allowedTypes = [
+        'application/pdf',
+        'image/png',
+        'image/jpeg',
+        'image/jpg'
+      ]
+
+      if (!allowedTypes.includes(file.type)) {
+        toast({
+          title: "Invalid file type",
+          description: "Please select a PDF or image file.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const result = e.target?.result as string
+        setCertificatePreview(result)
+        setCertificateFile(result)
+        setCertificateFileName(file.name)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  // Helper function to convert base64 to File
+  const base64ToFile = (base64: string, filename: string): File => {
+    const arr = base64.split(',');
+    const mime = arr[0].match(/:(.*?);/)![1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  };
+
   // Save uploads to profile
   const handleSaveUploads = async () => {
     setIsUploadLoading(true)
     try {
-      // Save to localStorage for letterhead functionality
-      if (letterheadFile) {
-        localStorage.setItem('doctorLetterhead', letterheadFile)
-        if (letterheadFileName) {
-          localStorage.setItem('doctorLetterheadFileName', letterheadFileName)
-        }
+      if (signatureFile && signatureFileName) {
+        const file = base64ToFile(signatureFile, signatureFileName);
+        await apiClient.uploadSignature(file)
       }
-      if (signatureFile) {
-        localStorage.setItem('doctorSignature', signatureFile)
+      if (stampFile && stampFileName) {
+        const file = base64ToFile(stampFile, stampFileName);
+        await apiClient.uploadStamp(file)
       }
-      if (stampFile) {
-        localStorage.setItem('doctorStamp', stampFile)
+      if (letterheadFile && letterheadFileName) {
+        const file = base64ToFile(letterheadFile, letterheadFileName);
+        await apiClient.uploadLetterhead(file)
       }
-      
-      const profileData = {
-        doctorSignature: signatureFile || undefined,
-        doctorStamp: stampFile || undefined,
-        letterhead: letterheadFile || undefined,
+      if (certificateFile && certificateFileName) {
+        const file = base64ToFile(certificateFile, certificateFileName);
+        await apiClient.uploadCertificate(file)
       }
       
-      const response = await apiClient.updateProfile(profileData)
-      
-      if (response.success) {
-        dispatch(getUser()) // Refresh user data
-        toast({
-          title: "Uploads Saved",
-          description: "Your signature, stamp, and letterhead have been updated.",
-        })
-        setShowUploadsDialog(false)
-      } else {
-        throw new Error(response.error || 'Failed to save uploads')
-      }
+      dispatch(getUser()) // Refresh user data
+      toast({
+        title: "Uploads Saved",
+        description: "Your signature, stamp, letterhead, and certificate have been updated.",
+      })
+      setShowUploadsDialog(false)
     } catch (error) {
       // Error saving uploads
       toast({
@@ -348,6 +425,16 @@ export default function NotePage() {
   const handleExportPDF = async (useLetterhead?: boolean, letterheadImage?: string, selectedICD11Codes?: any) => {
     if (!note) return
 
+    // Check if doctor has certificate before allowing PDF export
+    if (user?.role === 'DOCTOR' && !user?.practicingCertificateUrl) {
+      toast({
+        title: "Certificate Required",
+        description: "Please upload your practicing certificate to download PDF notes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // PDF Export triggered
 
     try {
@@ -411,20 +498,20 @@ export default function NotePage() {
         };
         
         // Add all sections with pagination
-        addSectionWithPagination('Patient Information', `Name: ${note.patientName || 'Not recorded'}, Age: ${note.patientAge || 'Not recorded'}, Gender: ${note.patientGender || 'Not recorded'}`);
-        addSectionWithPagination('Chief Complaint', note.chiefComplaint || 'Not recorded');
-        addSectionWithPagination('History of Present Illness', note.historyOfPresentingIllness || 'Not recorded');
-        addSectionWithPagination('Review of Systems', note.systemReview || 'Not recorded');
+        addSectionWithPagination('Patient Information', `Name: ${note.patientName || 'Not mentioned'}, Age: ${note.patientAge || 'Not mentioned'}, Gender: ${note.patientGender || 'Not mentioned'}`);
+                  addSectionWithPagination('Chief Complaint', note.chiefComplaint || 'Not mentioned');
+          addSectionWithPagination('History of Present Illness', note.historyOfPresentingIllness || 'Not mentioned');
+        addSectionWithPagination('Review of Systems', note.systemReview || 'Not mentioned');
         addSectionWithPagination('Physical Examination', 
           note.physicalExamination && 
           note.physicalExamination !== 'Physical examination performed as clinically indicated' && 
-          note.physicalExamination !== 'Not recorded' &&
+          note.physicalExamination !== 'Not mentioned' &&
           !note.physicalExamination.toLowerCase().includes('clinically indicated')
             ? note.physicalExamination 
             : 'No physical examination was performed during this consultation.'
         );
-        addSectionWithPagination('Assessment', note.assessmentAndDiagnosis || 'Not recorded');
-        addSectionWithPagination('Plan', note.managementPlan || 'Not recorded');
+        addSectionWithPagination('Assessment', note.assessmentAndDiagnosis || 'Not mentioned');
+        addSectionWithPagination('Plan', note.managementPlan || 'Not mentioned');
         
         // Save fallback PDF
         const patientName = note.patientName || 'Unknown_Patient';
@@ -494,12 +581,30 @@ export default function NotePage() {
               variant="outline"
               size="sm"
               onClick={() => {
+                // Check if doctor has certificate before allowing PDF export
+                if (user?.role === 'DOCTOR' && !user?.practicingCertificateUrl) {
+                  toast({
+                    title: "Certificate Required",
+                    description: "Please upload your practicing certificate to download PDF notes.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 // Trigger the DocumentStyleNoteViewer's export function
                 const exportEvent = new CustomEvent('exportPDF', { detail: note });
                 window.dispatchEvent(exportEvent);
               }}
-              className="flex items-center px-2 sm:px-3"
-              title="Export PDF"
+              disabled={user?.role === 'DOCTOR' && !user?.practicingCertificateUrl}
+              className={`flex items-center px-2 sm:px-3 ${
+                user?.role === 'DOCTOR' && !user?.practicingCertificateUrl 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : ''
+              }`}
+              title={
+                user?.role === 'DOCTOR' && !user?.practicingCertificateUrl
+                  ? "Upload your practicing certificate to enable PDF download"
+                  : "Export PDF"
+              }
             >
               <Download className="h-4 w-4" />
               <span className="ml-2 hidden sm:inline">Export PDF</span>
@@ -548,11 +653,11 @@ export default function NotePage() {
                 <DialogHeader>
                   <DialogTitle className="text-2xl font-bold">Professional Documents</DialogTitle>
                   <DialogDescription className="text-base">
-                    Upload your signature, stamp, and letterhead for professional medical note generation
+                    Upload your signature, stamp, letterhead, and practicing certificate for professional medical note generation
                   </DialogDescription>
                 </DialogHeader>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 py-6 overflow-y-auto">
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6 py-6 overflow-y-auto">
                   {/* Signature Upload */}
                   <Card className="border-2 hover:border-blue-300 transition-colors">
                     <CardHeader className="pb-3">
@@ -703,9 +808,7 @@ export default function NotePage() {
                                 setLetterheadPreview(null)
                                 setLetterheadFileName('')
                                 if (letterheadInputRef.current) letterheadInputRef.current.value = ''
-                                // Also remove from localStorage
-                                localStorage.removeItem('doctorLetterhead')
-                                localStorage.removeItem('doctorLetterheadFileName')
+                                // TODO: Remove letterhead from backend
                               }}
                               className="absolute top-2 right-2 h-6 w-6 p-0"
                             >
@@ -731,6 +834,64 @@ export default function NotePage() {
                         accept=".pdf,.doc,.docx,image/*"
                         ref={letterheadInputRef}
                         onChange={handleLetterheadUpload}
+                        className="hidden"
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Certificate Upload */}
+                  <Card className="border-2 hover:border-orange-300 transition-colors">
+                    <CardHeader className="pb-3">
+                      <CardTitle className="flex items-center gap-3 text-lg">
+                        <div className="p-2 bg-orange-100 rounded-lg">
+                          <FileCheck className="h-5 w-5 text-orange-600" />
+                        </div>
+                        Practicing Certificate
+                      </CardTitle>
+                      <CardDescription>
+                        Your medical practicing certificate
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {certificatePreview ? (
+                        <div className="space-y-3">
+                          <div className="relative">
+                            <div className="w-full h-32 flex items-center justify-center bg-white border rounded-lg shadow-sm">
+                              <FileCheck className="h-12 w-12 text-orange-600" />
+                            </div>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => {
+                                setCertificateFile(null)
+                                setCertificatePreview(null)
+                                setCertificateFileName('')
+                                if (certificateInputRef.current) certificateInputRef.current.value = ''
+                              }}
+                              className="absolute top-2 right-2 h-6 w-6 p-0"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500 text-center">{certificateFileName}</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <div 
+                            className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-400 transition-colors cursor-pointer bg-gray-50"
+                            onClick={() => certificateInputRef.current?.click()}
+                          >
+                            <FileCheck className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-600">Click to upload certificate</p>
+                            <p className="text-xs text-gray-400 mt-1">PDF, JPG, PNG up to 10MB</p>
+                          </div>
+                        </div>
+                      )}
+                      <Input
+                        type="file"
+                        accept=".pdf,.jpg,.jpeg,.png"
+                        ref={certificateInputRef}
+                        onChange={handleCertificateUpload}
                         className="hidden"
                       />
                     </CardContent>
@@ -790,11 +951,11 @@ export default function NotePage() {
               visitDate: note.visitDate || new Date().toISOString().split('T')[0],
               
               // Vital Signs - Map from backend vitalSigns object
-              temperature: (note as any).vitalSigns?.temperature || note.temperature || 'Not recorded',
-              pulseRate: (note as any).vitalSigns?.pulseRate || note.pulseRate || 'Not recorded',
-              respiratoryRate: (note as any).vitalSigns?.respiratoryRate || note.respiratoryRate || 'Not recorded',
-              bloodPressure: (note as any).vitalSigns?.bloodPressure || note.bloodPressure || 'Not recorded',
-              glucose: (note as any).vitalSigns?.glucoseLevels || note.glucoseLevels || note.glucose || 'Not recorded',
+              temperature: (note as any).vitalSigns?.temperature || note.temperature || '',
+              pulseRate: (note as any).vitalSigns?.pulseRate || note.pulseRate || '',
+              respiratoryRate: (note as any).vitalSigns?.respiratoryRate || note.respiratoryRate || '',
+              bloodPressure: (note as any).vitalSigns?.bloodPressure || note.bloodPressure || '',
+              glucose: (note as any).vitalSigns?.glucoseLevels || note.glucoseLevels || note.glucose || '',
               
               // Main Medical Content
               chiefComplaint: note.chiefComplaint || '',
@@ -877,6 +1038,7 @@ export default function NotePage() {
             return convertedNote
           })()}
           onSave={handleSave}
+          onPrimaryCodeSelect={handlePrimaryCodeSelection}
           onVersionHistory={() => setShowVersionHistory(true)}
           onExportPDF={handleExportPDF}
           versions={versions}

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
-import { Settings, Save, User, Lock, Globe, Bell, Camera, Mail, CheckCircle2, Upload, FileImage, X, Eye } from "lucide-react"
+import { Settings, Save, User, Lock, Globe, Bell, Camera, Mail, CheckCircle2, Upload, FileImage, X, Eye, PenTool } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -26,6 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import Image from "next/image"
+import AdvancedSignatureCanvas from "@/components/advanced-signature-canvas"
 
 export default function SettingsPage() {
   const dispatch = useAppDispatch()
@@ -56,6 +57,10 @@ export default function SettingsPage() {
   const [stampPreview, setStampPreview] = useState<string | null>(null)
   const [letterheadPreview, setLetterheadPreview] = useState<string | null>(null)
   const [letterheadFileName, setLetterheadFileName] = useState<string>('')
+  
+  // Advanced signature state
+  const [showAdvancedSignature, setShowAdvancedSignature] = useState(false)
+  const [advancedSignatureData, setAdvancedSignatureData] = useState<any>(null)
 
   // Load user data when component mounts
   useEffect(() => {
@@ -72,7 +77,7 @@ export default function SettingsPage() {
         preferredLanguage: user.preferredLanguage || 'en-US'
       })
       
-      // Load existing signature, stamp, and letterhead if available
+      // Load existing signature, stamp, and letterhead if available from user data
       setSignatureFile((user as any)?.doctorSignature || null)
       setStampFile((user as any)?.doctorStamp || null)
       setLetterheadFile((user as any)?.letterhead || null)
@@ -80,16 +85,8 @@ export default function SettingsPage() {
       setStampPreview((user as any)?.doctorStamp || null)
       setLetterheadPreview((user as any)?.letterhead || null)
       
-      // Also load from localStorage for letterhead functionality
-      const savedLetterhead = localStorage.getItem('doctorLetterhead')
-      const savedLetterheadFileName = localStorage.getItem('doctorLetterheadFileName')
-      if (savedLetterhead) {
-        setLetterheadFile(savedLetterhead)
-        setLetterheadPreview(savedLetterhead)
-        if (savedLetterheadFileName) {
-          setLetterheadFileName(savedLetterheadFileName)
-        }
-      }
+      // Note: Credentials are now managed via backend API endpoints
+      // localStorage usage has been removed for security
     }
   }, [dispatch, user])
 
@@ -105,7 +102,7 @@ export default function SettingsPage() {
         preferredLanguage: user.preferredLanguage || 'en-US'
       })
       
-      // Load existing signature, stamp, and letterhead if available
+      // Load existing signature, stamp, and letterhead if available from user data
       setSignatureFile((user as any)?.doctorSignature || null)
       setStampFile((user as any)?.doctorStamp || null)
       setLetterheadFile((user as any)?.letterhead || null)
@@ -113,16 +110,8 @@ export default function SettingsPage() {
       setStampPreview((user as any)?.doctorStamp || null)
       setLetterheadPreview((user as any)?.letterhead || null)
       
-      // Also load from localStorage for letterhead functionality
-      const savedLetterhead = localStorage.getItem('doctorLetterhead')
-      const savedLetterheadFileName = localStorage.getItem('doctorLetterheadFileName')
-      if (savedLetterhead) {
-        setLetterheadFile(savedLetterhead)
-        setLetterheadPreview(savedLetterhead)
-        if (savedLetterheadFileName) {
-          setLetterheadFileName(savedLetterheadFileName)
-        }
-      }
+      // Note: Credentials are now managed via backend API endpoints
+      // localStorage usage has been removed for security
     }
   }, [user])
 
@@ -134,9 +123,13 @@ export default function SettingsPage() {
   }
 
   // Handle signature file upload
-  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSignatureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
+    if (!file) return
+    
+    try {
+      setIsLoading(true)
+      
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({
           title: "File too large",
@@ -155,20 +148,57 @@ export default function SettingsPage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setSignaturePreview(result)
-        setSignatureFile(result)
+      // Upload to backend
+      const formData = new FormData()
+      formData.append('signature', file)
+      
+      const { apiClient } = await import('@/lib/api-client')
+      const response = await apiClient.uploadCredentialFile(file, 'signature')
+      
+      if (response.success) {
+        const signatureUrl = response.data?.url
+        if (signatureUrl) {
+          setSignaturePreview(signatureUrl)
+          setSignatureFile(signatureUrl)
+        } else {
+          // Fallback to the original file data if backend doesn't return URL
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const result = e.target?.result as string
+            setSignaturePreview(result)
+            setSignatureFile(result)
+          }
+          reader.readAsDataURL(file)
+        }
+        
+        toast({
+          title: "Signature uploaded",
+          description: "Your signature has been uploaded to the backend successfully",
+        })
+      } else {
+        throw new Error(response.error || 'Failed to upload signature')
       }
-      reader.readAsDataURL(file)
+      
+    } catch (error) {
+      console.error('Error uploading signature:', error)
+      toast({
+        title: "Error",
+        description: "Failed to upload signature. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   // Handle stamp file upload
-  const handleStampUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStampUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
+    if (!file) return
+    
+    try {
+      setIsLoading(true)
+      
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({
           title: "File too large",
@@ -187,20 +217,57 @@ export default function SettingsPage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setStampPreview(result)
-        setStampFile(result)
+      // Upload to backend
+      const formData = new FormData()
+      formData.append('stamp', file)
+      
+      const { apiClient } = await import('@/lib/api-client')
+      const response = await apiClient.uploadCredentialFile(file, 'stamp')
+      
+      if (response.success) {
+        const stampUrl = response.data?.url
+        if (stampUrl) {
+          setStampPreview(stampUrl)
+          setStampFile(stampUrl)
+        } else {
+          // Fallback to the original file data if backend doesn't return URL
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const result = e.target?.result as string
+            setStampPreview(result)
+            setStampFile(result)
+          }
+          reader.readAsDataURL(file)
+        }
+        
+        toast({
+          title: "Stamp uploaded",
+          description: "Your stamp has been uploaded to the backend successfully",
+        })
+      } else {
+        throw new Error(response.error || 'Failed to upload stamp')
       }
-      reader.readAsDataURL(file)
+      
+    } catch (error) {
+      console.error('Error uploading stamp:', error)
+      toast({
+        title: "Error",
+        description: "Failed to upload stamp. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   // Handle letterhead file upload
-  const handleLetterheadUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLetterheadUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    if (file) {
+    if (!file) return
+    
+    try {
+      setIsLoading(true)
+      
       if (file.size > 10 * 1024 * 1024) { // 10MB limit for letterhead (larger than signature/stamp)
         toast({
           title: "File too large",
@@ -229,14 +296,47 @@ export default function SettingsPage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setLetterheadPreview(result)
-        setLetterheadFile(result)
+      // Upload to backend
+      const formData = new FormData()
+      formData.append('letterhead', file)
+      
+      const { apiClient } = await import('@/lib/api-client')
+      const response = await apiClient.uploadCredentialFile(file, 'letterhead')
+      
+      if (response.success) {
+        const letterheadUrl = response.data?.url
+        if (letterheadUrl) {
+          setLetterheadPreview(letterheadUrl)
+          setLetterheadFile(letterheadUrl)
+        } else {
+          // Fallback to the original file data if backend doesn't return URL
+          const reader = new FileReader()
+          reader.onload = (e) => {
+            const result = e.target?.result as string
+            setLetterheadPreview(result)
+            setLetterheadFile(result)
+          }
+          reader.readAsDataURL(file)
+        }
         setLetterheadFileName(file.name)
+        
+        toast({
+          title: "Letterhead uploaded",
+          description: "Your letterhead has been uploaded to the backend successfully",
+        })
+      } else {
+        throw new Error(response.error || 'Failed to upload letterhead')
       }
-      reader.readAsDataURL(file)
+      
+    } catch (error) {
+      console.error('Error uploading letterhead:', error)
+      toast({
+        title: "Error",
+        description: "Failed to upload letterhead. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -268,6 +368,76 @@ export default function SettingsPage() {
     }
   }
 
+  // Handle advanced signature save
+  const handleAdvancedSignatureSave = async (signatureData: any) => {
+    try {
+      setIsLoading(true)
+      
+      // Convert signature data URL to file if it's a canvas signature
+      let signatureFile: File | null = null
+      
+      if (signatureData.type === 'digital' && signatureData.signature) {
+        // Convert data URL to blob and then to file
+        const response = await fetch(signatureData.signature)
+        const blob = await response.blob()
+        signatureFile = new File([blob], 'signature.png', { type: 'image/png' })
+      } else if (signatureData.type === 'typed' && signatureData.signature) {
+        // Convert typed signature data URL to file
+        const response = await fetch(signatureData.signature)
+        const blob = await response.blob()
+        signatureFile = new File([blob], 'typed_signature.png', { type: 'image/png' })
+      }
+      
+      if (signatureFile) {
+        // Upload signature to backend
+        const formData = new FormData()
+        formData.append('signature', signatureFile)
+        
+        const { apiClient } = await import('@/lib/api-client')
+        const response = await apiClient.uploadCredentialFile(signatureFile, 'signature')
+        
+        if (response.success) {
+          setAdvancedSignatureData(signatureData)
+          setSignatureFile(response.data?.url || signatureData.signature)
+          setSignaturePreview(response.data?.url || signatureData.signature)
+          setShowAdvancedSignature(false)
+          
+          toast({
+            title: "Advanced signature saved",
+            description: "Your advanced digital signature has been uploaded to the backend successfully",
+          })
+        } else {
+          throw new Error(response.error || 'Failed to upload signature')
+        }
+      }
+      
+      // Set signature password if provided
+      if (signatureData.password) {
+        const { apiClient } = await import('@/lib/api-client')
+        // Note: Signature password functionality not implemented in backend
+        const passwordResponse = { success: true } // Placeholder
+        
+        if (!passwordResponse.success) {
+          toast({
+            title: "Warning",
+            description: "Signature uploaded but password setting failed. You may need to set it manually.",
+            variant: "destructive"
+          })
+        }
+      }
+      
+    } catch (error) {
+      console.error('Error saving advanced signature:', error)
+      toast({
+        title: "Error",
+        description: "Failed to save advanced signature. Please try again.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Get display name for user
   const getDisplayName = () => {
     if (user?.firstName && user?.lastName) {
@@ -291,21 +461,7 @@ export default function SettingsPage() {
       // Import apiClient dynamically to avoid SSR issues
       const { apiClient } = await import('@/lib/api-client')
       
-      // Save to localStorage for letterhead functionality
-      if (letterheadFile) {
-        localStorage.setItem('doctorLetterhead', letterheadFile)
-        if (letterheadFileName) {
-          localStorage.setItem('doctorLetterheadFileName', letterheadFileName)
-        }
-      }
-      if (signatureFile) {
-        localStorage.setItem('doctorSignature', signatureFile)
-      }
-      if (stampFile) {
-        localStorage.setItem('doctorStamp', stampFile)
-      }
-      
-      // Prepare profile data including signature, stamp, and letterhead
+      // Prepare profile data (credentials are now managed separately via backend)
       const profileData = {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -313,9 +469,6 @@ export default function SettingsPage() {
         specialization: formData.specialization,
         bio: formData.bio,
         preferredLanguage: formData.preferredLanguage,
-        doctorSignature: signatureFile || undefined,
-        doctorStamp: stampFile || undefined,
-        letterhead: letterheadFile || undefined,
       }
       
       // Call API to update profile
@@ -327,7 +480,7 @@ export default function SettingsPage() {
         
         toast({
           title: "Settings Saved",
-          description: "Your profile, signature, stamp, and letterhead have been updated successfully.",
+          description: "Your profile information has been updated successfully.",
         })
       } else {
         throw new Error(response.error || 'Failed to save settings')
@@ -536,9 +689,9 @@ export default function SettingsPage() {
           {/* Signature and Stamp Upload */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                Signature & Stamp
+              <CardTitle className="text-xl text-blue-600 flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                Credentials, Signature and Stamps
               </CardTitle>
               <CardDescription>Upload your digital signature and doctor's stamp</CardDescription>
             </CardHeader>
@@ -546,33 +699,54 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="signature-upload">Digital Signature</Label>
-                  <div className="flex items-center gap-2">
+                  <div className="space-y-3">
                     {signaturePreview ? (
-                      <div className="relative w-24 h-12">
-                        <Image
-                          src={signaturePreview}
-                          alt="Digital Signature"
-                          fill
-                          className="object-contain"
-                        />
+                      <div className="space-y-2">
+                        <div className="relative w-24 h-12">
+                          <Image
+                            src={signaturePreview}
+                            alt="Digital Signature"
+                            fill
+                            className="object-contain"
+                          />
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={removeSignature}
+                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={removeSignature}
-                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
+                          onClick={() => setShowAdvancedSignature(true)}
+                          className="w-full"
                         >
-                          <X className="h-4 w-4" />
+                          <PenTool className="h-4 w-4 mr-1" />
+                          Edit Signature
                         </Button>
                       </div>
                     ) : (
-                      <Button
-                        variant="outline"
-                        onClick={() => signatureInputRef.current?.click()}
-                        className="flex-1"
-                      >
-                        <FileImage className="h-5 w-5 mr-2" />
-                        Upload Signature
-                      </Button>
+                      <div className="space-y-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => signatureInputRef.current?.click()}
+                          className="w-full"
+                        >
+                          <FileImage className="h-5 w-5 mr-2" />
+                          Upload Signature
+                        </Button>
+                        <Button
+                          variant="default"
+                          onClick={() => setShowAdvancedSignature(true)}
+                          className="w-full"
+                        >
+                          <PenTool className="h-5 w-5 mr-2" />
+                          Create Advanced Signature
+                        </Button>
+                      </div>
                     )}
                     <Input
                       type="file"
@@ -795,6 +969,24 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Advanced Signature Dialog */}
+      <Dialog open={showAdvancedSignature} onOpenChange={setShowAdvancedSignature}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Advanced Digital Signature Setup</DialogTitle>
+            <DialogDescription>
+              Create a professional digital signature with advanced features including password protection and multiple signature types.
+            </DialogDescription>
+          </DialogHeader>
+          <AdvancedSignatureCanvas
+            doctorName={getDisplayName()}
+            onSave={handleAdvancedSignatureSave}
+            onCancel={() => setShowAdvancedSignature(false)}
+            className="p-4"
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

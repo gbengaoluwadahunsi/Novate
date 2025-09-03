@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { apiClient } from '@/lib/api-client'
 
 interface SectionVoiceInputProps {
+  noteId: string
   sectionName: string
   sectionField: string
   currentValue: string
@@ -15,6 +16,7 @@ interface SectionVoiceInputProps {
 }
 
 export default function SectionVoiceInput({
+  noteId,
   sectionName,
   sectionField,
   currentValue,
@@ -25,15 +27,6 @@ export default function SectionVoiceInput({
   const [isProcessing, setIsProcessing] = useState(false)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
-
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current)
-      }
-    }
-  }, [])
 
   const startRecording = async () => {
     try {
@@ -73,70 +66,27 @@ export default function SectionVoiceInput({
     }
   }
 
-  const pollTranscriptionStatus = async (jobId: string) => {
-    try {
-      const response = await apiClient.getTranscriptionResult(jobId)
-      if (response.success && response.data) {
-        const result = response.data
-        if (result.status === 'COMPLETED') {
-          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-          pollingIntervalRef.current = null
-
-          if (result.transcript) {
-            onUpdate(result.transcript)
-            toast.success(`${sectionName} updated successfully`)
-          } else {
-            toast.error('No speech detected. Please try again.')
-          }
-          setIsProcessing(false)
-        } else if (result.status === 'FAILED') {
-          if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-          pollingIntervalRef.current = null
-          toast.error('Failed to process audio. Please try again.')
-          setIsProcessing(false)
-        }
-      } else {
-        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-        pollingIntervalRef.current = null
-        toast.error(
-          'Failed to get transcription status. Please try again.'
-        )
-        setIsProcessing(false)
-      }
-    } catch (error) {
-      if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current)
-      pollingIntervalRef.current = null
-      toast.error('Error polling transcription status. Please try again.')
-      setIsProcessing(false)
-    }
-  }
-
-  const startPolling = (jobId: string) => {
-    pollingIntervalRef.current = setInterval(() => {
-      pollTranscriptionStatus(jobId)
-    }, 2000)
-  }
-
   const processAudio = async (audioBlob: Blob) => {
     try {
       const audioFile = new File([audioBlob], 'recording.wav', { type: 'audio/wav' });
-      const response = await apiClient.startTranscription(
-        audioFile,
-        undefined,
-        undefined,
-        sectionField,
-        currentValue
-      )
+      
+      const formData = new FormData();
+      formData.append('noteId', noteId);
+      formData.append('audio', audioFile);
+      formData.append('fieldToEdit', sectionField);
 
-      if (response.success && response.data?.jobId) {
-        startPolling(response.data.jobId)
+      const response = await apiClient.submitVoiceEdit(formData);
+
+      if (response.success && response.data) {
+        onUpdate(response.data.editedText);
+        toast.success(`${sectionName} updated successfully via voice edit.`);
       } else {
-        toast.error('Failed to start transcription. Please try again.')
-        setIsProcessing(false)
+        toast.error(response.error || 'Failed to process voice edit. Please try again.');
       }
     } catch (error) {
-      toast.error('Failed to process audio. Please try again.')
-      setIsProcessing(false)
+      toast.error('An error occurred during voice editing. Please try again.');
+    } finally {
+      setIsProcessing(false);
     }
   }
 

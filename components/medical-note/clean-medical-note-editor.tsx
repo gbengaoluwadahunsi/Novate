@@ -896,7 +896,7 @@ function hasPhysicalExaminationFindings(note: CleanMedicalNote): boolean {
   
   // Check for meaningful data (not empty, not generic placeholders)
   const hasData = !!(trimmedText && 
-                    trimmedText !== 'Not recorded' &&
+                    trimmedText !== 'Not mentioned' &&
                     trimmedText !== 'N/A' &&
                     trimmedText !== 'n/a' &&
                     trimmedText !== 'N/a' &&

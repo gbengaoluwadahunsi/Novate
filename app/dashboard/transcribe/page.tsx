@@ -479,12 +479,12 @@ export default function TranscribePage() {
         audioJobId: data.audioJobId,
         // 🩺 VITAL SIGNS: Include vital signs from transcription data
         vitalSigns: data.medicalNote?.vitalSigns || data.vitalSigns || {
-          temperature: medicalNote.temperature || 'Not recorded',
-          pulseRate: medicalNote.pulseRate || 'Not recorded',
-          respiratoryRate: medicalNote.respiratoryRate || 'Not recorded',
-          bloodPressure: medicalNote.bloodPressure || 'Not recorded',
-          oxygenSaturation: medicalNote.oxygenSaturation || 'Not recorded',
-          glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not recorded'
+                  temperature: medicalNote.temperature || 'Not mentioned',
+        pulseRate: medicalNote.pulseRate || 'Not mentioned',
+        respiratoryRate: medicalNote.respiratoryRate || 'Not mentioned',
+        bloodPressure: medicalNote.bloodPressure || 'Not mentioned',
+        oxygenSaturation: medicalNote.oxygenSaturation || 'Not mentioned',
+        glucoseLevels: medicalNote.glucose || medicalNote.glucoseLevels || 'Not mentioned'
         }
       };
 
