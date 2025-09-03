@@ -776,9 +776,12 @@ export default function TranscribePage() {
   // Debounced version of processQueuedRecording to prevent rapid clicks
   const debouncedProcessQueuedRecording = useCallback(
     debounce((recordingId: string) => {
+      console.log(`🔍 debouncedProcessQueuedRecording called with recordingId: ${recordingId}`);
+      console.log(`🔍 Current queuedRecordings:`, queuedRecordings);
+      console.log(`🔍 isProcessingAny:`, isProcessingAny);
       processQueuedRecording(recordingId);
     }, 300), // 300ms delay
-    []
+    [queuedRecordings, isProcessingAny]
   );
 
   // Function to add a recording to the queue
@@ -871,14 +874,10 @@ export default function TranscribePage() {
         patientGender: recording.patientInfo?.gender || ''
       };
       
-
-      
       const response = await apiClient.fastTranscription(
         recording.file,
         patientData
       )
-
-
 
       if (response.success && response.data?.savedNoteId) {
         // Direct transcription completed successfully
@@ -933,6 +932,27 @@ export default function TranscribePage() {
             setQueuedRecordings(prev => prev.filter(r => r.id !== recordingId));
           }, 1000);
         }, 3000);
+      } else if (response.data?.jobId) {
+        // Job-based processing - start polling
+        console.log(`📋 Job-based transcription started for recording ${recordingId}, job ID: ${response.data.jobId}`);
+        
+        setQueuedRecordings(prev =>
+          prev.map(r =>
+            r.id === recordingId ? { 
+              ...r, 
+              progress: 25,
+              progressMessage: 'Transcription job started, polling for completion...'
+            } : r
+          )
+        )
+        
+        // Start polling for this job
+        startPolling(response.data.jobId, recordingId);
+        
+        toast({
+          title: "📋 Job Started",
+          description: "Transcription job has been started. We'll monitor progress and notify you when complete.",
+        });
       } else if (response.error?.includes('TIMEOUT') || response.details === 'TIMEOUT') {
         // Handle timeout - transcription might still complete in background
         console.log(`⏰ Transcription timeout for recording ${recordingId}, but note might still be created`);
@@ -1053,7 +1073,16 @@ export default function TranscribePage() {
             } : r))
           )
           
-          await handleTranscriptionComplete(response.data, recordingId)
+          // Since TranscriptionResult doesn't have savedNoteId, use checkForCompletedNote
+          // to find the created note and route to it
+          const noteFound = await checkForCompletedNote(recordingId, jobId);
+          
+          if (!noteFound) {
+            // If no note was found, create one using the transcript
+            if (response.data.transcript) {
+              await handleTranscriptionComplete(response.data, recordingId);
+            }
+          }
         } else if (response.data.status === 'FAILED') {
           console.log(`Transcription status is FAILED for recording ${recordingId}`);
           
@@ -1330,12 +1359,6 @@ export default function TranscribePage() {
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Clock className="h-4 w-4" />
                   Transcription Queue
-                  {isProcessingAny && (
-                    <Badge variant="default" className="ml-2 bg-orange-100 text-orange-800">
-                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                      Processing...
-                    </Badge>
-                  )}
                 </CardTitle>
                 {queuedRecordings.length > 0 && (
                   <div className="flex items-center gap-4 text-sm text-gray-600 dark:text-gray-400">
@@ -1435,24 +1458,17 @@ export default function TranscribePage() {
                             <Button
                               size="sm"
                               variant="default"
-                              onClick={() => debouncedProcessQueuedRecording(recording.id)}
+                              onClick={() => {
+                                console.log(`🔍 Transcribe Audio button clicked for recording: ${recording.id}`);
+                                console.log(`🔍 Recording status: ${recording.status}`);
+                                console.log(`🔍 Recording file:`, recording.file);
+                                debouncedProcessQueuedRecording(recording.id);
+                              }}
                               disabled={false}
                               className="flex items-center gap-1 text-xs"
                             >
                               <Wand2 className="h-3 w-3" />
                               Transcribe Audio
-                            </Button>
-                          )}
-                          
-                          {recording.status === 'processing' && (
-                            <Button
-                              size="sm"
-                              variant="default"
-                              disabled={true}
-                              className="flex items-center gap-1 text-xs"
-                            >
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              Processing...
                             </Button>
                           )}
                           

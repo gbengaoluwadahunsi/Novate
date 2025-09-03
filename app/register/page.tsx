@@ -305,7 +305,7 @@ export default function RegisterPage() {
     }
     
     if (!formData.preferredLanguage) {
-      newErrors.preferredLanguage = "Please select the common language of your patients for transcription services"
+      newErrors.preferredLanguage = "Please select the language of your consultation for transcription services"
     }
     
     setErrors(newErrors)
@@ -596,10 +596,10 @@ export default function RegisterPage() {
 
 
                   <div className="space-y-2">
-                    <Label>Common Language of Patients *</Label>
+                    <Label>Language of Consultation *</Label>
                     <Select value={formData.preferredLanguage} onValueChange={(value) => handleSelectChange("preferredLanguage", value)}>
                       <SelectTrigger className={errors.preferredLanguage ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Select the common language of your patients" />
+                        <SelectValue placeholder="Select the language of your consultation" />
                       </SelectTrigger>
                       <SelectContent>
                         {availableLanguages.map((language) => (
@@ -607,8 +607,8 @@ export default function RegisterPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {errors.preferredLanguage && <p className="text-sm text-red-500">{errors.preferredLanguage}</p>}
-                    <p className="text-xs text-gray-500 dark:text-gray-400">This language will be used for transcription based on your patients' common language.</p>
+                    {errors.preferredLanguage && <p className="sm text-red-500">{errors.preferredLanguage}</p>}
+                    <p className="text-xs text-gray-500 dark:text-gray-400">This language will be used for transcription based on your consultation language.</p>
                   </div>
                 </motion.div>
               )}

@@ -2148,10 +2148,10 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
 
           {/* Language Selector - Full Width */}
           <div className="w-full">
-              <label className="text-sm font-medium mb-2 block">Common Language of Patients</label>
+              <label className="text-sm font-medium mb-2 block">Language of Consultation</label>
               <Select value={language} onValueChange={setLanguage}>
               <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select the common language of your patients" />
+                  <SelectValue placeholder="Select the language of your consultation" />
                 </SelectTrigger>
                 <SelectContent>
                   {availableLanguages.map((lang) => (
@@ -2368,7 +2368,7 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
                   <div className="flex items-center gap-2">
                     <Languages className="h-4 w-4 text-muted-foreground" />
                     <span className="text-sm text-muted-foreground">
-                      Patient language:{" "}
+                      Language of Consultation:{" "}
                       <span className="font-medium">
                         {language === "en-US"
                           ? "English (US)"
