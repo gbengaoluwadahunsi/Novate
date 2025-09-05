@@ -599,7 +599,7 @@ export default function HomePage() {
         <div className="container mx-auto max-w-6xl relative z-10">
           <SectionHeader
             title="Powerful Features"
-            subtitle="Discover how  NovateScribe revolutionizes medical documentation with AI-powered tools"
+            subtitle="Discover how NovateScribe revolutionizes medical documentation with AI-powered tools"
           />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-8">
@@ -692,6 +692,187 @@ export default function HomePage() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Promotional Video Section */}
+      <section id="promotional-video" className="py-12 sm:py-20 px-2 sm:px-4 relative">
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-sky-50/50 dark:via-sky-950/20 to-transparent"></div>
+        <div className="container mx-auto max-w-6xl relative z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center"
+          >
+            {/* Video Section */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              viewport={{ once: true }}
+              className="relative order-2 lg:order-1"
+            >
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-gray-900 group cursor-pointer">
+                <video
+                  ref={(video) => {
+                    if (video) {
+                      video.addEventListener('click', () => {
+                        if (video.paused) {
+                          video.play();
+                        } else {
+                          video.pause();
+                        }
+                      });
+                    }
+                  }}
+                  className="w-full h-[400px] sm:h-[450px] lg:h-[500px] object-cover"
+                  preload="metadata"
+                  poster="/novate-video-thumbnail.png"
+                >
+                  <source src="/NovateScribe intro.mp4" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                
+                {/* Video overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent pointer-events-none"></div>
+                
+                {/* Professional play button overlay */}
+                <div 
+                  className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    const video = e.currentTarget.parentElement?.querySelector('video') as HTMLVideoElement;
+                    if (video) {
+                      if (video.paused) {
+                        video.play();
+                        e.currentTarget.style.display = 'none';
+                      }
+                    }
+                  }}
+                >
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.5, duration: 0.3 }}
+                    className="w-20 h-20 bg-white/95 rounded-full flex items-center justify-center shadow-2xl group-hover:bg-white group-hover:scale-110 transition-all duration-300"
+                  >
+                    <div className="w-0 h-0 border-l-[16px] border-l-sky-500 border-y-[12px] border-y-transparent ml-1"></div>
+                  </motion.div>
+                </div>
+              </div>
+              
+              {/* Decorative elements */}
+              <div className="absolute -top-4 -right-4 w-24 h-24 bg-sky-500/10 rounded-full blur-xl"></div>
+              <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-blue-500/10 rounded-full blur-xl"></div>
+            </motion.div>
+
+            {/* Content Section */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="order-1 lg:order-2 space-y-6"
+            >
+              <div>
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  viewport={{ once: true }}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 mb-4"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  See NovateScribe in Action
+                </motion.div>
+                
+                <motion.h2
+                  initial={{ opacity: 0, y: -10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                  viewport={{ once: true }}
+                  className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4"
+                >
+                  Watch How NovateScribe Transforms Medical Documentation
+                </motion.h2>
+                
+                <motion.p
+                  initial={{ opacity: 0, y: -10 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.5 }}
+                  viewport={{ once: true }}
+                  className="text-lg text-gray-600 dark:text-gray-300 mb-6"
+                >
+                  Discover the power of AI-driven medical documentation in this comprehensive demonstration. See how our advanced voice recognition technology captures, processes, and structures your medical notes with unprecedented accuracy and speed.
+                </motion.p>
+              </div>
+
+              {/* Key Benefits */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.6 }}
+                viewport={{ once: true }}
+                className="space-y-4"
+              >
+                {[
+                  {
+                    icon: Mic,
+                    title: "Real-time Voice Processing",
+                    description: "Advanced AI that understands medical terminology with 99% accuracy"
+                  },
+                  {
+                    icon: FileText,
+                    title: "Instant Documentation",
+                    description: "Transform voice notes into structured medical records in seconds"
+                  },
+                  {
+                    icon: Clock,
+                    title: "Save 85% of Your Time",
+                    description: "Focus on patient care instead of paperwork"
+                  }
+                ].map((benefit, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.7 + i * 0.1 }}
+                    viewport={{ once: true }}
+                    className="flex items-start space-x-3 p-3 rounded-lg bg-white/50 dark:bg-gray-800/50 border border-gray-200/50 dark:border-gray-700/50 hover:bg-white/80 dark:hover:bg-gray-800/80 transition-all duration-300"
+                  >
+                    <div className="flex-shrink-0 w-8 h-8 bg-sky-500 rounded-full flex items-center justify-center">
+                      <benefit.icon className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm sm:text-base">{benefit.title}</h4>
+                      <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm">{benefit.description}</p>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* CTA Button */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.9 }}
+                viewport={{ once: true }}
+                className="pt-4"
+              >
+                <Button
+                  size="lg"
+                  className="bg-sky-500 hover:bg-sky-600 text-white w-full sm:w-auto"
+                  asChild
+                >
+                  <Link href={isAuthenticated ? "/dashboard" : "/register"}>
+                    {isAuthenticated ? "Try It Now" : "Start Free Trial"} <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
