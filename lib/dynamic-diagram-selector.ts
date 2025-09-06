@@ -68,7 +68,7 @@ const EXAMINATION_KEYWORDS = {
  * Generate diagram configurations for a gender
  */
 function getDiagramConfigs(gender: 'male' | 'female'): Record<DiagramType, DiagramConfig> {
-  const genderPrefix = gender;
+  const genderPrefix = gender || 'male'; // Default to 'male' if gender is undefined
   
   return {
     front: {
