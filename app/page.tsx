@@ -725,9 +725,18 @@ export default function HomePage() {
                           video.pause();
                         }
                       });
+                      
+                      video.addEventListener('ended', () => {
+                        // Reset video to beginning and show play button
+                        video.currentTime = 0;
+                        const playButtonOverlay = video.parentElement?.querySelector('.play-button-overlay') as HTMLElement;
+                        if (playButtonOverlay) {
+                          playButtonOverlay.style.display = 'flex';
+                        }
+                      });
                     }
                   }}
-                  className="w-full h-[400px] sm:h-[450px] lg:h-[500px] object-cover"
+                  className="w-full h-auto"
                   preload="metadata"
                   poster="/novate-video-thumbnail.png"
                 >
@@ -740,7 +749,7 @@ export default function HomePage() {
                 
                 {/* Professional play button overlay */}
                 <div 
-                  className="absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
+                  className="play-button-overlay absolute inset-0 flex items-center justify-center pointer-events-auto cursor-pointer"
                   onClick={(e) => {
                     e.preventDefault();
                     const video = e.currentTarget.parentElement?.querySelector('video') as HTMLVideoElement;
