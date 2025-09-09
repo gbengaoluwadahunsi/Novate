@@ -110,7 +110,7 @@ function getDiagramConfigs(gender: 'male' | 'female'): Record<DiagramType, Diagr
     abdominallinguinal: {
       type: 'abdominallinguinal',
       imagePath: `/medical-images/${genderPrefix}abdominallinguinal.png`,
-      jsonKey: 'abdominalinguinal.png', // Note: Uses generic key
+      jsonKey: `${genderPrefix}abdominallinguinal.png`,
       priority: 5,
       dimensions: { width: 800, height: 1200 }
     }

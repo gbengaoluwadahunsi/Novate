@@ -1860,11 +1860,11 @@ export default function AudioUpload({ onTranscriptionComplete, onRecordingComple
         if (isTimeoutError) {
           // For timeout errors, the transcription might still be processing
           setProcessingFailed(true);
-          setFailureMessage('Transcription took longer than expected. The note may have been created - please check your notes page.');
+          setFailureMessage('Transcription is taking longer than expected. Your note may still be processing in the background - please check your Notes page in a few moments.');
           
           toast({
             title: "⏰ Processing Timeout",
-            description: "Transcription took longer than expected. Your note may have been created successfully - please check the Notes page.",
+            description: "Transcription is taking longer than expected. Your note may still be processing in the background - please check the Notes page in a few moments.",
             variant: "destructive",
             duration: 10000
           });

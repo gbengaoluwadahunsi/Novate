@@ -116,6 +116,8 @@ interface MedicalNote {
   historyOfPresentingIllness?: string; // Backend field name
   pastMedicalHistory?: string;
   socialHistory?: string;
+  familyHistory?: string; // Add missing field
+  allergies?: string; // Add missing field
   systemReview?: string;
   physicalExamination?: string;
   comprehensiveExamination?: any; // New detailed examination
@@ -235,6 +237,9 @@ interface FastTranscriptionResponse {
     chiefComplaint: string;
     historyOfPresentingIllness: string;
     pastMedicalHistory?: string;
+    socialHistory?: string;
+    familyHistory?: string;
+    allergies?: string;
     systemReview?: string;
     physicalExamination?: string;
     assessmentAndDiagnosis: string;
@@ -468,9 +473,9 @@ class ApiClient {
       const isTranscriptionEndpoint = endpoint.includes('/transcribe');
       const isDevelopment = process.env.NODE_ENV === 'development';
       
-      // Faster timeouts in development for quicker feedback
+      // Longer timeouts for transcription to handle large audio files
       const timeoutMs = isTranscriptionEndpoint 
-        ? (isDevelopment ? 60000 : 180000)  // 1 minute in dev, 3 minutes in prod
+        ? (isDevelopment ? 300000 : 600000)  // 5 minutes in dev, 10 minutes in prod
         : this.timeout; // 30 seconds for others
       
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -1277,6 +1282,8 @@ class ApiClient {
             physicalExamination: backendNote.physicalExamination || '',
             pastMedicalHistory: backendNote.pastMedicalHistory || '',
             socialHistory: backendNote.socialHistory || '',
+            familyHistory: backendNote.familyHistory || '',
+            allergies: backendNote.allergies || '',
             systemReview: backendNote.systemReview || '',
             
             // Preserve other fields

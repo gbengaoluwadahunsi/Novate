@@ -497,11 +497,11 @@ export class IntelligentMedicalAnalyzer {
         case 'heart':
         case 'lungs':
         case 'chest':
-          recommendations.push(context.patientGender === 'male' ? 'cardiorespi' : 'femalecardiorespi')
+          recommendations.push(context.patientGender === 'male' ? 'malecardiorespi' : 'femalecardiorespi')
           break
         case 'abdomen':
         case 'pelvis':
-          recommendations.push(context.patientGender === 'male' ? 'abdominallinguinal' : 'femaleabdominallinguinal')
+          recommendations.push(context.patientGender === 'male' ? 'maleabdominallinguinal' : 'femaleabdominallinguinal')
           break
         case 'back':
         case 'spine':

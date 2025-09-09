@@ -967,7 +967,7 @@ export default function NotePage() {
               surgeries: '', // Not provided in backend response
               hospitalizations: '', // Not provided in backend response
               medications: note.managementPlan?.medicationsPrescribed || '',
-              allergies: '', // Not provided in backend response
+              allergies: note.allergies || '', // Map from backend response
               smoking: note.socialHistory || '', // Use socialHistory from backend
               alcohol: '', // Could be parsed from socialHistory if needed
               recreationalDrugs: '', // Could be parsed from socialHistory if needed
@@ -975,7 +975,7 @@ export default function NotePage() {
               travel: '', // Could be parsed from socialHistory if needed
               sexual: '', // Could be parsed from socialHistory if needed
               eatingOut: '', // Could be parsed from socialHistory if needed
-              familyHistory: '', // Not provided in backend response
+              familyHistory: note.familyHistory || '', // Map from backend response
               
               // Review of Systems
               systemsReview: note.systemReview || '',

@@ -375,7 +375,7 @@ export default function TranscribePage() {
     if (data.isTimeout || data.error?.includes('longer than expected')) {
       toast({
         title: "⏰ Processing Timeout",
-        description: "Transcription took longer than expected. Checking if your note was created...",
+        description: "Transcription is taking longer than expected. Your note may still be processing in the background. Please check your Notes page in a few moments.",
 
       });
       
@@ -1016,7 +1016,7 @@ export default function TranscribePage() {
           )
           toast({
             title: "⏰ Processing Timeout",
-            description: "Transcription took longer than expected. Please check your notes page.",
+            description: "Transcription is taking longer than expected. Your note may still be processing in the background. Please check your Notes page in a few moments.",
             variant: "destructive"
           });
         }
