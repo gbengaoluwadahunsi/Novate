@@ -968,14 +968,18 @@ export default function NotePage() {
               hospitalizations: '', // Not provided in backend response
               medications: note.managementPlan?.medicationsPrescribed || '',
               allergies: note.allergies || '', // Map from backend response
-              smoking: note.socialHistory || '', // Use socialHistory from backend
-              alcohol: '', // Could be parsed from socialHistory if needed
-              recreationalDrugs: '', // Could be parsed from socialHistory if needed
-              occupationLivingSituation: '', // Could be parsed from socialHistory if needed
-              travel: '', // Could be parsed from socialHistory if needed
-              sexual: '', // Could be parsed from socialHistory if needed
-              eatingOut: '', // Could be parsed from socialHistory if needed
+              // Parse social history from backend - it comes as a complete text
+              smoking: '', // Individual fields are empty since backend sends complete socialHistory
+              alcohol: '', 
+              recreationalDrugs: '', 
+              occupationLivingSituation: '', 
+              travel: '', 
+              sexual: '', 
+              eatingOut: '',
               familyHistory: note.familyHistory || '', // Map from backend response
+              
+              // Complete Social History from backend
+              socialHistory: note.socialHistory || '',
               
               // Review of Systems
               systemsReview: note.systemReview || '',

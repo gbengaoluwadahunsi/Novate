@@ -521,11 +521,19 @@ export default function EnhancedMedicalNoteViewerV2({
             </div>
             <div>
               <p className="text-muted-foreground">Created</p>
-              <p className="font-medium">{new Date(note.createdAt).toLocaleString()}</p>
+              <p className="font-medium font-mono text-sm">{new Date(note.createdAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}</p>
             </div>
             <div>
               <p className="text-muted-foreground">Last Updated</p>
-              <p className="font-medium">{new Date(note.updatedAt).toLocaleString()}</p>
+              <p className="font-medium font-mono text-sm">{new Date(note.updatedAt).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              })}</p>
             </div>
           </div>
         </CardContent>

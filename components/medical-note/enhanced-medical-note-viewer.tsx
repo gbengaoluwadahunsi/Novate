@@ -140,6 +140,17 @@ export default function EnhancedMedicalNoteViewer({
         ))
       }
       
+      // Special formatting for Social History - handle structured social factors
+      if (title === 'Social History') {
+        // Split by common separators and create bullet points
+        const socialFactors = text.split(/[.!?]+|,(?=\s)/).filter(s => s.trim().length > 0)
+        return socialFactors.map((factor, index) => (
+          <li key={index} className="mb-1">
+            {factor.trim()}
+          </li>
+        ))
+      }
+      
       // Split by common separators and create bullet points
       const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 0)
       return sentences.map((sentence, index) => (

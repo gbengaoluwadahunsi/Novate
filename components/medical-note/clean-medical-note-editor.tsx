@@ -79,6 +79,9 @@ interface CleanMedicalNote {
   // Family History
   familyHistory: string
   
+  // Complete Social History from backend
+  socialHistory: string
+  
   // Review of Systems
   systemsReview: string
   
@@ -137,6 +140,7 @@ const createEmptyNote = (): CleanMedicalNote => ({
   sexual: '',
   eatingOut: '',
   familyHistory: '',
+  socialHistory: '',
   systemsReview: '',
   physicalExamination: '',
   investigations: '',
@@ -755,7 +759,11 @@ export default function CleanMedicalNoteEditor({
                   </div>
                   {note.icd11Codes.lastUpdated && (
                     <div>
-                      <strong>Last Updated:</strong> {new Date(note.icd11Codes.lastUpdated).toLocaleString()}
+                      <strong>Last Updated:</strong> <span className="font-mono text-sm">{new Date(note.icd11Codes.lastUpdated).toLocaleDateString('en-US', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}</span>
                     </div>
                   )}
                 </div>

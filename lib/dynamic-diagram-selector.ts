@@ -7,7 +7,19 @@ export type DiagramType =
   | 'leftside' 
   | 'rightside' 
   | 'cardiorespi' 
-  | 'abdominallinguinal';
+  | 'abdominallinguinal'
+  | 'malefront'
+  | 'femalefront'
+  | 'maleback'
+  | 'femaleback'
+  | 'maleleftside'
+  | 'femaleleftside'
+  | 'malerightside'
+  | 'femalerightside'
+  | 'malecardiorespi'
+  | 'femalecardiorespi'
+  | 'maleabdominallinguinal'
+  | 'femaleabdominallinguinal';
 
 export interface DiagramConfig {
   type: DiagramType;
@@ -111,6 +123,93 @@ function getDiagramConfigs(gender: 'male' | 'female'): Record<DiagramType, Diagr
       type: 'abdominallinguinal',
       imagePath: `/medical-images/${genderPrefix}abdominallinguinal.png`,
       jsonKey: `${genderPrefix}abdominallinguinal.png`,
+      priority: 5,
+      dimensions: { width: 800, height: 1200 }
+    },
+    // Gender-specific configurations
+    malefront: {
+      type: 'malefront',
+      imagePath: '/medical-images/malefront.png',
+      jsonKey: 'malefront.png',
+      priority: 1,
+      dimensions: { width: 750, height: 1140 }
+    },
+    femalefront: {
+      type: 'femalefront',
+      imagePath: '/medical-images/femalefront.png',
+      jsonKey: 'femalefront.png',
+      priority: 1,
+      dimensions: { width: 750, height: 1140 }
+    },
+    maleback: {
+      type: 'maleback',
+      imagePath: '/medical-images/maleback.png',
+      jsonKey: 'maleback.png',
+      priority: 2,
+      dimensions: { width: 750, height: 1140 }
+    },
+    femaleback: {
+      type: 'femaleback',
+      imagePath: '/medical-images/femaleback.png',
+      jsonKey: 'femaleback.png',
+      priority: 2,
+      dimensions: { width: 750, height: 1140 }
+    },
+    maleleftside: {
+      type: 'maleleftside',
+      imagePath: '/medical-images/maleleftside.png',
+      jsonKey: 'maleleftside.png',
+      priority: 3,
+      mirrorImage: true,
+      dimensions: { width: 750, height: 1140 }
+    },
+    femaleleftside: {
+      type: 'femaleleftside',
+      imagePath: '/medical-images/femaleleftside.png',
+      jsonKey: 'femaleleftside.png',
+      priority: 3,
+      mirrorImage: true,
+      dimensions: { width: 750, height: 1140 }
+    },
+    malerightside: {
+      type: 'malerightside',
+      imagePath: '/medical-images/malerightside.png',
+      jsonKey: 'malerightside.png',
+      priority: 3,
+      dimensions: { width: 750, height: 1140 }
+    },
+    femalerightside: {
+      type: 'femalerightside',
+      imagePath: '/medical-images/femalerightside.png',
+      jsonKey: 'femalerightside.png',
+      priority: 3,
+      dimensions: { width: 750, height: 1140 }
+    },
+    malecardiorespi: {
+      type: 'malecardiorespi',
+      imagePath: '/medical-images/malecardiorespi.png',
+      jsonKey: 'malecardiorespi.png',
+      priority: 4,
+      dimensions: { width: 800, height: 1200 }
+    },
+    femalecardiorespi: {
+      type: 'femalecardiorespi',
+      imagePath: '/medical-images/femalecardiorespi.png',
+      jsonKey: 'femalecardiorespi.png',
+      priority: 4,
+      dimensions: { width: 800, height: 1200 }
+    },
+    maleabdominallinguinal: {
+      type: 'maleabdominallinguinal',
+      imagePath: '/medical-images/maleabdominallinguinal.png',
+      jsonKey: 'maleabdominallinguinal.png',
+      priority: 5,
+      dimensions: { width: 800, height: 1200 }
+    },
+    femaleabdominallinguinal: {
+      type: 'femaleabdominallinguinal',
+      imagePath: '/medical-images/femaleabdominallinguinal.png',
+      jsonKey: 'femaleabdominallinguinal.png',
       priority: 5,
       dimensions: { width: 800, height: 1200 }
     }

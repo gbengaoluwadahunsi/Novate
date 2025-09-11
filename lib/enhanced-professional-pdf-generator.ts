@@ -151,6 +151,41 @@ class EnhancedTemplatePDFGenerator {
           // Don't show "Not mentioned" - skip empty sections entirely
   }
 
+  private addSocialHistoryContent(content: any, maxWidth: number = 170): void {
+    this.doc.setFont('helvetica', 'normal')
+    this.doc.setFontSize(10)
+    
+    // Convert content to string safely
+    let textContent = ''
+    if (content === undefined || content === null) {
+      return // Skip empty content
+    }
+    
+    if (typeof content === 'string') {
+      textContent = content.trim()
+    } else if (Array.isArray(content)) {
+      textContent = content.filter(item => item != null).join(', ').trim()
+    } else if (typeof content === 'object') {
+      textContent = JSON.stringify(content).trim()
+    } else {
+      textContent = String(content).trim()
+    }
+    
+    if (textContent) {
+      // Split content by sentence endings to create simple bullet points
+      const socialFactors = textContent.split(/[.!?]+/).filter(s => s.trim().length > 0)
+      
+      socialFactors.forEach((factor, index) => {
+        const bulletText = `• ${factor.trim()}`
+        const lines = this.doc.splitTextToSize(bulletText, maxWidth)
+        this.doc.text(lines, 20, this.currentY)
+        this.currentY += lines.length * 5 + 3 // Slightly less spacing for bullet points
+      })
+      
+      this.currentY += 5 // Extra space after the section
+    }
+  }
+
   private hasContent(content?: any): boolean {
     if (content === undefined || content === null) return false
     
@@ -311,7 +346,7 @@ class EnhancedTemplatePDFGenerator {
     
     // Social History
     this.addSectionHeader('Social History');
-    this.addContent(note.socialHistory);
+    this.addSocialHistoryContent(note.socialHistory);
     
     // Family History
     this.addSectionHeader('Family History');

@@ -461,27 +461,41 @@ export default function DocumentStyleNoteViewer({
     return String(value)
   }
 
-  // Helper function to format multiple social history fields
+  // Helper function to format multiple social history fields with bullet points
   const formatSocialHistory = (smoking: any, alcohol: any, drugs: any) => {
     const fields = []
     
     if (smoking && smoking !== 'N/A' && smoking !== 'n/a' && smoking !== '' && smoking !== null && smoking !== undefined) {
-      fields.push(`Smoking: ${smoking}`)
+      fields.push(`• Smoking: ${smoking}`)
     }
     
     if (alcohol && alcohol !== 'N/A' && alcohol !== 'n/a' && alcohol !== '' && alcohol !== null && alcohol !== undefined) {
-      fields.push(`Alcohol: ${alcohol}`)
+      fields.push(`• Alcohol: ${alcohol}`)
     }
     
     if (drugs && drugs !== 'N/A' && drugs !== 'n/a' && drugs !== '' && drugs !== null && drugs !== undefined) {
-      fields.push(`Recreational drugs: ${drugs}`)
+      fields.push(`• Recreational drugs: ${drugs}`)
     }
     
     if (fields.length === 0) {
       return 'Not mentioned'
     }
     
-    return fields.join('. ')
+    return fields.join('\n')
+  }
+
+  // Helper function to format date for display (just date, month, year)
+  const formatDateForDisplay = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    } catch (error) {
+      return 'Invalid date'
+    }
   }
 
   // 🌡️ Temperature conversion utility
@@ -1543,10 +1557,14 @@ export default function DocumentStyleNoteViewer({
               </div>
             ) : (
               <div className="text-sm">
-                {formatSocialHistory(note.smoking, note.alcohol, note.recreationalDrugs) === 'Not mentioned' ? (
-                  <span className="text-gray-500 italic">Not mentioned</span>
+                {note.socialHistory && note.socialHistory.trim() !== '' ? (
+                  <ul className="list-disc list-inside space-y-1">
+                    {note.socialHistory.split(/[.!?]+/).filter(s => s.trim().length > 0).map((item, index) => (
+                      <li key={index}>{item.trim()}</li>
+                    ))}
+                  </ul>
                 ) : (
-                  formatSocialHistory(note.smoking, note.alcohol, note.recreationalDrugs)
+                  <span className="text-gray-500 italic">Not mentioned</span>
                 )}
               </div>
             )}
@@ -1580,8 +1598,10 @@ export default function DocumentStyleNoteViewer({
             ) : (
               <div className="text-sm">
                 {note.systemsReview ? (
-                  <ul className="list-disc pl-5 space-y-1">
-                    {formatWithBulletPoints(note.systemsReview, 'System Review')}
+                  <ul className="list-disc list-inside space-y-1">
+                    {note.systemsReview.split(/[.!?]+/).filter(s => s.trim().length > 0).map((item, index) => (
+                      <li key={index}>{item.trim()}</li>
+                    ))}
                   </ul>
                 ) : (
                   <p className="text-gray-500 italic">Not mentioned</p>
@@ -1930,7 +1950,7 @@ export default function DocumentStyleNoteViewer({
                 <div className="space-y-3 text-sm">
                   <div><strong>Doctor:</strong> {note.doctorName ? `Dr. ${note.doctorName}` : `Dr. ${getCurrentUserName()}`}</div>
                   <div><strong>Registration No:</strong> {note.doctorRegistrationNo || user?.registrationNo || '[Registration Number]'}</div>
-                  <div><strong>Generated on:</strong> {note.dateTime || new Date().toISOString()}</div>
+                  <div><strong>Generated on:</strong> <span className="font-mono text-sm">{formatDateForDisplay(note.dateTime || new Date().toISOString())}</span></div>
                 </div>
               )}
               <div className="space-y-4">

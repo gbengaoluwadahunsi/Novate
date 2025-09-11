@@ -135,7 +135,10 @@ export class HybridMedicalAnalyzer {
   }> {
     const availableViews = [
       'front', 'back', 'leftside', 'rightside', 
-      'cardiorespi', 'abdominallinguinal'
+      'cardiorespi', 'malecardiorespi', 'femalecardiorespi',
+      'abdominallinguinal', 'maleabdominallinguinal', 'femaleabdominallinguinal',
+      'malefront', 'femalefront', 'maleback', 'femaleback',
+      'maleleftside', 'femaleleftside', 'malerightside', 'femalerightside'
     ]
 
     const medicalPrompt = `
@@ -262,7 +265,13 @@ Ensure recommendations use only available views and are medically appropriate.
 
     // Validate LLM recommendations against available views
     const validLLMResults = llmResults.recommendations.filter(rec => {
-      const validViews = ['front', 'back', 'leftside', 'rightside', 'cardiorespi', 'abdominallinguinal']
+      const validViews = [
+        'front', 'back', 'leftside', 'rightside', 
+        'cardiorespi', 'malecardiorespi', 'femalecardiorespi',
+        'abdominallinguinal', 'maleabdominallinguinal', 'femaleabdominallinguinal',
+        'malefront', 'femalefront', 'maleback', 'femaleback',
+        'maleleftside', 'femaleleftside', 'malerightside', 'femalerightside'
+      ]
       return validViews.includes(rec.type)
     })
 
