@@ -59,6 +59,11 @@ export default function PricingPage() {
     }).format(price);
   };
 
+  const cleanPlanName = (name: string) => {
+    // Completely remove plan names since the pricing line already shows the interval
+    return '';
+  };
+
   const getPopularPlan = () => {
     // Find yearly plans first, then the one with best value
     const yearlyPlans = plans.filter(plan => plan.interval === 'year' || plan.interval === 'YEARLY');
@@ -69,14 +74,13 @@ export default function PricingPage() {
   };
 
   const planFeatures = [
-    "Unlimited medical note transcription",
+    "1000 minutes medical note transcription",
     "AI-powered diagnosis suggestions",
     "ICD-11 automatic coding",
     "Professional PDF export",
     "Voice recognition in multiple languages",
     "Secure patient data encryption",
     "24/7 customer support",
-    "Integration with EMR systems",
   ];
 
   if (loading && plans.length === 0) {
@@ -172,7 +176,7 @@ export default function PricingPage() {
                 
                 <CardHeader className="text-center pb-4">
                   <CardTitle className="text-2xl font-bold">
-                    {plan.name}
+                    {cleanPlanName(plan.name)}
                   </CardTitle>
                   <div className="mt-4">
                     <span className="text-4xl font-bold text-gray-900">
@@ -252,8 +256,7 @@ export default function PricingPage() {
             <div>
               <h3 className="font-semibold mb-2">Do you offer refunds?</h3>
               <p className="text-gray-600 text-sm">
-                We offer a 30-day money-back guarantee for new subscribers. 
-                Contact our support team if you're not satisfied with the service.
+                Please refer to Refund policy. Contact us if you have any inquiries.
               </p>
             </div>
           </div>
