@@ -69,10 +69,20 @@ export function usePayment() {
   // Fetch payment gateway info
   const fetchPaymentInfo = async () => {
     try {
-      // For now, we'll skip this since the API client doesn't have a direct method
-      // In production, you would add this method to the API client
+      const response = await apiClient.request('/api/payment/info', {
+        method: 'GET',
+        credentials: 'include'
+      });
+      
+      if (response.success && response.data) {
+        setState(prev => ({
+          ...prev,
+          paymentInfo: response.data!,
+        }));
+      }
     } catch (error) {
-      // Payment info not available
+      // Payment info not available - this is optional
+      console.log('Payment info not available:', error);
     }
   };
 
