@@ -12,7 +12,7 @@ import { ArrowRight, FileText, Play, Trash2, Clock, CheckCircle, AlertCircle, Mi
 import { Info } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 
-import AudioUpload from "@/components/audio-upload"
+import SubscriptionAudioUpload from "@/components/subscription/subscription-audio-upload"
 import { useToast } from "@/hooks/use-toast"
 import { useAppDispatch, useAppSelector } from "@/store/hooks"
 import { createMedicalNote, getMedicalNotes } from "@/store/features/notesSlice"
@@ -1295,7 +1295,7 @@ export default function TranscribePage() {
 
 
           {/* Audio Upload Component */}
-          <AudioUpload
+          <SubscriptionAudioUpload
             onTranscriptionComplete={handleTranscriptionComplete}
             onRecordingComplete={addToQueue}
             onAddToQueue={clearPatientForm}

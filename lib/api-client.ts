@@ -11,10 +11,10 @@ const getBackendUrl = () => {
   
   // Environment-based URL selection:
   // - Development: http://localhost:5000 (local backend)
-  // - Production: https://api.novatescribe.com (render deployment)
+  // - Production: https://novatescribe-backend.onrender.com (render deployment)
   const environmentUrl = isDevelopment 
     ? 'http://localhost:5000' 
-    : 'https://api.novatescribe.com';
+    : 'https://novatescribe-backend.onrender.com';
   
   // Use environment variable override if provided, otherwise use environment-based URL
   const finalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || environmentUrl;
@@ -992,11 +992,36 @@ class ApiClient {
       formData.append('currentValue', currentValue);
     }
 
-    return this.request('/api/transcribe/start', {
-      method: 'POST',
-      body: formData,
-      // Let browser set Content-Type for FormData
-    });
+    try {
+      const response = await this.request('/api/transcribe/start', {
+        method: 'POST',
+        body: formData,
+        // Let browser set Content-Type for FormData
+      });
+
+      // Handle 402 Payment Required responses
+      if (!response.success && response.error?.includes('Subscription required')) {
+        return {
+          success: false,
+          error: response.error,
+          data: response.data,
+          code: 'PAYMENT_REQUIRED'
+        };
+      }
+
+      return response;
+    } catch (error: any) {
+      // Handle 402 errors from fetch
+      if (error.status === 402) {
+        return {
+          success: false,
+          error: 'Subscription required after first transcription',
+          code: 'PAYMENT_REQUIRED',
+          data: error.data
+        };
+      }
+      throw error;
+    }
   }
 
   async getTranscriptionResult(jobId: string): Promise<ApiResponse<TranscriptionResult>> {
@@ -1974,6 +1999,45 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ daysOld }),
     });
+  }
+
+  // ==================== SUBSCRIPTION API METHODS ====================
+
+  /**
+   * Get current user's subscription information
+   */
+  async getMySubscription(): Promise<ApiResponse<any>> {
+    return this.request('/api/subscription/my');
+  }
+
+  /**
+   * Get subscription status (quick check)
+   */
+  async getSubscriptionStatus(): Promise<ApiResponse<any>> {
+    return this.request('/api/subscription/status');
+  }
+
+  /**
+   * Get subscription statistics (Admin only)
+   */
+  async getSubscriptionStats(): Promise<ApiResponse<any>> {
+    return this.request('/api/subscription/stats');
+  }
+
+  /**
+   * Trigger subscription reminders manually (Admin only)
+   */
+  async triggerSubscriptionReminders(): Promise<ApiResponse<any>> {
+    return this.request('/api/subscription/admin/trigger-reminders', {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Get cron service status (Admin only)
+   */
+  async getCronServiceStatus(): Promise<ApiResponse<any>> {
+    return this.request('/api/subscription/admin/cron-status');
   }
 }
 

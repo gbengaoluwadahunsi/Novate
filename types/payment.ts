@@ -57,6 +57,7 @@ export interface CurlecResponse {
   orderId: string;
   currency: string;
   amount: number;
+  keyId: string; // Razorpay key ID provided by backend
 }
 
 // Payment gateway info from backend

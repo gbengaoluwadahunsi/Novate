@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { SubscriptionPlan, isStripeResponse, isCurlecResponse, PaymentGatewayInfo } from '@/types/payment';
+import { createCurlecPayment } from '@/lib/razorpay-loader';
 
 interface PaymentState {
   plans: SubscriptionPlan[];
@@ -26,12 +27,24 @@ export function usePayment() {
     error: null,
   });
 
+  // Preload Razorpay script if Curlec is detected
+  useEffect(() => {
+    if (state.paymentInfo?.paymentGateway === 'CURLEC') {
+      import('@/lib/razorpay-loader').then(({ loadRazorpayScript }) => {
+        loadRazorpayScript().catch(() => {});
+      });
+    }
+  }, [state.paymentInfo]);
+
   // Fetch subscription plans
   const fetchPlans = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      const response = await apiClient.getSubscriptionPlans();
+      // Use the new dynamic payment endpoint
+      const response = await apiClient.request('/api/payment/plans', {
+        method: 'GET',
+      });
       
       if (response.success && response.data) {
         setState(prev => ({
@@ -82,26 +95,17 @@ export function usePayment() {
       }
     } catch (error) {
       // Payment info not available - this is optional
-      console.log('Payment info not available:', error);
     }
   };
 
-  // Handle Curlec/Razorpay payment
-  const handleCurlecPayment = (orderData: { orderId: string; amount: number; currency: string }, userInfo: UserInfo) => {
+  // Handle Curlec/Razorpay payment using the new utility
+  const handleCurlecPayment = async (orderData: { orderId: string; amount: number; currency: string; keyId: string }, userInfo: UserInfo) => {
     return new Promise<void>((resolve, reject) => {
-      if (!window.Razorpay) {
-        reject(new Error('Razorpay checkout script not loaded'));
-        return;
-      }
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_CURLEC_KEY_ID || '',
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "NovateScribe",
-        description: "Subscription Payment",
-        order_id: orderData.orderId,
-        handler: function (response: any) {
+      createCurlecPayment(
+        orderData,
+        userInfo,
+        () => {
+          // Success handler
           toast({
             title: "Payment Successful",
             description: "Your subscription will be activated shortly.",
@@ -110,40 +114,33 @@ export function usePayment() {
           window.location.href = '/payment/success';
           resolve();
         },
-        prefill: {
-          name: `${userInfo.firstName || ''} ${userInfo.lastName || ''}`.trim(),
-          email: userInfo.email,
-        },
-        theme: {
-          color: "#3399cc"
-        },
-        modal: {
-          ondismiss: function() {
-            reject(new Error('Payment was cancelled by user'));
-          }
+        (error) => {
+          // Error handler
+          reject(error);
         }
-      };
-
-      const rzp = new window.Razorpay(options);
-      rzp.open();
+      );
     });
   };
 
-  // Subscribe to a plan
+  // Subscribe to a plan using dynamic payment gateway
   const subscribe = async (planId: string, userInfo: UserInfo) => {
     setState(prev => ({ ...prev, loading: true, error: null }));
     
     try {
-      const response = await apiClient.subscribe(planId);
+      // Use the new dynamic payment endpoint that auto-routes to correct gateway
+      const response = await apiClient.request('/api/payment/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({ planId }),
+      });
       
       if (response.success && response.data) {
-        const subscriptionData = response.data;
+        const paymentData = response.data;
         
         // Check if this is a Stripe response (international users)
-        if (isStripeResponse(subscriptionData)) {
+        if (isStripeResponse(paymentData)) {
           // Redirect to Stripe checkout
-          if (subscriptionData.url) {
-            window.location.href = subscriptionData.url;
+          if (paymentData.url) {
+            window.location.href = paymentData.url;
             return;
           } else {
             throw new Error('Stripe checkout URL is missing');
@@ -151,9 +148,9 @@ export function usePayment() {
         }
         
         // Check if this is a Curlec/Razorpay response (Malaysian users)
-        if (isCurlecResponse(subscriptionData)) {
+        if (isCurlecResponse(paymentData)) {
           // Handle Curlec payment modal
-          await handleCurlecPayment(subscriptionData, userInfo);
+          await handleCurlecPayment(paymentData, userInfo);
           return;
         }
         

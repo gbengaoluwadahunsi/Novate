@@ -3,7 +3,7 @@
 import Link from "next/link"
 import NextImage from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { FileText, Home, Mic, Settings, LogOut, Activity, Stethoscope } from "lucide-react"
+import { FileText, Home, Mic, Settings, LogOut, Activity, Stethoscope, Crown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -62,6 +62,12 @@ export function Sidebar({ className }: SidebarProps) {
       icon: FileText,
       href: "/dashboard/notes",
       color: "text-sky-500",
+    },
+    {
+      label: "Subscription",
+      icon: Crown,
+      href: "/dashboard/subscription",
+      color: "text-amber-500",
     },
     {
       label: "Settings",

@@ -4,6 +4,7 @@ import { configureStore } from '@reduxjs/toolkit'
 import authReducer from './features/authSlice'
 import notesReducer from './features/notesSlice'
 import userReducer from './features/userSlice'
+import subscriptionReducer from './features/subscriptionSlice'
 
 export const createStore = () => {
   return configureStore({
@@ -11,6 +12,7 @@ export const createStore = () => {
       auth: authReducer,
       notes: notesReducer,
       user: userReducer,
+      subscription: subscriptionReducer,
     },
     devTools: process.env.NODE_ENV !== 'production',
     middleware: (getDefaultMiddleware) =>
