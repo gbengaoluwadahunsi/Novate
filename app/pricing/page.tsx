@@ -14,7 +14,7 @@ import { toast } from '@/hooks/use-toast';
 export default function PricingPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
-  const { plans, paymentInfo, loading, error, fetchPlans, fetchPaymentInfo, subscribe } = usePayment();
+  const { plans, paymentInfo, loading, error, fetchPlans, fetchPaymentInfo, subscribe, clearError } = usePayment();
   const [subscribingToPlan, setSubscribingToPlan] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +24,13 @@ export default function PricingPage() {
       fetchPaymentInfo();
     }
   }, [isAuthenticated]);
+
+  // Clear payment cancellation errors when component mounts
+  useEffect(() => {
+    if (error && error.includes('cancelled by user')) {
+      clearError();
+    }
+  }, [error, clearError]);
 
   const handleSubscribe = async (planId: string) => {
     if (!isAuthenticated || !user) {
@@ -45,13 +52,57 @@ export default function PricingPage() {
         email: user.email,
       });
     } catch (error) {
-      toast.error('Failed to subscribe. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to subscribe. Please try again.';
+      
+      // Handle payment cancellation gracefully
+      if (errorMessage.includes('cancelled by user')) {
+        clearError(); // Clear any error state
+        toast({
+          title: "Payment Cancelled",
+          description: "No charges were made. You can try again anytime.",
+          variant: "default",
+        });
+        // Don't show this as an error on the pricing page
+        return;
+      }
+      
+      // For other errors, show the error toast
+      toast({
+        title: "Payment Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     } finally {
       setSubscribingToPlan(null);
     }
   };
 
-  const formatPrice = (price: number, currency: string) => {
+  const formatPrice = (price: number, currency: string, interval: string, paymentGateway?: string) => {
+    // For Malaysian users (Curlec), show student-friendly pricing
+    if ((currency === 'MYR' || currency === 'RM') && paymentGateway === 'CURLEC') {
+      let displayPrice = price;
+      let displayInterval = interval;
+      
+      // Override with student-friendly rates for Malaysian users
+      if (interval === 'YEARLY' || interval === 'year') {
+        displayPrice = 25; // RM25/month for annual
+        displayInterval = '12months';
+      } else if (interval === 'SIX_MONTHS' || interval === 'six_months') {
+        displayPrice = 30; // RM30/month for 6-month
+        displayInterval = '6months';
+      } else if (interval === 'MONTHLY' || interval === 'month') {
+        displayPrice = 35; // RM35/month for monthly
+        displayInterval = 'month';
+      }
+      
+      return new Intl.NumberFormat('en-MY', {
+        style: 'currency',
+        currency: 'MYR',
+        minimumFractionDigits: 0,
+      }).format(displayPrice);
+    }
+    
+    // For Stripe users or other currencies, show original pricing
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: currency,
@@ -94,7 +145,8 @@ export default function PricingPage() {
     );
   }
 
-  if (error) {
+  // Don't show error page for payment cancellations
+  if (error && !error.includes('cancelled by user')) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <Card className="w-full max-w-md mx-auto text-center">
@@ -180,15 +232,27 @@ export default function PricingPage() {
                   </CardTitle>
                   <div className="mt-4">
                     <span className="text-4xl font-bold text-gray-900">
-                      {formatPrice(plan.price, plan.currency)}
+                      {formatPrice(plan.price, plan.currency, plan.interval, paymentInfo?.paymentGateway)}
                     </span>
                     <span className="text-gray-500 ml-2">
-                      / {(plan.interval === 'YEARLY' ? 'year' : plan.interval === 'MONTHLY' ? 'month' : plan.interval).toLowerCase()}
+                      / {((plan.currency === 'MYR' || plan.currency === 'RM') && paymentInfo?.paymentGateway === 'CURLEC') ? 
+                          (plan.interval === 'YEARLY' || plan.interval === 'year' ? '12months' :
+                           plan.interval === 'SIX_MONTHS' || plan.interval === 'six_months' ? '6months' : 'month') :
+                          (plan.interval === 'YEARLY' ? 'year' : plan.interval === 'MONTHLY' ? 'month' : plan.interval).toLowerCase()}
                     </span>
                   </div>
                   {(plan.interval === 'year' || plan.interval === 'YEARLY') && (
                     <Badge variant="secondary" className="mt-2">
-                      Save 20% vs Monthly
+                      {((plan.currency === 'MYR' || plan.currency === 'RM') && paymentInfo?.paymentGateway === 'CURLEC') 
+                        ? 'Best Value - Save 29% vs Monthly' 
+                        : 'Save 20% vs Monthly'}
+                    </Badge>
+                  )}
+                  {(plan.interval === 'SIX_MONTHS' || plan.interval === 'six_months') && (
+                    <Badge variant="secondary" className="mt-2">
+                      {((plan.currency === 'MYR' || plan.currency === 'RM') && paymentInfo?.paymentGateway === 'CURLEC') 
+                        ? 'Save 14% vs Monthly' 
+                        : 'Save 10% vs Monthly'}
                     </Badge>
                   )}
                 </CardHeader>

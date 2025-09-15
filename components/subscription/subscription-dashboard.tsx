@@ -139,10 +139,16 @@ export default function SubscriptionDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Price</span>
                   <span className="text-sm font-medium">
-                    {subscription.plan?.currency} {subscription.plan?.price}
-                    /{subscription.billingInterval === 'MONTHLY' ? 'month' :
-                      subscription.billingInterval === 'SIX_MONTHS' ? '6 months' :
-                      subscription.billingInterval === 'YEARLY' ? 'year' : 'period'}
+                    {subscription.plan?.currency} {
+                      subscription.billingInterval === 'MONTHLY' ? subscription.plan?.price :
+                      subscription.billingInterval === 'SIX_MONTHS' ? 30 : // RM30/month for 6-month (Malaysian users)
+                      subscription.billingInterval === 'YEARLY' ? 25 : // RM25/month for annual (Malaysian users)
+                      subscription.plan?.price
+                    }/{
+                      subscription.billingInterval === 'MONTHLY' ? 'month' :
+                      subscription.billingInterval === 'SIX_MONTHS' ? '6months' :
+                      subscription.billingInterval === 'YEARLY' ? '12months' : 'period'
+                    }
                   </span>
                 </div>
               </div>

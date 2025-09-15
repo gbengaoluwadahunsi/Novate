@@ -115,7 +115,18 @@ export function usePayment() {
           resolve();
         },
         (error) => {
-          // Error handler
+          // Error handler - don't treat payment cancellation as a state error
+          if (error.message.includes('cancelled by user')) {
+            // For payment cancellation, just reject without setting error state
+            reject(error);
+            return;
+          }
+          // For other errors, set the error state
+          setState(prev => ({
+            ...prev,
+            error: error.message,
+            loading: false,
+          }));
           reject(error);
         }
       );
@@ -176,6 +187,11 @@ export function usePayment() {
     }
   };
 
+  // Clear error function
+  const clearError = () => {
+    setState(prev => ({ ...prev, error: null }));
+  };
+
   return {
     plans: state.plans,
     paymentInfo: state.paymentInfo,
@@ -184,5 +200,6 @@ export function usePayment() {
     fetchPlans,
     fetchPaymentInfo,
     subscribe,
+    clearError,
   };
 }
