@@ -40,6 +40,11 @@ export interface SubscriptionStatus {
   isFreeSubscriber?: boolean
   isAdminUnlimitedSubscriber?: boolean
   subscriptionType?: 'PAID' | 'FREE_TRIAL' | 'ADMIN_UNLIMITED' | 'NONE'
+  // NovateGPT query limits
+  novateGPTQueriesUsed?: number
+  novateGPTQueriesLimit?: number
+  novateGPTRemainingQueries?: number
+  novateGPTResetDate?: string
 }
 
 export interface SubscriptionStats {

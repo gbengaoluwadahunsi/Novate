@@ -37,6 +37,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { logger } from "@/lib/logger"
+import { useNovateGPTLimits } from "@/hooks/use-novategpt-limits"
+import QueryLimitExceededModal from "@/components/novategpt/query-limit-exceeded-modal"
 
 // Message type definition
 type Message = {
@@ -707,11 +709,13 @@ export default function NovateGPTPage() {
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null)
   const [showDisclaimer, setShowDisclaimer] = useState(true)
   const [hasProcessedNote, setHasProcessedNote] = useState(false)
+  const [showLimitModal, setShowLimitModal] = useState(false)
   const processedContextRef = useRef<string | null>(null)
   const isProcessingRef = useRef(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const { queryLimitInfo, updateAfterQuery, isLoading: limitsLoading } = useNovateGPTLimits()
 
   // Handle note context from URL parameter
   useEffect(() => {
@@ -784,10 +788,21 @@ export default function NovateGPTPage() {
     inputRef.current?.focus()
   }, [])
 
+  // Handle upgrade to premium
+  const handleUpgrade = () => {
+    window.location.href = '/pricing'
+  }
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim() || isLoading) return
+
+    // Check if user has reached query limit
+    if (queryLimitInfo && !queryLimitInfo.canMakeQuery) {
+      setShowLimitModal(true)
+      return
+    }
 
     const userMessage: Message = {
       id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -802,11 +817,15 @@ export default function NovateGPTPage() {
     setIsLoading(true)
 
     try {
+      // Get authorization token
+      const token = localStorage.getItem('token')
+      
       // Call NovateGPT API with real OpenAI integration
       const response = await fetch('/api/novategpt', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify({
           message: currentInput,
@@ -818,7 +837,24 @@ export default function NovateGPTPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.details || data.error || 'Failed to get response')
+        // Handle query limit exceeded
+        if (response.status === 402 && data.needsUpgrade) {
+          // Show the upgrade modal instead of just a toast
+          setShowLimitModal(true)
+          toast({
+            title: "Query Limit Reached",
+            description: data.details,
+            variant: "destructive"
+          })
+        } else {
+          throw new Error(data.details || data.error || 'Failed to get response')
+        }
+        return
+      }
+
+      // Update query limit info if provided
+      if (data.queryLimitInfo) {
+        updateAfterQuery(data.queryLimitInfo)
       }
 
       const aiMessage: Message = {
@@ -978,6 +1014,31 @@ export default function NovateGPTPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Query Limit Display */}
+              {queryLimitInfo && !limitsLoading && (
+                <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center gap-1">
+                    <Brain className="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      {queryLimitInfo.queriesLimit === Infinity 
+                        ? 'Unlimited' 
+                        : `${queryLimitInfo.remainingQueries}/${queryLimitInfo.queriesLimit}`
+                      }
+                    </span>
+                  </div>
+                  {queryLimitInfo.queriesLimit !== Infinity && (
+                    <div className="w-12 h-1 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-blue-600 dark:bg-blue-400 transition-all duration-300"
+                        style={{ 
+                          width: `${Math.max(0, (queryLimitInfo.remainingQueries / queryLimitInfo.queriesLimit) * 100)}%` 
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <Button variant="ghost" size="icon" onClick={handleDownload}>
                 <Download className="h-4 w-4" />
               </Button>
@@ -993,6 +1054,28 @@ export default function NovateGPTPage() {
             </div>
           </div>
         </div>
+
+        {/* Query Limit Warning */}
+        <AnimatePresence>
+          {queryLimitInfo && !limitsLoading && queryLimitInfo.queriesLimit !== Infinity && queryLimitInfo.remainingQueries <= 1 && queryLimitInfo.remainingQueries > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mx-4 mt-4"
+            >
+              <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 relative">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription className="text-sm pr-8">
+                  <strong>Query Limit Warning:</strong> You have {queryLimitInfo.remainingQueries} query{queryLimitInfo.remainingQueries !== 1 ? 'ies' : ''} remaining this month.
+                  {queryLimitInfo.needsUpgrade && (
+                    <span> Consider upgrading your subscription for unlimited access.</span>
+                  )}
+                </AlertDescription>
+              </Alert>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Disclaimer Alert */}
         <AnimatePresence>
@@ -1184,10 +1267,14 @@ export default function NovateGPTPage() {
             <div className="flex-1 relative">
               <Input
                 ref={inputRef}
-                placeholder="Ask NovateGPT about medical information..."
+                placeholder={
+                  queryLimitInfo && !queryLimitInfo.canMakeQuery 
+                    ? "Query limit reached. Please upgrade to continue."
+                    : "Ask NovateGPT about medical information..."
+                }
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                disabled={isLoading || isListening}
+                disabled={isLoading || isListening || (queryLimitInfo && !queryLimitInfo.canMakeQuery)}
                 className="pr-20"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -1202,7 +1289,7 @@ export default function NovateGPTPage() {
                   variant="ghost"
                   size="icon"
                   onClick={handleVoiceInput}
-                  disabled={isLoading || isListening}
+                  disabled={isLoading || isListening || (queryLimitInfo && !queryLimitInfo.canMakeQuery)}
                   className="h-6 w-6"
                 >
                   {isListening ? (
@@ -1215,7 +1302,7 @@ export default function NovateGPTPage() {
             </div>
             <Button 
               type="submit" 
-              disabled={!input.trim() || isLoading}
+              disabled={!input.trim() || isLoading || (queryLimitInfo && !queryLimitInfo.canMakeQuery)}
               className="bg-gradient-to-r from-coral-500 to-cyan-500 hover:from-coral-600 hover:to-cyan-600"
             >
               <Send className="h-4 w-4" />
@@ -1227,6 +1314,16 @@ export default function NovateGPTPage() {
           </div>
         </div>
       </div>
+
+      {/* Query Limit Exceeded Modal */}
+      {queryLimitInfo && (
+        <QueryLimitExceededModal
+          isOpen={showLimitModal}
+          onClose={() => setShowLimitModal(false)}
+          onUpgrade={handleUpgrade}
+          queryLimitInfo={queryLimitInfo}
+        />
+      )}
     </div>
   )
 } 

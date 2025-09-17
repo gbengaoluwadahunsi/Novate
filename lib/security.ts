@@ -48,27 +48,31 @@ export const disableDebugging = () => {
     //   return false;
     // });
 
-    // Detect DevTools opening
-    let devtools = {
-      open: false,
-      orientation: null
-    };
+    // Detect DevTools opening (disabled on mobile devices to prevent false positives)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    if (!isMobile) {
+      let devtools = {
+        open: false,
+        orientation: null
+      };
 
-    const threshold = 160;
-    setInterval(() => {
-      if (
-        window.outerHeight - window.innerHeight > threshold ||
-        window.outerWidth - window.innerWidth > threshold
-      ) {
-        if (!devtools.open) {
-          devtools.open = true;
-          // Redirect or show warning
-          window.location.href = '/';
+      const threshold = 160;
+      setInterval(() => {
+        if (
+          window.outerHeight - window.innerHeight > threshold ||
+          window.outerWidth - window.innerWidth > threshold
+        ) {
+          if (!devtools.open) {
+            devtools.open = true;
+            // Redirect or show warning
+            window.location.href = '/';
+          }
+        } else {
+          devtools.open = false;
         }
-      } else {
-        devtools.open = false;
-      }
-    }, 500);
+      }, 500);
+    }
   }
 };
 

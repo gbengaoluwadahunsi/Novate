@@ -25,6 +25,19 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get authorization header
+    const authHeader = request.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { 
+          error: 'Authorization required',
+          details: 'Please log in to use NovateGPT',
+          response: 'I apologize, but you need to be logged in to use this service.'
+        },
+        { status: 401 }
+      );
+    }
+
     const { message, conversationHistory, medicalContext } = await request.json();
 
     if (!message?.trim()) {
@@ -34,10 +47,75 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get user subscription status
+    const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:5000';
+    let subscriptionStatus;
+    let userId;
+
+    try {
+      const subscriptionResponse = await fetch(`${BACKEND_URL}/api/subscription/status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+        },
+      });
+
+      if (subscriptionResponse.ok) {
+        const subscriptionData = await subscriptionResponse.json();
+        subscriptionStatus = subscriptionData.data;
+        userId = subscriptionData.data?.userId;
+      } else {
+        logger.warn('Failed to fetch subscription status:', subscriptionResponse.status);
+      }
+    } catch (error) {
+      logger.error('Error fetching subscription status:', error);
+    }
+
+    // Check query limits (optional - only if service is available)
+    let queryLimitInfo = null;
+    if (userId) {
+      try {
+        const { NovateGPTQueryService } = await import('@/lib/services/NovateGPTQueryService');
+        queryLimitInfo = await NovateGPTQueryService.checkQueryLimit(userId, subscriptionStatus);
+        
+        if (!queryLimitInfo.canMakeQuery) {
+          const upgradeMessage = queryLimitInfo.needsUpgrade 
+            ? 'You have reached your query limit for this month. Please upgrade your subscription to continue using NovateGPT.'
+            : 'You have reached your query limit for this month. Your limit will reset on the first day of next month.';
+
+          return NextResponse.json(
+            {
+              error: 'Query limit exceeded',
+              details: upgradeMessage,
+              response: `I apologize, but ${upgradeMessage}`,
+              needsUpgrade: queryLimitInfo.needsUpgrade,
+              upgradeUrl: '/pricing',
+              queryLimitInfo: {
+                queriesUsed: queryLimitInfo.queriesUsed,
+                queriesLimit: queryLimitInfo.queriesLimit,
+                remainingQueries: queryLimitInfo.remainingQueries,
+                resetDate: queryLimitInfo.resetDate,
+                subscriptionType: queryLimitInfo.subscriptionType
+              }
+            },
+            { status: 402 } // Payment Required
+          );
+        }
+      } catch (error) {
+        logger.warn('Query limit service not available, proceeding without limits:', error);
+        // Continue without query limits if service is not available
+      }
+    }
+
+    const startTime = Date.now();
+
     logger.info('NovateGPT request received:', {
       messageLength: message.length,
       hasConversationHistory: !!conversationHistory?.length,
-      hasMedicalContext: !!medicalContext
+      hasMedicalContext: !!medicalContext,
+      userId: userId || 'unknown',
+      subscriptionType: subscriptionStatus?.subscriptionType || 'unknown'
     });
 
     // Build system prompt for medical context
@@ -105,17 +183,53 @@ Remember: You are assisting licensed medical professionals in their clinical dec
       throw new Error('No response generated from OpenAI');
     }
 
+    const tokensUsed = completion.usage?.total_tokens || 0;
+    const processingTime = Date.now() - startTime;
+
     logger.info('NovateGPT response generated:', {
       responseLength: aiResponse.length,
-      tokensUsed: completion.usage?.total_tokens || 0,
+      tokensUsed,
       model: completion.model
     });
+
+    // Save query to database if we have userId (optional)
+    if (userId) {
+      try {
+        const { NovateGPTQueryService } = await import('@/lib/services/NovateGPTQueryService');
+        await NovateGPTQueryService.createQuery({
+          userId,
+          organizationId: subscriptionStatus?.organizationId,
+          query: message,
+          response: aiResponse,
+          tokensUsed,
+          model: completion.model || 'gpt-4o-mini',
+          processingTime,
+          hasMedicalContext: !!medicalContext,
+          conversationHistory,
+          medicalContext
+        });
+      } catch (error) {
+        logger.warn('Failed to save NovateGPT query (service not available):', error);
+        // Don't fail the request if we can't save the query
+      }
+    }
 
     // Add medical disclaimer if response seems to contain medical advice
     const containsMedicalAdvice = /\b(diagnose|treatment|medication|therapy|prescription|clinical|patient)\b/i.test(aiResponse);
     const responseWithDisclaimer = containsMedicalAdvice 
       ? aiResponse + '\n\n⚕️ *Medical Disclaimer: This information is for healthcare professionals and should be used in conjunction with clinical judgment and established medical protocols.*'
       : aiResponse;
+
+    // Get updated query limit info for response (optional)
+    let updatedQueryLimitInfo = null;
+    if (userId) {
+      try {
+        const { NovateGPTQueryService } = await import('@/lib/services/NovateGPTQueryService');
+        updatedQueryLimitInfo = await NovateGPTQueryService.checkQueryLimit(userId, subscriptionStatus);
+      } catch (error) {
+        logger.warn('Failed to get updated query limit info (service not available):', error);
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -124,8 +238,16 @@ Remember: You are assisting licensed medical professionals in their clinical dec
         model: completion.model,
         tokensUsed: completion.usage?.total_tokens || 0,
         hasMedicalContext: !!medicalContext,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+        processingTime
+      },
+      queryLimitInfo: updatedQueryLimitInfo ? {
+        queriesUsed: updatedQueryLimitInfo.queriesUsed,
+        queriesLimit: updatedQueryLimitInfo.queriesLimit,
+        remainingQueries: updatedQueryLimitInfo.remainingQueries,
+        resetDate: updatedQueryLimitInfo.resetDate,
+        subscriptionType: updatedQueryLimitInfo.subscriptionType
+      } : null
     });
 
   } catch (error) {
