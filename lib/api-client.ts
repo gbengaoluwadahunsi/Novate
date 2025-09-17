@@ -1735,6 +1735,7 @@ class ApiClient {
     });
   }
 
+
   async getSystemStats(): Promise<ApiResponse<SystemStats>> {
     return this.request('/api/admin/stats');
   }

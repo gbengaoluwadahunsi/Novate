@@ -38,6 +38,11 @@ export default function SubscriptionDashboard() {
     fetchSubscriptionStats
   } = useSubscription()
 
+  // Determine subscription type
+  const isFreeSubscriber = status?.isFreeSubscriber || false
+  const isAdminUnlimited = status?.isAdminUnlimitedSubscriber || false
+  const hasActiveSubscription = status?.hasActiveSubscription || false
+
   useEffect(() => {
     fetchSubscription()
     // Only fetch stats if user might be admin (you can add role check here)

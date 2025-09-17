@@ -39,6 +39,11 @@ export default function SubscriptionGuard({
     fetchSubscriptionStatus 
   } = useSubscription()
 
+  // Determine subscription type
+  const hasActiveSubscription = status?.hasActiveSubscription || false
+  const isFreeSubscriber = status?.isFreeSubscriber || false
+  const isAdminUnlimited = status?.isAdminUnlimitedSubscriber || false
+
   useEffect(() => {
     setMounted(true)
   }, [])
@@ -66,7 +71,7 @@ export default function SubscriptionGuard({
     return <>{children}</>
   }
 
-  // Check if user needs paid subscription
+  // Check if user needs paid subscription (excludes free subscriptions)
   if (requirePaidSubscription && !isPaidSubscriber) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -114,8 +119,8 @@ export default function SubscriptionGuard({
     )
   }
 
-  // Check transcription limits for free users
-  if (allowFreeTranscriptions && !isPaidSubscriber && needsUpgrade) {
+  // Check transcription limits for free users (but allow admin unlimited users)
+  if (allowFreeTranscriptions && !isPaidSubscriber && !isAdminUnlimited && needsUpgrade) {
     if (showUpgradePrompt) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -175,19 +180,25 @@ export default function SubscriptionGuard({
     }
   }
 
-  // Show subscription status banner for free users
-  if (!isPaidSubscriber && allowFreeTranscriptions && status) {
-    const remainingTranscriptions = Math.max(0, 1 - transcriptionCount)
+  // Show subscription status banner for free users (but not admin unlimited)
+  if (!isPaidSubscriber && !isAdminUnlimited && allowFreeTranscriptions && status) {
+    const getTranscriptionLimit = () => {
+      if (isFreeSubscriber) return 1 // Free trial gets 1 transcription
+      return 1 // Default for non-subscribers
+    }
+    
+    const transcriptionLimit = getTranscriptionLimit()
+    const remainingTranscriptions = Math.max(0, transcriptionLimit - transcriptionCount)
     
     return (
       <div className="space-y-4">
         {/* Subscription Status Banner */}
-        <Alert className="border-amber-200 bg-amber-50">
-          <Clock className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-800">
+        <Alert className={isFreeSubscriber ? "border-blue-200 bg-blue-50" : "border-amber-200 bg-amber-50"}>
+          <Clock className={`h-4 w-4 ${isFreeSubscriber ? "text-blue-600" : "text-amber-600"}`} />
+          <AlertDescription className={isFreeSubscriber ? "text-blue-800" : "text-amber-800"}>
             <div className="flex items-center justify-between">
               <span>
-                Free Plan: <strong>{remainingTranscriptions}</strong> transcription{remainingTranscriptions !== 1 ? 's' : ''} remaining
+                {isFreeSubscriber ? "Free Trial" : "Free Plan"}: <strong>{remainingTranscriptions}</strong> transcription{remainingTranscriptions !== 1 ? 's' : ''} remaining
               </span>
               <Button 
                 size="sm" 

@@ -22,6 +22,10 @@ export interface Subscription {
     interval: string
     features: string[]
   }
+  // New fields for free subscriptions
+  paymentGateway?: 'STRIPE' | 'CURLEC' | 'FREE'
+  isFreeSubscription?: boolean
+  isAdminUnlimited?: boolean
 }
 
 export interface SubscriptionStatus {
@@ -31,6 +35,11 @@ export interface SubscriptionStatus {
   needsUpgrade?: boolean
   upgradeUrl?: string
   message?: string
+  // New fields for free subscriptions
+  hasActiveSubscription?: boolean
+  isFreeSubscriber?: boolean
+  isAdminUnlimitedSubscriber?: boolean
+  subscriptionType?: 'PAID' | 'FREE_TRIAL' | 'ADMIN_UNLIMITED' | 'NONE'
 }
 
 export interface SubscriptionStats {
@@ -39,6 +48,10 @@ export interface SubscriptionStats {
   expired: number
   trial: number
   recent: number
+  // New fields for free subscription stats
+  freeTrial: number
+  adminUnlimited: number
+  paid: number
 }
 
 export interface SubscriptionState {

@@ -43,6 +43,11 @@ export default function SubscriptionPage() {
     fetchSubscriptionStats
   } = useSubscription()
 
+  // Determine subscription type
+  const isFreeSubscriber = status?.isFreeSubscriber || false
+  const isAdminUnlimited = status?.isAdminUnlimitedSubscriber || false
+  const hasActiveSubscription = status?.hasActiveSubscription || false
+
   useEffect(() => {
     if (isAuthenticated) {
       fetchSubscription()
@@ -72,13 +77,13 @@ export default function SubscriptionPage() {
               </p>
             </div>
           </div>
-          {!isPaidSubscriber && (
+          {!isPaidSubscriber && !isAdminUnlimited && (
             <Button 
               onClick={() => router.push('/pricing')}
               size="lg"
             >
               <Crown className="w-4 h-4 mr-2" />
-              Upgrade Now
+              {isFreeSubscriber ? 'Upgrade Trial' : 'Upgrade Now'}
             </Button>
           )}
         </div>

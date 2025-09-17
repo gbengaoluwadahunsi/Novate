@@ -40,6 +40,12 @@ export default function SubscriptionStatus({
     isLoading 
   } = useSubscription()
 
+  // Determine subscription type
+  const isFreeSubscriber = status?.isFreeSubscriber || false
+  const isAdminUnlimited = status?.isAdminUnlimitedSubscriber || false
+  const hasActiveSubscription = status?.hasActiveSubscription || false
+  const subscriptionType = status?.subscriptionType || 'NONE'
+
   if (isLoading) {
     return (
       <Card className={className}>
@@ -57,8 +63,16 @@ export default function SubscriptionStatus({
     return null
   }
 
-  const remainingTranscriptions = Math.max(0, 1 - transcriptionCount)
-  const transcriptionProgress = (transcriptionCount / 1) * 100
+  // Calculate remaining transcriptions based on subscription type
+  const getTranscriptionLimit = () => {
+    if (isAdminUnlimited) return Infinity
+    if (isFreeSubscriber) return 1 // Free trial gets 1 transcription
+    return 1 // Default for non-subscribers
+  }
+  
+  const transcriptionLimit = getTranscriptionLimit()
+  const remainingTranscriptions = Math.max(0, transcriptionLimit - transcriptionCount)
+  const transcriptionProgress = transcriptionLimit === Infinity ? 0 : (transcriptionCount / transcriptionLimit) * 100
 
   if (compact) {
     return (
@@ -74,6 +88,26 @@ export default function SubscriptionStatus({
                 {subscription.plan.name}
               </span>
             )}
+          </>
+        ) : isAdminUnlimited ? (
+          <>
+            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+              <Crown className="w-3 h-3 mr-1" />
+              Admin Unlimited
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              Unlimited access
+            </span>
+          </>
+        ) : isFreeSubscriber ? (
+          <>
+            <Badge variant="outline" className="border-blue-200 text-blue-800">
+              <Clock className="w-3 h-3 mr-1" />
+              Free Trial
+            </Badge>
+            <span className="text-sm text-muted-foreground">
+              {remainingTranscriptions} remaining
+            </span>
           </>
         ) : (
           <>
@@ -100,6 +134,16 @@ export default function SubscriptionStatus({
                 <Crown className="w-5 h-5 text-green-600" />
                 Premium Subscription
               </>
+            ) : isAdminUnlimited ? (
+              <>
+                <Crown className="w-5 h-5 text-purple-600" />
+                Admin Unlimited Plan
+              </>
+            ) : isFreeSubscriber ? (
+              <>
+                <Clock className="w-5 h-5 text-blue-600" />
+                Free Trial
+              </>
             ) : (
               <>
                 <Clock className="w-5 h-5 text-amber-600" />
@@ -108,15 +152,26 @@ export default function SubscriptionStatus({
             )}
           </CardTitle>
           <Badge 
-            variant={isPaidSubscriber ? "secondary" : "outline"}
-            className={isPaidSubscriber ? "bg-green-100 text-green-800" : "border-amber-200 text-amber-800"}
+            variant={isPaidSubscriber || isAdminUnlimited ? "secondary" : "outline"}
+            className={
+              isPaidSubscriber ? "bg-green-100 text-green-800" :
+              isAdminUnlimited ? "bg-purple-100 text-purple-800" :
+              isFreeSubscriber ? "border-blue-200 text-blue-800" :
+              "border-amber-200 text-amber-800"
+            }
           >
-            {isPaidSubscriber ? "Active" : "Limited"}
+            {isPaidSubscriber ? "Active" : 
+             isAdminUnlimited ? "Unlimited" :
+             isFreeSubscriber ? "Trial" : "Limited"}
           </Badge>
         </div>
         <CardDescription>
           {isPaidSubscriber 
             ? "Unlimited access to all features"
+            : isAdminUnlimited
+            ? "Permanent unlimited access for admin users"
+            : isFreeSubscriber
+            ? "1-month trial with limited transcriptions"
             : "Limited transcription allowance"
           }
         </CardDescription>
@@ -172,13 +227,106 @@ export default function SubscriptionStatus({
               </Button>
             </div>
           </div>
+        ) : isAdminUnlimited ? (
+          // Admin unlimited user content
+          <div className="space-y-4">
+            {subscription && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Plan</span>
+                  <span className="font-medium">{subscription.plan?.name || 'Admin Unlimited'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Access</span>
+                  <span className="font-medium">Permanent</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Expires</span>
+                  <span className="font-medium">
+                    {format(new Date(subscription.endDate), 'MMM dd, yyyy')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <Alert className="border-purple-200 bg-purple-50">
+              <CheckCircle className="h-4 w-4 text-purple-600" />
+              <AlertDescription className="text-purple-800">
+                <div className="space-y-1">
+                  <div className="font-medium">Unlimited Access</div>
+                  <div className="text-sm">Permanent access to all features for admin users</div>
+                </div>
+              </AlertDescription>
+            </Alert>
+          </div>
+        ) : isFreeSubscriber ? (
+          // Free trial user content
+          <div className="space-y-4">
+            {subscription && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Plan</span>
+                  <span className="font-medium">{subscription.plan?.name || 'Free Trial'}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Trial Expires</span>
+                  <span className="font-medium">
+                    {format(new Date(subscription.endDate), 'MMM dd, yyyy')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Transcriptions Used</span>
+                <span className="font-medium">{transcriptionCount}/{transcriptionLimit}</span>
+              </div>
+              <Progress 
+                value={transcriptionProgress} 
+                className="h-2"
+              />
+            </div>
+
+            {needsUpgrade ? (
+              <Alert className="border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <div className="space-y-1">
+                    <div className="font-medium">Trial Limit Reached</div>
+                    <div className="text-sm">Upgrade to continue transcribing</div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert className="border-blue-200 bg-blue-50">
+                <Zap className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <div className="space-y-1">
+                    <div className="font-medium">{remainingTranscriptions} Transcription{remainingTranscriptions !== 1 ? 's' : ''} Remaining</div>
+                    <div className="text-sm">Upgrade for unlimited access</div>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {showUpgradeButton && (
+              <Button 
+                onClick={() => router.push('/pricing')}
+                className="w-full"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Upgrade to Premium
+              </Button>
+            )}
+          </div>
         ) : (
-          // Free user content
+          // Free user content (no subscription)
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Transcriptions Used</span>
-                <span className="font-medium">{transcriptionCount}/1</span>
+                <span className="font-medium">{transcriptionCount}/{transcriptionLimit}</span>
               </div>
               <Progress 
                 value={transcriptionProgress} 
@@ -208,6 +356,15 @@ export default function SubscriptionStatus({
               </Alert>
             )}
 
+            {showUpgradeButton && (
+              <Button 
+                onClick={() => router.push('/pricing')}
+                className="w-full"
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Upgrade to Premium
+              </Button>
+            )}
           </div>
         )}
       </CardContent>
