@@ -60,25 +60,6 @@ export default function SubscriptionDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Subscription Management</h1>
-          <p className="text-muted-foreground">
-            Manage your NovateScribe subscription and billing
-          </p>
-        </div>
-        {!isPaidSubscriber && (
-          <Button 
-            onClick={() => router.push('/pricing')}
-            size="lg"
-          >
-            <Crown className="w-4 h-4 mr-2" />
-            Upgrade Now
-          </Button>
-        )}
-      </div>
-
       {/* Current Status */}
       <SubscriptionStatus />
 
@@ -127,13 +108,27 @@ export default function SubscriptionDashboard() {
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Started</span>
                   <span className="text-sm font-medium">
-                    {format(new Date(subscription.startDate), 'MMM dd, yyyy')}
+                    {subscription.startDate ? (() => {
+                      try {
+                        const date = new Date(subscription.startDate);
+                        return isNaN(date.getTime()) ? 'N/A' : format(date, 'MMM dd, yyyy');
+                      } catch {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Next Billing</span>
                   <span className="text-sm font-medium">
-                    {format(new Date(subscription.endDate), 'MMM dd, yyyy')}
+                    {subscription.endDate ? (() => {
+                      try {
+                        const date = new Date(subscription.endDate);
+                        return isNaN(date.getTime()) ? 'N/A' : format(date, 'MMM dd, yyyy');
+                      } catch {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -222,85 +217,6 @@ export default function SubscriptionDashboard() {
         </CardContent>
       </Card>
 
-      {/* Upgrade Prompt for Free Users */}
-      {!isPaidSubscriber && (
-        <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-amber-800">
-              <Zap className="w-5 h-5" />
-              Unlock Premium Features
-            </CardTitle>
-            <CardDescription className="text-amber-700">
-              Upgrade to get unlimited transcriptions and access to all premium features
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <h4 className="font-medium text-amber-800">Premium Benefits:</h4>
-                <ul className="space-y-1 text-sm text-amber-700">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    Unlimited transcriptions
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    AI-powered diagnosis suggestions
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    ICD-11 automatic coding
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    Professional PDF export
-                  </li>
-                </ul>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium text-amber-800">Additional Features:</h4>
-                <ul className="space-y-1 text-sm text-amber-700">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    Voice recognition in multiple languages
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    Secure patient data encryption
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    24/7 customer support
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-green-600" />
-                    Priority processing
-                  </li>
-                </ul>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                onClick={() => router.push('/pricing')}
-                className="bg-amber-600 hover:bg-amber-700"
-                size="lg"
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                View Pricing Plans
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => router.push('/contact')}
-              >
-                <Mail className="w-4 h-4 mr-2" />
-                Contact Sales
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

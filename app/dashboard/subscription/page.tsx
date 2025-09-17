@@ -23,7 +23,8 @@ import {
   Settings,
   Download,
   Mail,
-  ArrowLeft
+  ArrowLeft,
+  User
 } from "lucide-react"
 import { format } from "date-fns"
 
@@ -82,58 +83,31 @@ export default function SubscriptionPage() {
           )}
         </div>
 
-        {/* Subscription Dashboard */}
-        <SubscriptionDashboard />
+        {/* Main Content Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left Column - Current Status & Usage */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Current Subscription Status */}
+            <SubscriptionDashboard />
+          </div>
 
-        {/* Additional Subscription Information */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Billing Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Billing Information
-              </CardTitle>
-              <CardDescription>
-                Your billing details and payment history
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isPaidSubscriber && subscription ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Current Plan</span>
-                    <span className="text-sm font-medium">{subscription.plan?.name || 'Premium'}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Amount</span>
-                    <span className="text-sm font-medium">
-                      {subscription.plan?.currency} {subscription.plan?.price}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Billing Cycle</span>
-                    <span className="text-sm font-medium">
-                      {subscription.billingInterval === 'MONTHLY' ? 'Monthly' :
-                       subscription.billingInterval === 'SIX_MONTHS' ? '6 Months' :
-                       subscription.billingInterval === 'YEARLY' ? 'Yearly' : 
-                       subscription.billingInterval}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">Next Billing</span>
-                    <span className="text-sm font-medium">
-                      {format(new Date(subscription.endDate), 'MMM dd, yyyy')}
-                    </span>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="space-y-2">
+          {/* Right Column - Quick Actions */}
+          <div className="space-y-6">
+            {/* Quick Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {isPaidSubscriber && subscription ? (
+                  <>
                     <Button 
                       variant="outline"
                       onClick={() => router.push('/dashboard/organization/billing')}
-                      className="w-full"
+                      className="w-full justify-start"
                     >
                       <CreditCard className="w-4 h-4 mr-2" />
                       Manage Billing
@@ -141,73 +115,42 @@ export default function SubscriptionPage() {
                     <Button 
                       variant="outline"
                       onClick={() => router.push('/contact')}
-                      className="w-full"
+                      className="w-full justify-start"
                     >
                       <Mail className="w-4 h-4 mr-2" />
                       Contact Support
                     </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center space-y-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-                    <CreditCard className="w-8 h-8 text-gray-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-medium">No Active Subscription</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Upgrade to a paid plan to access billing information
-                    </p>
-                  </div>
+                  </>
+                ) : (
                   <Button 
-                    onClick={() => router.push('/pricing')}
-                    className="w-full"
+                    variant="outline"
+                    onClick={() => router.push('/contact')}
+                    className="w-full justify-start"
                   >
-                    <Crown className="w-4 h-4 mr-2" />
-                    View Pricing Plans
+                    <Mail className="w-4 h-4 mr-2" />
+                    Contact Sales
                   </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                )}
+                <Button 
+                  variant="outline"
+                  onClick={() => router.push('/dashboard/settings')}
+                  className="w-full justify-start"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  Account Settings
+                </Button>
+              </CardContent>
+            </Card>
 
-          {/* Usage Statistics */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                Usage Statistics
-              </CardTitle>
-              <CardDescription>
-                Your transcription usage and activity
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {isPaidSubscriber ? '∞' : transcriptionCount}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Transcriptions</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {isPaidSubscriber ? 'Unlimited' : 'This month'}
-                  </div>
-                </div>
-                
-                <div className="text-center p-4 border rounded-lg">
-                  <div className="text-2xl font-bold text-primary">
-                    {isPaidSubscriber ? '∞' : Math.max(0, 1 - transcriptionCount)}
-                  </div>
-                  <div className="text-sm text-muted-foreground">Remaining</div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {isPaidSubscriber ? 'Unlimited' : 'Free allowance'}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
+            {/* Account Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Account Info
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Plan Status</span>
                   <Badge 
@@ -220,80 +163,26 @@ export default function SubscriptionPage() {
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Member Since</span>
                   <span className="text-sm font-medium">
-                    {user?.createdAt ? format(new Date(user.createdAt), 'MMM yyyy') : 'N/A'}
+                    {user?.createdAt ? (() => {
+                      try {
+                        const date = new Date(user.createdAt);
+                        return isNaN(date.getTime()) ? 'N/A' : format(date, 'MMM yyyy');
+                      } catch {
+                        return 'N/A';
+                      }
+                    })() : 'N/A'}
                   </span>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Usage This Month</span>
+                  <span className="text-sm font-medium">
+                    {isPaidSubscriber ? '∞' : `${transcriptionCount}/1`}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
-
-        {/* Support Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Mail className="w-5 h-5" />
-              Need Help?
-            </CardTitle>
-            <CardDescription>
-              Get support for your subscription and billing questions
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto">
-                  <Mail className="w-6 h-6 text-blue-600" />
-                </div>
-                <h3 className="font-medium">Email Support</h3>
-                <p className="text-sm text-muted-foreground">
-                  Get help with your subscription
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => router.push('/contact')}
-                >
-                  Contact Us
-                </Button>
-              </div>
-              
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                  <Settings className="w-6 h-6 text-green-600" />
-                </div>
-                <h3 className="font-medium">Account Settings</h3>
-                <p className="text-sm text-muted-foreground">
-                  Manage your account preferences
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => router.push('/dashboard/settings')}
-                >
-                  Settings
-                </Button>
-              </div>
-              
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto">
-                  <Download className="w-6 h-6 text-purple-600" />
-                </div>
-                <h3 className="font-medium">Download Data</h3>
-                <p className="text-sm text-muted-foreground">
-                  Export your medical notes
-                </p>
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => router.push('/dashboard/notes')}
-                >
-                  View Notes
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
     </ProtectedRoute>
   )

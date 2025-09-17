@@ -208,16 +208,6 @@ export default function SubscriptionStatus({
               </Alert>
             )}
 
-            {showUpgradeButton && (
-              <Button 
-                onClick={() => router.push('/pricing')}
-                className="w-full"
-                size="lg"
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                Upgrade to Premium
-              </Button>
-            )}
           </div>
         )}
       </CardContent>
