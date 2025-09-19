@@ -141,7 +141,7 @@ export default function NotePage() {
   }
 
   // Handle signature file upload
-  const handleSignatureUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSignatureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -162,19 +162,40 @@ export default function NotePage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setSignaturePreview(result)
-        setSignatureFile(result)
-        setSignatureFileName(file.name)
+      try {
+        // Show loading state
+        setIsLoading(true)
+        
+        // Upload to backend immediately
+        await apiClient.uploadSignature(file)
+        
+        // Refresh user data to get the uploaded signature
+        dispatch(getUser())
+        
+        toast({
+          title: "Signature Uploaded",
+          description: "Your signature has been saved and will appear in your medical notes.",
+        })
+        
+        // Clear the file input
+        if (event.target) {
+          event.target.value = ''
+        }
+        
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload signature. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
   // Handle stamp file upload
-  const handleStampUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleStampUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -195,19 +216,40 @@ export default function NotePage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setStampPreview(result)
-        setStampFile(result)
-        setStampFileName(file.name)
+      try {
+        // Show loading state
+        setIsLoading(true)
+        
+        // Upload to backend immediately
+        await apiClient.uploadStamp(file)
+        
+        // Refresh user data to get the uploaded stamp
+        dispatch(getUser())
+        
+        toast({
+          title: "Stamp Uploaded",
+          description: "Your stamp has been saved and will appear in your medical notes.",
+        })
+        
+        // Clear the file input
+        if (event.target) {
+          event.target.value = ''
+        }
+        
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload stamp. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
   // Handle letterhead file upload
-  const handleLetterheadUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLetterheadUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
@@ -238,19 +280,40 @@ export default function NotePage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setLetterheadPreview(result)
-        setLetterheadFile(result)
-        setLetterheadFileName(file.name)
+      try {
+        // Show loading state
+        setIsLoading(true)
+        
+        // Upload to backend immediately
+        await apiClient.uploadLetterhead(file)
+        
+        // Refresh user data to get the uploaded letterhead
+        dispatch(getUser())
+        
+        toast({
+          title: "Letterhead Uploaded",
+          description: "Your letterhead has been saved and will appear in your medical notes.",
+        })
+        
+        // Clear the file input
+        if (event.target) {
+          event.target.value = ''
+        }
+        
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload letterhead. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
   // Handle certificate file upload
-  const handleCertificateUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCertificateUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
@@ -279,14 +342,35 @@ export default function NotePage() {
         return
       }
 
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setCertificatePreview(result)
-        setCertificateFile(result)
-        setCertificateFileName(file.name)
+      try {
+        // Show loading state
+        setIsLoading(true)
+        
+        // Upload to backend immediately
+        await apiClient.uploadCertificate(file)
+        
+        // Refresh user data to get the uploaded certificate
+        dispatch(getUser())
+        
+        toast({
+          title: "Certificate Uploaded",
+          description: "Your practicing certificate has been saved and verified.",
+        })
+        
+        // Clear the file input
+        if (event.target) {
+          event.target.value = ''
+        }
+        
+      } catch (error) {
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload certificate. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsLoading(false)
       }
-      reader.readAsDataURL(file)
     }
   }
 
@@ -324,10 +408,26 @@ export default function NotePage() {
         await apiClient.uploadCertificate(file)
       }
       
-      dispatch(getUser()) // Refresh user data
+      // Clear local state since documents are now saved to backend
+      setSignatureFile(null)
+      setSignaturePreview(null)
+      setSignatureFileName('')
+      setStampFile(null)
+      setStampPreview(null)
+      setStampFileName('')
+      setLetterheadFile(null)
+      setLetterheadPreview(null)
+      setLetterheadFileName('')
+      setCertificateFile(null)
+      setCertificatePreview(null)
+      setCertificateFileName('')
+      
+      // Refresh user data to get the uploaded documents
+      dispatch(getUser())
+      
       toast({
         title: "Uploads Saved",
-        description: "Your signature, stamp, letterhead, and certificate have been updated.",
+        description: "Your signature, stamp, letterhead, and certificate have been updated and will now appear in your medical notes.",
       })
       setShowUploadsDialog(false)
     } catch (error) {
@@ -438,28 +538,62 @@ export default function NotePage() {
     // PDF Export triggered
 
     try {
-      // Use the new styled PDF generator that matches the note page design
-      const { generateStyledNotePDF } = await import('@/lib/styled-note-pdf-generator');
+      // Prepare ICD-11 codes data for PDF generation
+      const preparedICD11Codes = selectedICD11Codes || {
+        primary: note.icd11Codes?.primary?.map((code: any) => ({
+          code: code.code || code.id || 'Unknown',
+          title: code.title || code.name || 'Unknown',
+          checked: true // All codes from the note are considered selected
+        })) || [],
+        secondary: note.icd11Codes?.secondary?.map((code: any) => ({
+          code: code.code || code.id || 'Unknown',
+          title: code.title || code.name || 'Unknown',
+          checked: true // All codes from the note are considered selected
+        })) || []
+      };
+
+      // Try enhanced PDF generator first
+      try {
+        const { generateEnhancedMedicalNotePDF } = await import('@/lib/enhanced-medical-note-pdf-generator');
+        
+        await generateEnhancedMedicalNotePDF(note, {
+          useLetterhead: useLetterhead,
+          letterheadImage: letterheadImage,
+          selectedICD11Codes: preparedICD11Codes,
+          organizationName: 'NovateScribe',
+          doctorName: note.doctorName,
+          registrationNo: note.doctorRegistrationNo,
+          signature: note.doctorSignature,
+          stamp: note.doctorStamp
+        });
+
+        return;
+        
+      } catch (enhancedError) {
+        console.warn('Enhanced PDF generator failed, trying simple generator:', enhancedError);
+        
+        // Fallback to simple PDF generator
+        const { generateSimpleMedicalNotePDF } = await import('@/lib/simple-medical-note-pdf-generator');
+        
+        await generateSimpleMedicalNotePDF(note, {
+          selectedICD11Codes: preparedICD11Codes,
+          doctorName: note.doctorName,
+          registrationNo: note.doctorRegistrationNo,
+          signature: note.doctorSignature,
+          stamp: note.doctorStamp
+        });
+
+        return;
+      }
       
-      // Generate PDF with styled formatting that matches the note viewer
-      generateStyledNotePDF(note, {
-        useLetterhead: useLetterhead,
-        letterheadImage: letterheadImage,
-        selectedICD11Codes: selectedICD11Codes,
-        organizationName: 'NovateScribe',
-        doctorName: note.doctorName,
-        registrationNo: note.doctorRegistrationNo
-      });
-
-      // PDF generation completed successfully with multi-page support
-
+      // Single success toast for all PDF generation methods
       toast({
         title: 'PDF Downloaded',
-        description: 'Medical note exported successfully with multi-page support'
+        description: 'Medical note exported successfully'
       });
       
     } catch (error) {
-      // PDF generation failed
+      console.error('PDF Generation Error:', error);
       
       // Fallback to simple PDF generation if enhanced generator fails
       try {
@@ -672,29 +806,33 @@ export default function NotePage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {signaturePreview ? (
+                      {user?.signatureUrl || signaturePreview ? (
                         <div className="space-y-3">
                           <div className="relative">
                             <img 
-                              src={signaturePreview} 
+                              src={user?.signatureUrl || signaturePreview} 
                               alt="Signature preview" 
                               className="w-full h-32 object-contain bg-white border rounded-lg shadow-sm"
                             />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setSignatureFile(null)
-                                setSignaturePreview(null)
-                                setSignatureFileName('')
-                                if (signatureInputRef.current) signatureInputRef.current.value = ''
-                              }}
-                              className="absolute top-2 right-2 h-6 w-6 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                            {signaturePreview && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setSignatureFile(null)
+                                  setSignaturePreview(null)
+                                  setSignatureFileName('')
+                                  if (signatureInputRef.current) signatureInputRef.current.value = ''
+                                }}
+                                className="absolute top-2 right-2 h-6 w-6 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-500 text-center">{signatureFileName}</p>
+                          <p className="text-xs text-gray-500 text-center">
+                            {user?.signatureUrl ? 'Saved signature' : signatureFileName}
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -732,29 +870,33 @@ export default function NotePage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {stampPreview ? (
+                      {user?.stampUrl || stampPreview ? (
                         <div className="space-y-3">
                           <div className="relative">
                             <img 
-                              src={stampPreview} 
+                              src={user?.stampUrl || stampPreview} 
                               alt="Stamp preview" 
                               className="w-full h-32 object-contain bg-white border rounded-lg shadow-sm"
                             />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setStampFile(null)
-                                setStampPreview(null)
-                                setStampFileName('')
-                                if (stampInputRef.current) stampInputRef.current.value = ''
-                              }}
-                              className="absolute top-2 right-2 h-6 w-6 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                            {stampPreview && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setStampFile(null)
+                                  setStampPreview(null)
+                                  setStampFileName('')
+                                  if (stampInputRef.current) stampInputRef.current.value = ''
+                                }}
+                                className="absolute top-2 right-2 h-6 w-6 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-500 text-center">{stampFileName}</p>
+                          <p className="text-xs text-gray-500 text-center">
+                            {user?.stampUrl ? 'Saved stamp' : stampFileName}
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -792,30 +934,33 @@ export default function NotePage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {letterheadPreview ? (
+                      {user?.letterheadUrl || letterheadPreview ? (
                         <div className="space-y-3">
                           <div className="relative">
                             <img 
-                              src={letterheadPreview} 
+                              src={user?.letterheadUrl || letterheadPreview} 
                               alt="Letterhead preview" 
                               className="w-full h-32 object-contain bg-white border rounded-lg shadow-sm"
                             />
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setLetterheadFile(null)
-                                setLetterheadPreview(null)
-                                setLetterheadFileName('')
-                                if (letterheadInputRef.current) letterheadInputRef.current.value = ''
-                                // TODO: Remove letterhead from backend
-                              }}
-                              className="absolute top-2 right-2 h-6 w-6 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                            {letterheadPreview && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setLetterheadFile(null)
+                                  setLetterheadPreview(null)
+                                  setLetterheadFileName('')
+                                  if (letterheadInputRef.current) letterheadInputRef.current.value = ''
+                                }}
+                                className="absolute top-2 right-2 h-6 w-6 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-500 text-center">{letterheadFileName}</p>
+                          <p className="text-xs text-gray-500 text-center">
+                            {user?.letterheadUrl ? 'Saved letterhead' : letterheadFileName}
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -853,27 +998,31 @@ export default function NotePage() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
-                      {certificatePreview ? (
+                      {user?.practicingCertificateUrl || certificatePreview ? (
                         <div className="space-y-3">
                           <div className="relative">
                             <div className="w-full h-32 flex items-center justify-center bg-white border rounded-lg shadow-sm">
                               <FileCheck className="h-12 w-12 text-orange-600" />
                             </div>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => {
-                                setCertificateFile(null)
-                                setCertificatePreview(null)
-                                setCertificateFileName('')
-                                if (certificateInputRef.current) certificateInputRef.current.value = ''
-                              }}
-                              className="absolute top-2 right-2 h-6 w-6 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
+                            {certificatePreview && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setCertificateFile(null)
+                                  setCertificatePreview(null)
+                                  setCertificateFileName('')
+                                  if (certificateInputRef.current) certificateInputRef.current.value = ''
+                                }}
+                                className="absolute top-2 right-2 h-6 w-6 p-0"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            )}
                           </div>
-                          <p className="text-xs text-gray-500 text-center">{certificateFileName}</p>
+                          <p className="text-xs text-gray-500 text-center">
+                            {user?.practicingCertificateUrl ? 'Saved certificate' : certificateFileName}
+                          </p>
                         </div>
                       ) : (
                         <div className="space-y-3">

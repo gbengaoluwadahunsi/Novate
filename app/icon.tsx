@@ -14,20 +14,23 @@ export const contentType = 'image/png'
 export default function Icon() {
   return new ImageResponse(
     (
-      // ImageResponse JSX element
+      // NovateScribe favicon with proper branding
       <div
         style={{
-          fontSize: 24,
-          background: 'transparent',
+          fontSize: 18,
+          fontWeight: 'bold',
+          background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
           width: '100%',
           height: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#3b82f6',
+          color: 'white',
+          borderRadius: '6px',
+          fontFamily: 'system-ui, sans-serif',
         }}
       >
-        N
+        NS
       </div>
     ),
     // ImageResponse options

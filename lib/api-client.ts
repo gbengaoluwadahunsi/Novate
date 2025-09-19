@@ -818,6 +818,13 @@ class ApiClient {
           id: response.data.organization.id,
           type: response.data.organization.type
         } : undefined,
+        // Include credential URLs from backend
+        practicingCertificateUrl: response.data.practicingCertificateUrl,
+        practicingCertificateExpiryDate: response.data.practicingCertificateExpiryDate,
+        signatureUrl: response.data.signatureUrl,
+        stampUrl: response.data.stampUrl,
+        letterheadUrl: response.data.letterheadUrl,
+        isDocumentVerified: response.data.isDocumentVerified,
         createdAt: response.data.createdAt,
         updatedAt: response.data.updatedAt,
       } as User;

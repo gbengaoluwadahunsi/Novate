@@ -106,24 +106,6 @@ export default function IntelligentMedicalDiagram({
     reason: intelligentAnalysis.clinicalSummary
   }))
 
-  // Function to get display name for diagram type
-  const getDiagramDisplayName = (type: string): string => {
-    const names: Record<string, string> = {
-      'leftside': 'Left Side View',
-      'rightside': 'Right Side View', 
-      'femaleleftside': 'Left Side View',
-      'femalerightside': 'Right Side View',
-      'cardiorespi': 'Cardiorespiratory',
-      'femalecardiorespi': 'Cardiorespiratory',
-      'maleabdominallinguinal': 'Abdominal',
-      'femaleabdominallinguinal': 'Abdominal',
-      'back': 'Back View',
-      'femaleback': 'Back View',
-      'front': 'Front View',
-      'femalefront': 'Front View'
-    }
-    return names[type] || type.charAt(0).toUpperCase() + type.slice(1)
-  }
 
   // Function to identify relevant body parts from medical text
   const getRelevantBodyParts = (text: string, diagramType: string): string[] => {

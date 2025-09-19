@@ -14,11 +14,12 @@ export const contentType = 'image/png'
 export default function AppleIcon() {
   return new ImageResponse(
     (
-      // ImageResponse JSX element
+      // NovateScribe Apple icon with proper branding
       <div
         style={{
-          fontSize: 120,
-          background: 'linear-gradient(to bottom, #3b82f6, #1d4ed8)',
+          fontSize: 80,
+          fontWeight: 'bold',
+          background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
           width: '100%',
           height: '100%',
           display: 'flex',
@@ -26,9 +27,10 @@ export default function AppleIcon() {
           justifyContent: 'center',
           color: 'white',
           borderRadius: '20px',
+          fontFamily: 'system-ui, sans-serif',
         }}
       >
-        N
+        NS
       </div>
     ),
     // ImageResponse options

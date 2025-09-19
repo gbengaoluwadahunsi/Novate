@@ -42,10 +42,7 @@ export const metadata: Metadata = {
     canonical: 'https://www.novatescribe.com',
   },
   icons: {
-    icon: [
-      { url: '/icon', type: 'image/png' },
-      { url: '/novateLogo-removebg-preview.png', type: 'image/png' },
-    ],
+    icon: '/icon',
     apple: '/apple-icon',
     shortcut: '/icon',
   },

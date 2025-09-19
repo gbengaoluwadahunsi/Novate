@@ -4,7 +4,7 @@ import React from 'react'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Stethoscope, Eye, AlertCircle } from "lucide-react"
+import { Stethoscope, AlertCircle } from "lucide-react"
 import { IntelligentMedicalAnalyzer, type IntelligentAnalysis, type ClinicalFinding, type MedicalContext } from "@/lib/intelligent-medical-analyzer"
 
 // Coordinate mappings for all diagram types
@@ -629,23 +629,6 @@ export default function SimpleMedicalDiagram({
   // Get intelligent analysis for display
   const intelligentAnalysis = getIntelligentAnalysis()
 
-  // Function to get display name for diagram type
-  const getDiagramDisplayName = (type: string): string => {
-    const names: Record<string, string> = {
-      'leftside': 'Left Side View',
-      'rightside': 'Right Side View', 
-      'femaleleftside': 'Left Side View',
-      'femalerightside': 'Right Side View',
-      'cardiorespi': 'Cardiorespiratory',
-      'femalecardiorespi': 'Cardiorespiratory',
-      'abdominallinguinal': 'Abdominal',
-      'back': 'Back View',
-      'femaleback': 'Back View',
-      'front': 'Front View',
-      'femalefront': 'Front View'
-    }
-    return names[type] || type.charAt(0).toUpperCase() + type.slice(1)
-  }
 
   return (
     <div>
@@ -654,13 +637,6 @@ export default function SimpleMedicalDiagram({
           <div className="space-y-4">
             {intelligentAnalysis.recommendedDiagrams.map((diagramType, index) => (
               <div key={diagramType} className="border rounded-lg p-3 bg-gray-50">
-                <div className="mb-3">
-                  <h4 className="text-lg font-semibold text-gray-800 mb-1 flex items-center gap-2">
-                    <Eye className="h-4 w-4 text-blue-600" />
-                    {getDiagramDisplayName(diagramType)}
-                  </h4>
-                  <p className="text-sm text-gray-600">{intelligentAnalysis.clinicalSummary}</p>
-                </div>
 
                 {/* Side-by-side Layout: Image Left, Findings Right */}
                 <div className="flex flex-col md:flex-row gap-4">

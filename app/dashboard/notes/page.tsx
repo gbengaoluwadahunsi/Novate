@@ -578,12 +578,11 @@ export default function NotesPage() {
         plan: note.treatmentPlan || ''
       };
 
-      // Use the unified PDF generator for consistent, well-organized PDFs
-      // Use the new styled PDF generator that matches the note page design
-      const { generateStyledNotePDF } = await import('@/lib/styled-note-pdf-generator');
+      // Use the enhanced PDF generator for better organization and formatting
+      const { generateEnhancedMedicalNotePDF } = await import('@/lib/enhanced-medical-note-pdf-generator');
       
-      // Convert comprehensive note back to CleanMedicalNote format for styled generator
-      const cleanNote = {
+      // Convert comprehensive note back to MedicalNote format for enhanced generator
+      const cleanNote: any = {
         id: note.id,
         patientName: note.patientName,
         patientAge: note.patientAge,
@@ -604,7 +603,7 @@ export default function NotesPage() {
         updatedAt: note.updatedAt || note.createdAt
       };
       
-      generateStyledNotePDF(cleanNote, {
+      await generateEnhancedMedicalNotePDF(cleanNote, {
         organizationName: practiceInfo.organizationName,
         doctorName: note.doctorName,
         registrationNo: note.doctorRegistrationNo
@@ -612,7 +611,7 @@ export default function NotesPage() {
 
       toast({
         title: 'PDF Downloaded',
-        description: `Medical note exported for ${practiceInfo.organizationName}`,
+        description: 'Medical note exported successfully'
       })
     } catch (error) {
       logger.error('📄 PDF generation error:', error)

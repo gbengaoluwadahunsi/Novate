@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { ChevronDown, ChevronRight, Download, Edit3, Save, X, Settings, Upload, ArrowLeft, FileDown, Clock, AlertTriangle } from 'lucide-react'
+import { ChevronDown, ChevronRight, Download, Edit3, Save, X, Settings, Upload, ArrowLeft, FileDown, Clock, AlertTriangle, PenTool, FileImage, User, Calendar, CheckCircle, FileText, Eye, EyeOff } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -13,7 +13,7 @@ import { CleanMedicalNote } from './clean-medical-note-editor'
 import SimpleMedicalDiagram from '@/components/medical-diagram/simple-medical-diagram'
 import ICD11CodesDisplay from './icd11-codes-display'
 
-import { useAppSelector } from '@/store/hooks'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { store } from '@/store/store'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
@@ -55,6 +55,7 @@ export default function DocumentStyleNoteViewer({
   isTranscribing = false
 }: DocumentStyleNoteViewerProps) {
   
+  const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   
   const [isEditMode, setIsEditMode] = useState(false)
@@ -71,6 +72,7 @@ export default function DocumentStyleNoteViewer({
   const [showUploadModal, setShowUploadModal] = useState(false)
   const [uploadType, setUploadType] = useState<'signature' | 'stamp' | 'letterhead' | null>(null)
   const [showSignatureDialog, setShowSignatureDialog] = useState(false)
+  const [showAdvancedSignature, setShowAdvancedSignature] = useState(false)
   const [signatureData, setSignatureData] = useState<string | null>(null)
   const [isDocumentSigned, setIsDocumentSigned] = useState(false)
   const [signatureTimestamp, setSignatureTimestamp] = useState<Date | null>(null)
@@ -98,15 +100,101 @@ export default function DocumentStyleNoteViewer({
     }
   }, [])
 
-  // Listen for user state changes to update watermark when certificate is uploaded
-  const currentUser = useAppSelector(state => state.auth.user);
+  // Update signature, stamp, and letterhead when user data changes
   useEffect(() => {
-    if (currentUser?.role === 'DOCTOR' && !currentUser?.practicingCertificateUrl) {
+    if (user?.signatureUrl) {
+      setSignatureImage(user.signatureUrl)
+    }
+    if (user?.stampUrl) {
+      setStampImage(user.stampUrl)
+    }
+    if (user?.letterheadUrl) {
+      setLetterheadFile(user.letterheadUrl)
+    }
+  }, [user?.signatureUrl, user?.stampUrl, user?.letterheadUrl])
+
+  // Initialize signature canvas drawing
+  useEffect(() => {
+    if (showAdvancedSignature) {
+      const canvas = document.getElementById('signature-canvas') as HTMLCanvasElement;
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      let isDrawing = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      const startDrawing = (e: MouseEvent | TouchEvent) => {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        lastX = clientX - rect.left;
+        lastY = clientY - rect.top;
+      };
+
+      const draw = (e: MouseEvent | TouchEvent) => {
+        if (!isDrawing) return;
+        e.preventDefault();
+        
+        const rect = canvas.getBoundingClientRect();
+        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
+        const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
+        const currentX = clientX - rect.left;
+        const currentY = clientY - rect.top;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(currentX, currentY);
+        ctx.stroke();
+
+        lastX = currentX;
+        lastY = currentY;
+      };
+
+      const stopDrawing = () => {
+        isDrawing = false;
+      };
+
+      // Set up drawing context
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // Mouse events
+      canvas.addEventListener('mousedown', startDrawing);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDrawing);
+      canvas.addEventListener('mouseout', stopDrawing);
+
+      // Touch events
+      canvas.addEventListener('touchstart', startDrawing);
+      canvas.addEventListener('touchmove', draw);
+      canvas.addEventListener('touchend', stopDrawing);
+
+      return () => {
+        canvas.removeEventListener('mousedown', startDrawing);
+        canvas.removeEventListener('mousemove', draw);
+        canvas.removeEventListener('mouseup', stopDrawing);
+        canvas.removeEventListener('mouseout', stopDrawing);
+        canvas.removeEventListener('touchstart', startDrawing);
+        canvas.removeEventListener('touchmove', draw);
+        canvas.removeEventListener('touchend', stopDrawing);
+      };
+    }
+  }, [showAdvancedSignature]);
+
+  // Listen for user state changes to update watermark when certificate is uploaded
+  useEffect(() => {
+    if (user?.role === 'DOCTOR' && !user?.practicingCertificateUrl) {
       setShowUnauthorizedWatermark(true)
     } else {
       setShowUnauthorizedWatermark(false)
     }
-  }, [currentUser?.practicingCertificateUrl, currentUser?.role])
+  }, [user?.practicingCertificateUrl, user?.role])
 
   // Helper function to format content with bullet points
   const formatWithBulletPoints = (content: string, title: string) => {
@@ -593,29 +681,48 @@ export default function DocumentStyleNoteViewer({
       }
     }
 
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const result = e.target?.result as string
-      
-      if (type === 'signature') {
-        setSignatureImage(result)
-        // TODO: Upload to backend using apiClient.uploadSignature()
-        toast.success('E-Signature uploaded successfully')
-      } else if (type === 'stamp') {
-        setStampImage(result)
-        // TODO: Upload to backend using apiClient.uploadStamp()
-        toast.success('Medical stamp uploaded successfully')
-      } else if (type === 'letterhead') {
-        // For letterhead, store as base64 data URL
-        setLetterheadFile(result)
-        // TODO: Upload to backend using apiClient.uploadLetterhead()
-        toast.success(`Letterhead template uploaded successfully (${file.name})`)
+    // Upload to backend immediately instead of just storing locally
+    const uploadToBackend = async () => {
+      try {
+        const { apiClient } = await import('@/lib/api-client')
+        
+        // Create preview URL for immediate display
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          const result = e.target?.result as string
+          if (type === 'signature') {
+            setSignatureImage(result)
+          } else if (type === 'stamp') {
+            setStampImage(result)
+          } else if (type === 'letterhead') {
+            setLetterheadFile(result)
+          }
+        }
+        reader.readAsDataURL(file)
+        
+        if (type === 'signature') {
+          await apiClient.uploadSignature(file)
+          toast.success('E-Signature uploaded and saved successfully')
+        } else if (type === 'stamp') {
+          await apiClient.uploadStamp(file)
+          toast.success('Medical stamp uploaded and saved successfully')
+        } else if (type === 'letterhead') {
+          await apiClient.uploadLetterhead(file)
+          toast.success('Letterhead uploaded and saved successfully')
+        }
+        
+        // Close modal
+        setShowUploadModal(false)
+        setUploadType(null)
+        
+        // The useEffect will automatically update the display when user data changes
+        
+      } catch (error) {
+        toast.error(`Failed to upload ${type}. Please try again.`)
       }
-      
-      setShowUploadModal(false)
-      setUploadType(null)
     }
-    reader.readAsDataURL(file)
+    
+    uploadToBackend()
   }
 
   // Handle upload button click
@@ -624,21 +731,42 @@ export default function DocumentStyleNoteViewer({
     setShowUploadModal(true)
   }
 
-  const handleSignatureClick = () => {
-    if (!isEditingAllowed) {
-      toast.error("Editing Not Allowed: The 6-hour editing period has expired. Any additions must be made as an addendum, not part of the main note.");
-      return;
-    }
-    setShowSignatureDialog(true);
-  };
 
-  const handleSignatureSaved = (signature: string) => {
+  const handleSignatureSaved = async (signature: string) => {
     const now = new Date();
     setSignatureData(signature);
     setIsDocumentSigned(true);
     setSignatureTimestamp(now);
     
-    toast.success("Document Signed Successfully - ⚠️ IMPORTANT: You have 6 hours from now to make any edits to this medical note. After 6 hours, any additions must be made as an addendum and not part of the main note.");
+    // Also save to user profile for persistence
+    try {
+      // Convert data URL to blob for upload
+      const response = await fetch(signature);
+      const blob = await response.blob();
+      
+      // Upload to backend
+      const { apiClient } = await import('@/lib/api-client');
+      await apiClient.uploadSignature(blob);
+      
+      // Update local state to use the uploaded signature
+      setSignatureImage(signature);
+      
+      // Manually refresh user data to ensure signature persists
+      try {
+        const userResponse = await apiClient.getUserProfile();
+        if (userResponse.success && userResponse.data) {
+          // Update the user data in the store
+          dispatch({ type: 'auth/updateUser', payload: userResponse.data });
+        }
+      } catch (refreshError) {
+        // Failed to refresh user data after signature upload
+      }
+      
+      toast.success("Document Signed Successfully - ⚠️ IMPORTANT: You have 6 hours from now to make any edits to this medical note. After 6 hours, any additions must be made as an addendum and not part of the main note.");
+    } catch (error) {
+      // Failed to upload signature
+      toast.error('Signature saved locally but failed to upload to server. It may not persist after page refresh.');
+    }
   };
 
   const handleExportPDF = async () => {
@@ -668,48 +796,66 @@ export default function DocumentStyleNoteViewer({
         height: noteContent.scrollHeight,
       });
 
-      // Create PDF
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      let heightLeft = imgHeight;
-      let position = 0;
+      // Prepare ICD-11 codes data for PDF generation
+      const selectedICD11Codes = {
+        primary: note.icd11Codes?.primary?.map((code: any) => ({
+          code: code.code || code.id || 'Unknown',
+          title: code.title || code.name || 'Unknown',
+          checked: true // All codes from the note are considered selected
+        })) || [],
+        secondary: note.icd11Codes?.secondary?.map((code: any) => ({
+          code: code.code || code.id || 'Unknown',
+          title: code.title || code.name || 'Unknown',
+          checked: true // All codes from the note are considered selected
+        })) || []
+      };
 
-      // Add first page
-      pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
+      // Try enhanced PDF generator first
+      try {
+        const { generateEnhancedMedicalNotePDF } = await import('@/lib/enhanced-medical-note-pdf-generator');
+        
+        const finalSignature = signatureImage || signatureData || note.doctorSignature || user?.signatureUrl
+        const finalStamp = stampImage || note.doctorStamp || user?.stampUrl
+        
+        // PDF Generation Data validation (logs removed for security)
 
-      // Add additional pages if needed
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        await generateEnhancedMedicalNotePDF(note, {
+          useLetterhead: false,
+          selectedICD11Codes: selectedICD11Codes,
+          organizationName: 'NovateScribe',
+          doctorName: note.doctorName,
+          registrationNo: note.doctorRegistrationNo,
+          signature: finalSignature,
+          stamp: finalStamp,
+          userRole: user?.role
+        });
+        
+        return;
+        
+      } catch (enhancedError) {
+        // Enhanced PDF generator failed, trying simple generator
+        
+        // Fallback to simple PDF generator
+        const { generateSimpleMedicalNotePDF } = await import('@/lib/simple-medical-note-pdf-generator');
+        
+        await generateSimpleMedicalNotePDF(note, {
+          selectedICD11Codes: selectedICD11Codes,
+          doctorName: note.doctorName,
+          registrationNo: note.doctorRegistrationNo,
+          signature: finalSignature,
+          stamp: finalStamp,
+          userRole: user?.role
+        });
+        
+        return;
       }
 
-      // Add watermark to PDF if unauthorized
-      if (showUnauthorizedWatermark) {
-        const totalPages = pdf.getNumberOfPages();
-        for (let i = 1; i <= totalPages; i++) {
-          pdf.setPage(i);
-          pdf.setTextColor(200, 200, 200); // Light gray
-          pdf.setFontSize(40);
-          pdf.text('UNAUTHORIZED NOTE FROM NOVATESCRIBE', 105, 150, {
-            angle: -45,
-            align: 'center'
-          });
-        }
-      }
-
-      // Save the PDF
-      const fileName = `Medical_Consultation_Note_${note.patientName || 'Patient'}_${new Date().toISOString().split('T')[0]}.pdf`;
-      pdf.save(fileName);
-
-      toast.success(`PDF Generated Successfully: Medical consultation note has been downloaded as ${fileName}`);
+      // Single success toast for all PDF generation methods
+      toast.success('PDF downloaded successfully!');
 
     } catch (error) {
-      toast.error('Failed to generate PDF. Please try again.');
+      // PDF Generation Error occurred
+      toast.error(`Failed to generate PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -1957,8 +2103,7 @@ export default function DocumentStyleNoteViewer({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Doctor Signature:</label>
                   <div 
-                    className="border-2 border-gray-300 rounded-lg h-24 flex items-center justify-center bg-gray-50 cursor-pointer hover:bg-gray-100"
-                    onClick={handleSignatureClick}
+                    className="border-2 border-gray-300 rounded-lg h-24 flex items-center justify-center bg-gray-50"
                   >
                     {signatureImage || signatureData ? (
                       <img 
@@ -1975,16 +2120,18 @@ export default function DocumentStyleNoteViewer({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Official Stamp:</label>
-                  <div className="border-2 border-gray-300 rounded-lg h-24 flex items-center justify-center bg-gray-50">
+                  <div 
+                    className="border-2 border-gray-300 rounded-lg h-24 flex items-center justify-center bg-gray-50"
+                  >
                     {stampImage ? (
                       <img 
-                        src={stampImage || ''} 
+                        src={stampImage || ''}
                         alt="Official Stamp" 
                         className="max-w-full max-h-full object-contain"
                       />
                     ) : (
                       <div className="text-center text-gray-500">
-                        <div className="text-sm">Official stamp area</div>
+                        <div className="text-sm">Click to upload stamp</div>
                       </div>
                     )}
                   </div>
@@ -2159,33 +2306,53 @@ export default function DocumentStyleNoteViewer({
                 Please provide your digital signature to authorize this medical note.
               </p>
               
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      const reader = new FileReader()
-                      reader.onload = (e) => {
-                        const result = e.target?.result as string
-                        handleSignatureSaved(result)
+              <div className="space-y-3">
+                {/* Upload Option */}
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) {
+                        const reader = new FileReader()
+                        reader.onload = (e) => {
+                          const result = e.target?.result as string
+                          handleSignatureSaved(result)
+                        }
+                        reader.readAsDataURL(file)
                       }
-                      reader.readAsDataURL(file)
-                    }
-                  }}
-                  className="hidden"
-                  id="signature-upload"
-                />
-                <label
-                  htmlFor="signature-upload"
-                  className="cursor-pointer flex flex-col items-center"
-                >
-                  <Upload className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm text-gray-600">
-                    Click to upload signature image
-                  </span>
-                </label>
+                    }}
+                    className="hidden"
+                    id="signature-upload"
+                  />
+                  <label
+                    htmlFor="signature-upload"
+                    className="cursor-pointer flex flex-col items-center"
+                  >
+                    <Upload className="h-6 w-6 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-600">
+                      Upload signature image
+                    </span>
+                  </label>
+                </div>
+                
+                {/* Draw Option */}
+                <div className="border-2 border-gray-300 rounded-lg p-4 text-center">
+                  <button
+                    onClick={() => {
+                      setShowSignatureDialog(false);
+                      // Open advanced signature canvas
+                      setShowAdvancedSignature(true);
+                    }}
+                    className="flex flex-col items-center w-full"
+                  >
+                    <PenTool className="h-6 w-6 text-gray-400 mb-2" />
+                    <span className="text-sm text-gray-600">
+                      Draw signature
+                    </span>
+                  </button>
+                </div>
               </div>
               
               <div className="flex justify-end space-x-3">
@@ -2195,6 +2362,70 @@ export default function DocumentStyleNoteViewer({
                 >
                   Cancel
                 </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Advanced Signature Dialog */}
+      {showAdvancedSignature && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Draw Your Signature</h3>
+              <button
+                onClick={() => setShowAdvancedSignature(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-sm text-gray-600">
+                Use your mouse or touch to draw your signature below.
+              </p>
+              
+              {/* Simple signature canvas */}
+              <div className="border-2 border-gray-300 rounded-lg p-4">
+                <canvas
+                  id="signature-canvas"
+                  width={400}
+                  height={200}
+                  className="border border-gray-200 rounded cursor-crosshair w-full"
+                  style={{ touchAction: 'none' }}
+                />
+                <div className="flex gap-2 mt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      const canvas = document.getElementById('signature-canvas') as HTMLCanvasElement;
+                      if (canvas) {
+                        const ctx = canvas.getContext('2d');
+                        if (ctx) {
+                          ctx.clearRect(0, 0, canvas.width, canvas.height);
+                        }
+                      }
+                    }}
+                  >
+                    Clear
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => {
+                      const canvas = document.getElementById('signature-canvas') as HTMLCanvasElement;
+                      if (canvas) {
+                        const dataURL = canvas.toDataURL('image/png');
+                        handleSignatureSaved(dataURL);
+                        setShowAdvancedSignature(false);
+                      }
+                    }}
+                  >
+                    Save Signature
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
